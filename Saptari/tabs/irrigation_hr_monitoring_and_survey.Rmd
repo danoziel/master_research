@@ -1,0 +1,113 @@
+---
+title: "Irrigation Houres: monitoring data and Survey data"
+
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(knitr)
+
+Bxs <- read.csv("~/R/Saptari/data/Bxs.csv")
+
+```
+
+
+```{r Y, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.show="hold", out.width="50%" }
+
+ggplot(Bxs, aes(x =monitoring_2017_2018, y =  survey_2018))+
+  geom_point(color = "#00AFBB", size = 2)+
+  labs(x="monitoring data", y= "Survey data",
+       title="Irrigation Houres YEAR 2017-2018")+
+  theme_bw(base_size = 12)+
+  ylim(0, 900)
+
+ggplot(Bxs, aes(x =monitoring_2018_2019, y =  survey_2019))+
+  geom_point(color = "#00AFBB", size = 2)+
+  labs(x="monitoring data", y= "Survey data",
+       title="Irrigation Houres YEAR 2018-2019")+
+  theme_bw(base_size = 12)+
+  ylim(0, 1500)
+
+
+```
+
+&nbsp;
+
+&nbsp;
+
+```{r M, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.show="hold", out.width="50%" }
+
+
+
+
+
+ggplot(Bxs, aes(x =Monsoon_2017_2018, y = monsoon_2018))+
+  geom_point(color = "#00AFBB", size = 2)+
+  labs(x="monitoring data", y= "Survey data",
+       title="Irrigation Houres MONSOON 2017-2018")+
+  theme_bw(base_size = 12)+
+  ylim(0, 600)
+
+ggplot(Bxs, aes(x = Monsoon_2018_2019, y = monsoon_2019))+
+  geom_point(color = "#00AFBB", size = 2)+
+  labs(x="monitoring data", y= "Survey data",
+       title="Irrigation Houres MONSOON 2018-2019")+
+  theme_bw(base_size = 12)
+
+
+
+```
+
+&nbsp;
+
+&nbsp;
+
+
+```{r W , echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.show="hold", out.width="50%" }
+ggplot(Bxs, aes(x = Winter_2017_2018, y = winter_2018))+
+  geom_point(color = "#00AFBB", size = 2)+
+  labs(x="monitoring data", y= "Survey data",
+       title="Irrigation Houres WINTER 2017-2018")+
+  theme_bw(base_size = 12)+
+  ylim(0, 500)
+
+ggplot(Bxs, aes(x =Winter_2018_2019, y = winter_2019))+
+  geom_point(color = "#00AFBB", size = 2)+
+  labs(x="monitoring data", y= "Survey data",
+       title="Irrigation Houres WINTER 2018-2019")+
+  theme_bw(base_size = 12)
+
+
+
+```
+
+&nbsp;
+
+&nbsp;
+
+```{r S, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.show="hold", out.width="50%" }
+ggplot(Bxs, aes(x =Summer_2017_2018, y = summer_2018))+
+  geom_point(color = "#00AFBB", size = 2)+
+  labs(x="monitoring data", y= "Survey data",
+       title="Irrigation Houres SUMMER 2017-2018")+
+  theme_bw(base_size = 12)+
+  ylim(0, 500)
+
+ggplot(Bxs, aes(x =Summer_2018_2019, y = summer_2019))+
+  geom_point(color = "#00AFBB", size = 2)+
+  labs(x="monitoring data", y= "Survey data",
+       title="Irrigation Houres SUMMER 2018-2019")+
+  theme_bw(base_size = 12)
+
+
+```
+
+
+
+
+
+
+

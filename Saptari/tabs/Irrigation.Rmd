@@ -1,0 +1,266 @@
+---
+title: "Irrigation"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(kableExtra)
+library(formattable)
+library(knitr)
+library(MatchIt)
+library(tableone)
+library(gridExtra)
+
+
+water_use_6.2 <- read.csv("~/R/Saptari/data/water_use_6.2.csv")
+
+water01 <- read.csv("~/R/Saptari/data/water01.csv")
+
+```
+
+
+ | Daily Monitoring Excel | Survey Section 6.2 | Survey Section 5 |
+  |------------ | -------------|------------ |
+ ||Water Extraction Mechanisms |Land|
+
+# Irrigation hours YEAR saptari
+```{r Irrigation hours YEAR saptari, echo=FALSE, fig.height=3, fig.width=5, message=FALSE, warning=FALSE, out.width="33%", paged.print=FALSE}
+pump_water_use_6.2_hr <- water_use_6.2 %>% 
+  filter(TreatmentControl== "Treatment",district=="Saptari",
+         !household_questionnaire_id %in% c("T308707002" ,"T301911010")) %>% 
+  group_by(district, year) %>% 
+  summarise_at(c("Yearly_hr"), mean, na.rm = TRUE) %>% 
+  mutate(across(is.numeric,round))
+
+ggplot(data=pump_water_use_6.2_hr, aes(x=year, y=Yearly_hr, fill=year)) +
+  geom_bar(stat="identity")+
+  geom_text(aes(label = Yearly_hr, group = year),
+            position = position_dodge(0.8),
+            vjust = 1.2, size = 4.5, color = "white")+
+  ggtitle("Saptari")+
+  xlab(" ") +
+  ylab("Hours") +
+  theme(legend.position = "none",plot.title = element_text(size = rel(2), hjust = 0.5))
+
+```
+
+# Irrigation hours YEAR Rautahat Bara Sarlahi
+```{r Irrigation hours YEAR Rautahat Bara Sarlahi, echo=FALSE, fig.height=3, fig.width=5, message=FALSE, warning=FALSE, out.width="33%", paged.print=FALSE}
+R_pump_water_use_6.2_hr <- water_use_6.2 %>% 
+  filter(TreatmentControl== "Treatment",district=="RSB",
+         !household_questionnaire_id %in% c("T308707002" ,"T301911010")) %>% 
+  group_by(district, year) %>% 
+  summarise_at(c("Yearly_hr"), mean, na.rm = TRUE) %>% 
+  mutate(across(is.numeric,round))
+
+ggplot(data=R_pump_water_use_6.2_hr, aes(x=year, y=Yearly_hr, fill=year)) +
+  geom_bar(stat="identity")+
+  geom_text(aes(label = Yearly_hr, group = year),
+            position = position_dodge(0.8),
+            vjust = 1.2, size = 4.5, color = "white")+
+  ggtitle("Rautahat Bara Sarlahi")+
+  xlab(" ") +
+  ylab("Hours") +
+  theme(legend.position = "none",plot.title = element_text(size = rel(2), hjust = 0.5))+  scale_x_continuous(breaks=seq(2018,2019,1))
+
+```
+
+***
+
+# Pump use houres
+Some of the pumps were operating thae same day - therefore the sum from the three pumps is more than 100%  
+ **p1_hr** is the Primary pump SPIP in midline and endline  
+
+# Pump use - houres in a YEAR saptari  
+```{r Primary pump use YEAR saptari, echo=FALSE, fig.height=3, fig.width=5, message=FALSE, warning=FALSE, out.width="33%", paged.print=FALSE}
+
+water_use_6.2 %>% 
+  filter(TreatmentControl== "Treatment",district=="Saptari",
+         !household_questionnaire_id %in% c("T308707002" ,"T301911010")) %>% 
+  group_by(year) %>% 
+  summarise_at(c("p1_hr","p2_hr","p3_hr"), mean, na.rm = TRUE) %>% 
+  mutate(across(is.numeric,round))
+
+
+```
+
+# Pump use - houres in a YEAR Rautahat Bara Sarlahi
+```{r Primary pump use YEAR Rautahat Bara Sarlahi, echo=FALSE, fig.height=3, fig.width=5, message=FALSE, warning=FALSE, out.width="33%", paged.print=FALSE}
+
+water_use_6.2 %>% 
+  filter(TreatmentControl== "Treatment",district=="RSB",
+         !household_questionnaire_id %in% c("T308707002" ,"T301911010")) %>% 
+  group_by(year) %>% 
+  summarise_at(c("p1_hr","p2_hr","p3_hr"), mean, na.rm = TRUE) %>% 
+  mutate(across(is.numeric,round))
+
+```
+
+***
+
+ 
+ 
+ 
+
+# Irrigation days YEAR saptari
+```{r Irrigation days YEAR saptari, echo=FALSE, fig.height=3, fig.width=5, message=FALSE, warning=FALSE, out.width="33%", paged.print=FALSE}
+
+```
+
+
+# Irrigation days YEAR Rautahat Bara Sarlahi
+```{r Irrigation days YEAR Rautahat Bara Sarlahi, echo=FALSE, fig.height=3, fig.width=5, message=FALSE, warning=FALSE, out.width="33%", paged.print=FALSE}
+
+```
+
+***
+
+# Pump use days
+Some of the pumps were operating thae same day - therefore the sum from the three pumps is more than 100%  
+ **p1_hr** is the Primary pump SPIP in midline and endline  
+ 
+
+
+
+
+
+# By seasons
+***
+
+# Irrigation hours season saptari
+```{r Irrigation hours season saptari, echo=FALSE, fig.height=3, fig.width=5, message=FALSE, warning=FALSE, out.width="33%", paged.print=FALSE}
+
+SAPTARI_season_water_use_6.2_hr <- water_use_6.2 %>% 
+  filter(TreatmentControl== "Treatment",district=="Saptari",
+         !household_questionnaire_id %in% c("T308707002" ,"T301911010")) %>% 
+  group_by(district, year) %>% 
+  summarise_at(c("Monsoon_hr","Winter_hr","Summer_hr"), mean, na.rm = TRUE) %>% 
+  mutate(across(is.numeric,round)) %>% 
+  arrange( desc(district))
+
+SAPTARI_season_water_use_6.2_hr <- 
+  gather(SAPTARI_season_water_use_6.2_hr, key="measure", value="Hours", c("Monsoon_hr","Winter_hr","Summer_hr"))
+
+
+ggplot(data=SAPTARI_season_water_use_6.2_hr, aes(x=year, y=Hours, fill=year)) +
+  geom_bar(stat="identity")+
+  facet_wrap(~measure)+
+  geom_text(aes(label = Hours, group = year),
+            position = position_dodge(0.8),
+            vjust = 1.5, size = 4.5, color = "white")+
+  ggtitle(" ")+
+  xlab(" ") +
+  theme(legend.position = "none",plot.title = element_text(size = rel(1.5), hjust = 0.5))
+
+```
+
+# Irrigation hours season Rautahat Bara Sarlahi 
+```{r Irrigation hours season Rautahat Bara Sarlahi , echo=FALSE, fig.height=3, fig.width=5, message=FALSE, warning=FALSE, out.width="33%", paged.print=FALSE}
+RSB_season_water_use_6.2_hr <- water_use_6.2 %>% 
+  filter(TreatmentControl== "Treatment",district=="RSB",
+         !household_questionnaire_id %in% c("T308707002" ,"T301911010")) %>% 
+  group_by(district, year) %>% 
+  summarise_at(c("Monsoon_hr","Winter_hr","Summer_hr"), mean, na.rm = TRUE) %>% 
+  mutate(across(is.numeric,round)) %>% 
+  arrange( desc(district))
+
+RSB_season_water_use_6.2_hr <- 
+  gather(RSB_season_water_use_6.2_hr, key="measure", value="Hours", c("Monsoon_hr","Winter_hr","Summer_hr"))
+
+
+ggplot(data=RSB_season_water_use_6.2_hr, aes(x=year, y=Hours, fill=year)) +
+  geom_bar(stat="identity")+
+  facet_wrap(~measure)+
+  geom_text(aes(label = Hours, group = year),
+            position = position_dodge(0.8),
+            vjust = 1.5, size = 4.5, color = "white")+
+  ggtitle(" ")+
+  xlab(" ") + ylab(" ") +
+  theme(legend.position = "none",plot.title = element_text(size = rel(1.5), hjust = 0.5))+  scale_x_continuous(breaks=seq(2018,2019,1))
+
+```
+
+***
+
+# Irrigation days season saptari
+```{r Irrigation days season saptari, echo=FALSE, fig.height=3, fig.width=5, message=FALSE, warning=FALSE, out.width="33%", paged.print=FALSE}
+
+```
+
+# Irrigation days season Rautahat Bara Sarlahi
+```{r Irrigation days season Rautahat Bara Sarlahi, echo=FALSE, fig.height=3, fig.width=5, message=FALSE, warning=FALSE, out.width="33%", paged.print=FALSE}
+
+```
+
+***
+
+
+ | Daily Monitoring Excel | Survey Section 6.2 | Survey Section 4.9 |
+  |------------ | -------------|------------ |
+ ||Water Extraction Mechanisms |Agriculture|
+
+# Irrigated land YEAR saptari
+```{r Irrigated land YEAR saptari, echo=FALSE, fig.height=3, fig.width=5, message=FALSE, warning=FALSE, out.width="33%", paged.print=FALSE}
+
+```
+
+# Irrigated land YEAR Rautahat Bara Sarlahi
+```{r Irrigated land YEAR Rautahat Bara Sarlahi, echo=FALSE, fig.height=3, fig.width=5, message=FALSE, warning=FALSE, out.width="33%", paged.print=FALSE}
+
+```
+
+***
+***
+
+# Daly monitoring timeline
+### X-axis - daily with season marking
+### 1. Number of hours of irrigating daily
+```{r hours of irrigating daily, echo=FALSE, fig.height=3, fig.width=5, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+```
+
+### 2. The number of farmers who watered each day
+```{r The number of farmers who watered each day, echo=FALSE, fig.height=3, fig.width=5, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+```
+
+
+```{r Daily frequency of households who irrigate, echo=FALSE, fig.align='center', message=FALSE, warning=FALSE, paged.print=FALSE}
+
+Hours_by_day <- water01 %>% 
+  group_by(season,date) %>% 
+  summarise(Hours=mean(Hours)) 
+
+
+ggplot(data = Hours_by_day, aes(x = date, y = Hours))+
+  labs(title="Avg. irrigation hours for SPIP households")+
+  geom_line(color = "#00AFBB", size = 0.5)+
+  stat_smooth(color = "#FC4E07", fill = "#FC4E07",metho = "loess")
+
+Hours_by_day <- water01 %>% 
+  group_by(season,date) %>% 
+  summarise(Hours=mean(Hours)) 
+
+
+ggplot(data = Hours_by_day, aes(x = date, y = Hours))+
+  labs(title="Avg. irrigation hours for SPIP households")+
+  geom_line(color = "#00AFBB", size = 0.5)+
+  stat_smooth(color = "#FC4E07", fill = "#FC4E07",metho = "loess")
+
+
+
+
+```
+
+
+
+
+
+
+
+
