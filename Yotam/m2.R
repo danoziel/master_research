@@ -1,8 +1,7 @@
 library(tidyverse)
-library(RStata)
-stata("my_do_file.do", 
-      stata.path = "/Applications/Stata/StataMP.app/Contents/MacOS/stata-mp",stata.version = 15)
-
+library(haven)
+Broockman_Butler_AJPS_2015_Study1_data <-
+  read_dta("~/master_research/DATAs/data_yotam/m2/Broockman_Butler_AJPS_2015_Study1_data.dta")
 
 approve_LegA_post_binary <-Broockman_Butler_AJPS_2015_Study1_data %>% 
   select(serial,q1_post,q2_post,q3_post,policy_letter_treat) %>% 
@@ -15,7 +14,7 @@ approve_LegA_post_binary <- approve_LegA_post_binary%>% drop_na()
 
 approve_LegA_post_binary%>% 
   drop_na() %>% 
-  count(LegA_post_binary,policy_letter_treat) %>% 
+  count(policy_letter_treat,LegA_post_binary) %>% 
   mutate(prop = prop.table(n))
 
 approve_LegA_post_binary <-approve_LegA_post_binary %>% 

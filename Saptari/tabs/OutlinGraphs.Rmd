@@ -1,5 +1,5 @@
 ---
-title: "outlin_graphs"
+title: "outlin_graphs and Very important"
 output: pdf_document
 ---
 
@@ -14,20 +14,63 @@ library(MatchIt)
 library(tableone)
 library(gridExtra)
 
-land_17_18_19 <- read.csv("~/R/Saptari/data/land_17_18_19.csv")
-Land_18_19 <- read.csv("~/R/Rautahat.Bara.Sarlahi/data/Land_18_19.csv")
-Agriculture_17_18_19 <- read.csv("~/R/Saptari/data/Agriculture_17_18_19.csv")
-Agriculture_18_19 <- read.csv("~/R/Rautahat.Bara.Sarlahi/data/Agriculture_18_19.csv")
-Procurement_17_18_19 <- read.csv("~/R/Saptari/data/Procurement_17_18_19.csv")
-Procurement_18_19 <- read.csv("~/R/Rautahat.Bara.Sarlahi/data/Procurement_18_19.csv")
-wem_liter_fuel_17_18_19 <- read.csv("~/R/Saptari/data/wem_liter_fuel_17_18_19.csv")
-wem_liter_fuel_18_19 <-read.csv("~/R/Rautahat.Bara.Sarlahi/data/wem_liter_fuel_18_19.csv")
-lands_I_17_18_19 <- read.csv("~/R/Saptari/data/lands_I_17_18_19.csv")
-lands_I_18_19 <-read.csv("~/R/Rautahat.Bara.Sarlahi/data/lands_I_18_19.csv")
+land_17_18_19 <- read.csv("~/master_research/DATAs/data_saptari/land_17_18_19.csv")
+Land_18_19 <- read.csv("~/master_research/DATAs/data_RSB/Land_18_19.csv")
+Agriculture_17_18_19 <-read.csv("~/master_research/DATAs/data_saptari/Agriculture_17_18_19.csv")
+Agriculture_18_19 <- read.csv("~/master_research/DATAs/data_RSB/Agriculture_18_19.csv")
+Procurement_17_18_19 <-read.csv("~/master_research/DATAs/data_saptari/Procurement_17_18_19.csv")
+Procurement_18_19 <- read.csv("~/master_research/DATAs/data_RSB/Procurement_18_19.csv")
+wem_liter_fuel_17_18_19 <- read.csv("~/master_research/DATAs/data_saptari/wem_liter_fuel_17_18_19.csv")
+wem_liter_fuel_18_19 <-read.csv("~/master_research/DATAs/data_RSB/wem_liter_fuel_18_19.csv")
+lands_I_17_18_19 <- read.csv("~/master_research/DATAs/data_saptari/lands_I_17_18_19.csv")
+lands_I_18_19 <-read.csv("~/master_research/DATAs/data_RSB/lands_I_18_19.csv")
 
 
 ```
 
+T109902002 מופיע רק ובמוניטורינ - תצפיות רק בסוף שנת 2019- מחוץ לסקר
+
+ T300406135 returned the pump
+
+ the pump broke  "E0104705010")
+
+
+
+
+Nabina 14/9/2020
+
+ For the monitoring of SPIP logbook, 4 person were appointed whose responsibility was to carry the data collection process via bimonthly visit and maintain the excel sheet. Those sheets were shared to ICIMOD personal who was appointed to check the data and point out the mistakes and ask the field data collector to revisit for the verification.
+
+I went through the data set for each of the farmers. In case of Saptari data are fine, 
+-one farmer has returned the system after a year, i.e. 2017 
+-and one pilot sites wasn’t used after 2018 due the system breakdown. In the brick kiln industry the system is used only for paddy cultivation.
+
+In case of Rautahat, there are 31 farmers update but there were only 30 system, in one of the sites, Bina Devi from Rautahat, they cancelled the system stating water wasn’t enough for paddy cultivation, so 7 days of use was maintained in logbook. That system later reinstalled on Nirmala Devi farm at Bara. We can delete her information from the master sheet.
+
+The other thing in Rautahat is that few of the farmers were engaged mainly in  paddy cultivation, therefore, system was used only for 2018-19 monsoon and not used for other season. That could be the reason for zero data in the sheet. E.g. in case of Kabita Kumari Chaudhary, Asha Mishra, Mira Kumari Sharma etc.
+
+In each visit, we have asked our farmers for expand their cultivation and even share water to the neighboring plot. We have even arranged capacity building training for vegetable and aquaculture farming to motivate them for farming.
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ---------------------------------------------------------------
+ 
  - The total own land cultivated  for a houshold in Summer (ha) 
 
  - Gross Cropped Area (ha)  

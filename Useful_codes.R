@@ -97,7 +97,7 @@ theme_minimal() +
 # from: 1899-12-31 09:00:00 TO 9:00
 water01$`Irrigation Start Time` <- format(water01$`Irrigation Start Time`, format="%H:%M")
 
-# add_column in dplyr
+# add_column in dplyr----
 df %>% add_column(new_col = 0)
 
 https://www.listendata.com/2017/03/if-else-in-r.html

@@ -1,5 +1,5 @@
 ---
-title: "Solar Powered Irrigation Pumps in Nepal’s Terai"
+title: "Solar Powered Irrigation Pumps in Nepal’s Terai  notes"
 output:
   pdf_document: default
   html_document:

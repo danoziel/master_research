@@ -1,5 +1,4 @@
 #-----
-write.csv(A1,"C:/Users/Dan/Documents/R/Saptari/data/A1.csv", row.names = FALSE)
 
 # T210701004  (18) | only monsoon+winter 17-18 | Saptari
 # T109902002  (10) | winter_2019_2020          | Sapteri

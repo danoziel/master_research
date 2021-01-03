@@ -1,6 +1,4 @@
 
-
-
 #percentage of days----
 # Omit - 30 days in a row without irrigation
 # (THE `NYgaps_irrigation` - FROM `Gap.R` Tab)
@@ -615,21 +613,6 @@ ggplot(xagri_season_mo_su) +
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   # Irrigation area - over seasons --------------
 crop != "Barren Land"
 
@@ -692,41 +675,6 @@ x2 <-   water01_SEASONs %>%
     
 
   
-# Cropping Intensity = Gross cropped Area / Net Cropped Area ----
-  #   total_land_cultivated_year = Gross Cropped Area
-  #   land_for_cultivation = Net Cropped Area
-  xland_17 <- 
-    Land_18_19 %>% filter(household_questionnaire_id=="T300608006") %>%
-    mutate(district = "Rautahat_Bara_Sarlahi") %>% 
-    select(household_questionnaire_id,season,total_land_cultivated,
-           irrigated_out_of_tot_land_cult,total_land_cultivated_year,
-           land_for_cultivation,district)
-  
-  xland_17_18_19 <- land_17_18_19%>% filter(year =="2017",TC==1) %>% 
-    select(household_questionnaire_id,season,total_land_cultivated,
-           irrigated_out_of_tot_land_cult,total_land_cultivated_year,
-           land_for_cultivation,district)
-  
-  xCI <- bind_rows(xland_17,xland_17_18_19) %>% 
-    filter(total_land_cultivated_year>0) %>% 
-    
-    
-    rm(xland_17,xland_17_18_19)
-  
-  group_by(household_questionnaire_id) %>%
-    summarise(cult=sum(NEW_total_land_cult,na.rm = T),net=mean(land_for_cultivation))%>%
-    mutate(crop_intensity=cult/net*100) %>% 
-    mutate(across(is.numeric, round))
-  
-  
-  
-  
-  
-  
-  
-  
-  
-
 #  Fuel use - 7.16 ----
   
   library(MatchIt)
@@ -752,7 +700,7 @@ g1 <-
   ggplot(df, aes(year, total_litres_consumed_dieselkero, color = Group)) +
     stat_summary(geom = 'line',size=1.1) +
     theme_minimal()+
-    labs(title ="Saptari", x=" ", y="Irrigations Hours") +
+    labs(title ="Saptari", x=" ", y="Total fuel consumed") +
     scale_x_continuous(breaks = c(2017,2018,2019))+
   theme(text = element_text(family = "Times New Roman"),
         plot.title = element_text(size = 15, margin = margin(b = 10)),
@@ -796,4 +744,287 @@ df  <-  df %>% mutate(District ="Saptari")
 
   
 grid.arrange(g1,g2,ncol=2)
+
+# Cropping Pattern----
+library(MatchIt)
+#Vegetables----
+A17 <- Agriculture_17_18_19 %>% filter(year==2017,name_of_crop=="Vegetables") %>%
+  select(1) %>% distinct()
+A18 <- Agriculture_17_18_19 %>% filter(year==2018,name_of_crop=="Vegetables") %>%
+  select(1) %>% distinct() %>% inner_join(A17)
+A19 <- Agriculture_17_18_19 %>% filter(year==2019,name_of_crop=="Vegetables") %>%
+  select(1) %>%distinct() %>%  inner_join(A18)
+
+veg <- Agriculture_17_18_19 %>%right_join(A19) %>% 
+  filter(name_of_crop=="Vegetables") %>% 
+  group_by(year,TreatmentControl, household_questionnaire_id) %>% 
+  summarise(cult_area=sum(cult_area_under_crop)*0.0339) %>% 
+  rename(Group=TreatmentControl) %>% 
+  mutate(own_sp = Group == "Treatment")
+
+lso_M <- filter(veg, year == 2017)
+match.it <- matchit(own_sp ~ cult_area , data = lso_M, method="nearest", ratio=1)
+df <- match.data(match.it)[3] %>% inner_join (veg)
+
+gg <- 
+  ggplot(df, aes(year, cult_area, color = Group)) +
+  stat_summary(geom = 'line',size=1.1) +
+  theme_minimal()+
+  labs(x=" ", y="Cultivated area size (ha)",title = "Vegetables - Saptari") +
+  scale_x_continuous(breaks = c(2017,2018,2019))+
+  theme(axis.text.x = element_text(face="bold"),
+        axis.text.y = element_text(face="bold"),
+        text = element_text(family = "Times New Roman"))
+
+  df %>% 
+  group_by(year,Group) %>%
+  summarise(`Avg. area size`= mean(cult_area)) %>%
+  mutate_at (3,round,2) %>% kable() %>% kable_paper()
+
+grid.arrange(gg,gt,ncol=2)
+#Oilseeds----
+#Saptari
+A17 <- Agriculture_17_18_19 %>% filter(year==2017,name_of_crop=="Oilseeds") %>%
+  select(1) %>% distinct()
+A18 <- Agriculture_17_18_19 %>% filter(year==2018,name_of_crop=="Oilseeds") %>%
+  select(1) %>% distinct() %>% inner_join(A17)
+A19 <- Agriculture_17_18_19 %>% filter(year==2019,name_of_crop=="Oilseeds") %>%
+  select(1) %>%distinct() %>%  inner_join(A18)
+
+veg <- Agriculture_17_18_19 %>% right_join(A19) %>% 
+  filter(name_of_crop=="Oilseeds") %>% 
+  group_by(year,TreatmentControl, household_questionnaire_id) %>% 
+  summarise(cult_area=sum(cult_area_under_crop)*0.0339) %>% 
+  rename(Group=TreatmentControl) %>% 
+  mutate(own_sp = Group == "Treatment")
+
+lso_M <- filter(veg, year == 2017)
+match.it <- matchit(own_sp ~ cult_area , data = lso_M, method="nearest", ratio=1)
+
+summary(match.it)
+
+df <- match.data(match.it)[3] %>% inner_join (veg)
+
+gg2 <- 
+  ggplot(df, aes(year, cult_area, color = Group)) +
+  stat_summary(geom = 'line',size=1.1) +
+  theme_minimal()+
+  labs(x=" ", y="Cultivated area size (ha)",title = "Oilseeds - Saptari") +
+  scale_x_continuous(breaks = c(2017,2018,2019))+
+  theme(axis.text.x = element_text(face="bold"),
+        axis.text.y = element_text(face="bold"),
+        text = element_text(family = "Times New Roman"))
+
+df %>% group_by(year,Group) %>% summarise(mean(cult_area)) %>% kable() %>% kable_paper()
+
+grid.arrange(gg,gg2,ncol=2)
+
+#paddy ----
+#Saptari
+A17 <- Agriculture_17_18_19 %>% filter(year==2017,name_of_crop=="Paddy") %>%
+  select(1) %>% distinct()
+A18 <- Agriculture_17_18_19 %>% filter(year==2018,name_of_crop=="Paddy") %>%
+  select(1) %>% distinct() %>% inner_join(A17)
+A19 <- Agriculture_17_18_19 %>% filter(year==2019,name_of_crop=="Paddy") %>%
+  select(1) %>%distinct() %>%  inner_join(A18)
+
+veg <- Agriculture_17_18_19 %>%right_join(A19) %>% 
+  filter(name_of_crop=="Paddy") %>% 
+  group_by(year,TreatmentControl, household_questionnaire_id) %>% 
+  summarise(cult_area=sum(cult_area_under_crop)*0.0339) %>% 
+  rename(Group=TreatmentControl) %>% 
+  mutate(own_sp = Group == "Treatment")
+
+lso_M <- filter(veg, year == 2017)
+match.it <- matchit(own_sp ~ cult_area , data = lso_M, method="nearest", ratio=1)
+
+summary(match.it)
+
+df <- match.data(match.it)[3] %>% inner_join (veg)
+
+g1 <- 
+ggplot(df, aes(year, cult_area, color = Group)) +
+  stat_summary(geom = 'line',size=1.1) +
+  theme_minimal()+
+  labs(x=" ", y="Cultivated area size (ha)",title = "Paddy - Saptari") +
+  scale_x_continuous(breaks = c(2017,2018,2019))+
+  theme(axis.text.x = element_text(face="bold"),
+        axis.text.y = element_text(face="bold"),
+        text = element_text(family = "Times New Roman"))
+
+df %>% group_by(year,Group) %>% summarise(mean(cult_area)) %>% kable() %>% kable_paper()
+
+# Rautahat, Bara & Sarlahi Agriculture_18_19
+A18 <- Agriculture_18_19 %>% filter(year==2018,name_of_crop=="Paddy") %>%
+  select(1) %>% distinct()
+A19 <- Agriculture_18_19 %>% filter(year==2019,name_of_crop=="Paddy") %>%
+  select(1) %>%distinct() %>%  inner_join(A18)
+
+veg <- Agriculture_18_19 %>%right_join(A19) %>% 
+  filter(name_of_crop=="Paddy") %>% 
+  group_by(year,TreatmentControl, household_questionnaire_id) %>% 
+  summarise(cult_area=sum(cult_area_under_crop)*0.0339) %>% 
+  rename(Group=TreatmentControl) %>% 
+  mutate(own_sp = Group == "Treatment")
+
+lso_M <- filter(veg, year == 2018)
+match.it <- matchit(own_sp ~ cult_area , data = lso_M, method="nearest", ratio=1)
+
+summary(match.it)
+
+df <- match.data(match.it)[3] %>% inner_join (veg)
+
+g2 <- 
+  ggplot(df, aes(year, cult_area, color = Group)) +
+  stat_summary(geom = 'line',size=1.1) +
+  theme_minimal()+
+  labs(x=" ", y="Cultivated area size (ha)",title = "Paddy - Rautahat, Bara & Sarlahi") +
+  scale_x_continuous(breaks = c(2018,2019))+
+  theme(axis.text.x = element_text(face="bold"),
+        axis.text.y = element_text(face="bold"),
+        text = element_text(family = "Times New Roman"))
+
+df %>% group_by(year,Group) %>% summarise(mean(cult_area)) %>% kable() %>% kable_paper()
+
+grid.arrange(g1,g2,ncol=2)
+
+#Wheat----
+#Saptari
+A17 <- Agriculture_17_18_19 %>% filter(year==2017,name_of_crop=="Wheat") %>%
+  select(1) %>% distinct()
+A18 <- Agriculture_17_18_19 %>% filter(year==2018,name_of_crop=="Wheat") %>%
+  select(1) %>% distinct() %>% inner_join(A17)
+A19 <- Agriculture_17_18_19 %>% filter(year==2019,name_of_crop=="Wheat") %>%
+  select(1) %>%distinct() %>%  inner_join(A18)
+
+veg <- Agriculture_17_18_19 %>%right_join(A19) %>% 
+  filter(name_of_crop=="Wheat") %>% 
+  group_by(year,TreatmentControl, household_questionnaire_id) %>% 
+  summarise(cult_area=sum(cult_area_under_crop)*0.0339) %>% 
+  rename(Group=TreatmentControl) %>% 
+  mutate(own_sp = Group == "Treatment")
+
+lso_M <- filter(veg, year == 2017)
+match.it <- matchit(own_sp ~ cult_area , data = lso_M, method="nearest", ratio=1)
+
+summary(match.it)
+
+df <- match.data(match.it)[3] %>% inner_join (veg)
+
+g1 <- 
+  ggplot(df, aes(year, cult_area, color = Group)) +
+  stat_summary(geom = 'line',size=1.1) +
+  theme_minimal()+
+  labs(x=" ", y="Cultivated area size (ha)",title = "Wheat - Saptari") +
+  scale_x_continuous(breaks = c(2017,2018,2019))+
+  theme(axis.text.x = element_text(face="bold"),
+        axis.text.y = element_text(face="bold"),
+        text = element_text(family = "Times New Roman"))
+
+df %>% group_by(year,Group) %>% summarise(mean(cult_area)) %>% kable() %>% kable_paper()
+
+# Rautahat, Bara & Sarlahi Agriculture_18_19
+A18 <- Agriculture_18_19 %>% filter(year==2018,name_of_crop=="Wheat") %>%
+  select(1) %>% distinct()
+A19 <- Agriculture_18_19 %>% filter(year==2019,name_of_crop=="Wheat") %>%
+  select(1) %>%distinct() %>%  inner_join(A18)
+
+veg <- Agriculture_18_19 %>%right_join(A19) %>% 
+  filter(name_of_crop=="Wheat") %>% 
+  group_by(year,TreatmentControl, household_questionnaire_id) %>% 
+  summarise(cult_area=sum(cult_area_under_crop)*0.0339) %>% 
+  rename(Group=TreatmentControl) %>% 
+  mutate(own_sp = Group == "Treatment")
+
+lso_M <- filter(veg, year == 2018)
+match.it <- matchit(own_sp ~ cult_area , data = lso_M, method="nearest", ratio=1)
+
+summary(match.it)
+
+df <- match.data(match.it)[3] %>% inner_join (veg)
+
+g2 <- 
+  ggplot(df, aes(year, cult_area, color = Group)) +
+  stat_summary(geom = 'line',size=1.1) +
+  theme_minimal()+
+  labs(x=" ", y="Cultivated area size (ha)",title = "Wheat - Rautahat, Bara & Sarlahi") +
+  scale_x_continuous(breaks = c(2018,2019))+
+  theme(axis.text.x = element_text(face="bold"),
+        axis.text.y = element_text(face="bold"),
+        text = element_text(family = "Times New Roman"))
+
+df %>% group_by(year,Group) %>% summarise(mean(cult_area)) %>% kable() %>% kable_paper()
+
+grid.arrange(g1,g2,ncol=2)
+
+
+#Pulses----
+#Saptari
+A17 <- Agriculture_17_18_19 %>% filter(year==2017,name_of_crop=="Pulses") %>%
+  select(1) %>% distinct()
+A18 <- Agriculture_17_18_19 %>% filter(year==2018,name_of_crop=="Pulses") %>%
+  select(1) %>% distinct() %>% inner_join(A17)
+A19 <- Agriculture_17_18_19 %>% filter(year==2019,name_of_crop=="Pulses") %>%
+  select(1) %>%distinct() %>%  inner_join(A18)
+
+veg <- Agriculture_17_18_19 %>%right_join(A19) %>% 
+  filter(name_of_crop=="Pulses") %>% 
+  group_by(year,TreatmentControl, household_questionnaire_id) %>% 
+  summarise(cult_area=sum(cult_area_under_crop)*0.0339) %>% 
+  rename(Group=TreatmentControl) %>% 
+  mutate(own_sp = Group == "Treatment")
+
+lso_M <- filter(veg, year == 2017)
+match.it <- matchit(own_sp ~ cult_area , data = lso_M, method="nearest", ratio=1)
+
+summary(match.it)
+
+df <- match.data(match.it)[3] %>% inner_join (veg)
+
+g1 <- 
+  ggplot(df, aes(year, cult_area, color = Group)) +
+  stat_summary(geom = 'line',size=1.1) +
+  theme_minimal()+
+  labs(x=" ", y="Cultivated area size (ha)",title = "Pulses - Saptari") +
+  scale_x_continuous(breaks = c(2017,2018,2019))+
+  theme(axis.text.x = element_text(face="bold"),
+        axis.text.y = element_text(face="bold"),
+        text = element_text(family = "Times New Roman"))
+
+df %>% group_by(year,Group) %>% summarise(mean(cult_area)) %>% kable() %>% kable_paper()
+
+# Rautahat, Bara & Sarlahi Agriculture_18_19
+A18 <- Agriculture_18_19 %>% filter(year==2018,name_of_crop=="Pulses") %>%
+  select(1) %>% distinct()
+A19 <- Agriculture_18_19 %>% filter(year==2019,name_of_crop=="Pulses") %>%
+  select(1) %>%distinct() %>%  inner_join(A18)
+
+veg <- Agriculture_18_19 %>%right_join(A19) %>% 
+  filter(name_of_crop=="Pulses") %>% 
+  group_by(year,TreatmentControl, household_questionnaire_id) %>% 
+  summarise(cult_area=sum(cult_area_under_crop)*0.0339) %>% 
+  rename(Group=TreatmentControl) %>% 
+  mutate(own_sp = Group == "Treatment")
+
+lso_M <- filter(veg, year == 2018)
+match.it <- matchit(own_sp ~ cult_area , data = lso_M, method="nearest", ratio=1)
+
+summary(match.it)
+
+df <- match.data(match.it)[3] %>% inner_join (veg)
+
+g2 <- 
+  ggplot(df, aes(year, cult_area, color = Group)) +
+  stat_summary(geom = 'line',size=1.1) +
+  theme_minimal()+
+  labs(x=" ", y="Cultivated area size (ha)",title = "Pulses - Rautahat, Bara & Sarlahi") +
+  scale_x_continuous(breaks = c(2018,2019))+
+  theme(axis.text.x = element_text(face="bold"),
+        axis.text.y = element_text(face="bold"),
+        text = element_text(family = "Times New Roman"))
+
+df %>% group_by(year,Group) %>% summarise(mean(cult_area)) %>% kable() %>% kable_paper()
+
+grid.arrange(g1,g2,ncol=2)
+
 

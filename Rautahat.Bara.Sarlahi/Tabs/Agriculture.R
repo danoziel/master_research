@@ -6,7 +6,7 @@ R_Agriculture_Baseline_2018_ %>%
   group_by(name_of_crop) %>% 
   summarise(no.HH=n(),no.HH/133)
 
-# crop
+# crop #
 x <- R_Agriculture_Baseline_2018_ %>%   
   group_by(household_questionnaire_id,season_of_crop,name_of_crop) %>%
   summarise(sum_cult_area=sum(cult_area_under_crop))%>%

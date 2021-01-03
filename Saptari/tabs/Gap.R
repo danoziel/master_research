@@ -1,6 +1,7 @@
                             ------------------------------
 #                            Gap days between irrigations
                             ------------------------------
+                              gapNY
 rm(gaps_irrigation)
 rm(Ygaps_irrigation,Ngaps_irrigation)
 rm(NYgaps_irrigation)
@@ -8,7 +9,7 @@ rm(NYgaps_irrigation)
 # GENERAL        ----
 gaps_irrigation <- water01 %>% 
   #filter(!HH %in% c("T210701004","T109902002","E0104705010","A0110402001",
-                   "T302603034","T309708020","T300901113")) %>% 
+#                   "T302603034","T309708020","T300901113")) %>% 
   select(district,HH,date)%>%
   group_by(district,HH) %>% 
   mutate(d1=lag(date),d2=lead(date) ) %>% 
