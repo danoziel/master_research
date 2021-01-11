@@ -239,3 +239,51 @@ theme_bw()+
         text = element_text(family = "Georgia"))
 
 
+# --------------------------------------------------------------------
+gaps_irrigation <- water01_SEASONs %>%
+  mutate(crop_type=ifelse(crop %in% c("Paddy", "Summer Paddy","paddy"),"Paddy",
+                          ifelse(crop == "Wheat","Wheat",
+                                 ifelse(crops_category == "Vegetables","Vegetables",
+                                        ifelse(crops_category =="Pulses","Pulses",
+                                               ifelse(crop %in% c("Fish Farming","Kurli","pond"),"Fish Farming",
+                                                      NA)))))) %>% 
+  filter(!HH %in% c("T210701004","T109902002","E0104705010","A0110402001")) %>% 
+  select(HH,date,crop_type,district)%>%
+  group_by(district,HH,crop_type) %>% 
+  mutate(d1=lag(date),d2=lead(date) ) %>% 
+  mutate(start=d1+1) %>%
+  mutate(n=date-start) %>%
+  mutate(n = ifelse(is.na(d2) | is.na(d1), "1" ,n)) %>% 
+  filter(n>0) %>% 
+  mutate(start.=date,end.=start,end.=lead(end.)) %>% 
+  mutate(n.=end.-start.)
+
+#    count .  days without irrigation
+Ngaps_irrigation <- gaps_irrigation %>% select(district,HH,start,date,crop_type) %>%
+  mutate(Irrigation= "No") %>%  rename(end = date) %>% na.omit()
+#    count .  irrigation days 
+Ygaps_irrigation <- gaps_irrigation %>% select(district,HH,start.,end.,crop_type) %>% mutate(Irrigation= "Yes") %>% 
+  rename(start=start. ,end=end.) %>% na.omit()
+# total count and gaps
+NYgaps_irrigation <- rbind(Ngaps_irrigation,Ygaps_irrigation) %>%
+  arrange(start) %>% mutate(gap=end-start) %>% filter(gap>0)
+
+NYgaps_irrigation$gap <- as.numeric(NYgaps_irrigation$gap)
+
+rm(Ygaps_irrigation,Ngaps_irrigation)
+
+# Avg. gaps - without 30+ days gaps
+gapNY <- NYgaps_irrigation %>%filter(Irrigation=="No",gap<30) %>%
+  group_by(HH,crop_type) %>%
+  summarise(gap=mean(gap)) %>% 
+  group_by(crop_type) %>%
+  summarise(`Gap Av.`=mean(gap),`SD Gap`= sd(gap)) 
+
+
+
+
+
+
+
+
+

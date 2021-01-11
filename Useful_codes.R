@@ -9,6 +9,13 @@ women_weight <- genderweight %>%
 res <- 
   t.test(total_litres_consumed_dieselkero ~ TreatmentControl, data = df.match)
 
+#regression
+ggplot(income.data, aes(x=income, y=happiness))+ geom_point()
+
+income.happiness.lm <- lm(happiness ~ income, data = income.data)
+
+summary(income.happiness.lm)
+
 #  NA----
 #in full dataset - dplyr
 rowwise() %>% 
@@ -101,3 +108,27 @@ water01$`Irrigation Start Time` <- format(water01$`Irrigation Start Time`, forma
 df %>% add_column(new_col = 0)
 
 https://www.listendata.com/2017/03/if-else-in-r.html
+
+
+#map----
+library(leaflet)
+library(rgdal)
+library(dplyr)
+
+p_lon <- 29.9018696
+p_lat <- 76.0084641
+
+leaflet() %>%
+  setView(lng = p_lat, lat = p_lon, zoom = 13.5) %>%
+  addProviderTiles("Esri.WorldStreetMap") %>%
+  addCircles(
+    data = kharif_2020_rice,
+    radius = sqrt(10^kharif_2020_rice$plot_acre) *10,
+    color = "#008B00",
+    fillColor = "#008B00",
+    fillOpacity = 0.2,
+    popup = paste0(
+      "<kharif_2020_rice>Farmer Name: </kharif_2020_rice>", kharif_2020_rice$farmer_name, "<br>",
+      "<kharif_2020_rice>Plot Size (acre): </kharif_2020_rice>", kharif_2020_rice$plot_acre, "<br>",
+      "<kharif_2020_rice>Farmer ID: </kharif_2020_rice>", kharif_2020_rice$farmer_id, "<br>"
+    ))

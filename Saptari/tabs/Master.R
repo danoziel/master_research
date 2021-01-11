@@ -1002,15 +1002,6 @@ Farmers_pump_details %>%
 
 # CROPs     (NYgaps_irrigation)     ----
 
-# NYgaps_irrigation gapNY ----
-
-gapNY <- NYgaps_irrigation %>%filter(Irrigation=="No",gap<30) %>%
-  group_by(HH,CROPs) %>%
-  summarise(`Gap Av.`=mean(gap),`Gap Max`=max(gap)) %>% 
-  group_by(CROPs) %>%
-  summarise(days_gap=mean(`Gap Av.`),sd_gap=sd(`Gap Av.`)) %>% 
-  rename(crop_type=CROPs)
- 
 
 
 
@@ -1027,6 +1018,10 @@ precip %>%
 
 
 
+
+
+
+    
 
 
 

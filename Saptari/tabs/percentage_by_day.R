@@ -649,14 +649,57 @@ A1_seasons <- A1 %>%
 # E0104705010 (22) | Summer_2017_2018	         | Sapteri
 # A0110402001 (39) | 2017 missing              | Sapteri
 
-A_days_HH_per_saptari <- A1_seasons[,c(1,3,5:12,14:20,22:25,56)]
+# total----
+A1_days_HH <- A1_seasons[,c(1,3,5:12,14:20,22:56)] %>% 
+  rowwise() %>% 
+  mutate(sumVar = across(c(A104507035:T309900000),~ifelse(. %in% c("yes", "no"),1,0)) %>% sum) %>% 
+  mutate(irri = across(c(A104507035:T309900000),~ifelse(. %in% c("yes"),1,0)) %>% sum) %>% 
+  mutate(per=irri/ sumVar) 
+colour <- c("dimgrey", "dimgrey","dimgrey", "darkolivegreen4","darkolivegreen4",
+            "dodgerblue4","dodgerblue4","dodgerblue4")
+ggplot()+
+  labs(title=" ", 
+       x=" ",y=" ", caption = "*53 HH in sample")+
+  geom_line(data=A1_days_HH, aes(x = date, y = per, color = season)) + 
+  stat_smooth(data=A1_days_HH, aes(x = date, y = per, color = season),method = "loess")+
+  theme_minimal() +
+  scale_colour_manual(values=colour)+
+  theme(axis.text.x = element_text( vjust=0.08), 
+        panel.grid.minor = element_blank(),legend.title = element_blank(),legend.position = "none")+ 
+  theme(panel.grid.major.x = element_blank(),
+        text = element_text(family = "Georgia"),
+        plot.title = element_text(size = 14, margin = margin(b = 10)),
+        plot.caption = element_text(size = 8, margin = margin(t = 10), color = "grey70", hjust = 0))
+
+class(A1_days_HH$date)
+class(precip$date_time)
+
+# regression
+A1_d <- A1_days_HH[,c(1,55)] %>%
+  rename(date_time=date) %>% 
+  inner_join(precip) %>% 
+  rename(HH_percentage=per)
+
+ggplot(A1_d, aes(x=precipMM, y=HH_percentage))+ geom_point(color='darkblue')+
+  labs(x="Precipitation (In mm)",y="HH Percentage")+  geom_smooth(method=lm)+
+  xlim(0,75)+ylim(0,0.75) +xlim(0,10)+ylim(0,0.6)
+  
+A1_lm <- lm(HH_percentage ~ precipMM, data = A1_d)
+summary(A1_lm)
+
+library(sjPlot)
+tab_model(A1_lm)
+
+
+#saptari----
+A_days_HH_per_saptari <- A1_seasons[,c(1,3,5:12,14:20,22:56)]
 A_days_HH_per_saptari <- A_days_HH_per_saptari %>% 
   rowwise() %>% 
   mutate(sumVar = across(c(A104507035:T210904001),~ifelse(. %in% c("yes", "no"),1,0)) %>% sum) %>% 
   mutate(irri = across(c(A104507035:T210904001),~ifelse(. %in% c("yes"),1,0)) %>% sum) %>% 
   mutate(per=irri/ sumVar) 
 
-
+#rbs----
 # T302603034(11) T309708020(14) T300901113(12) | monsoon 18-19 | Paddy | Bara
 A_days_HH_per_RBS <- A1_seasons[,c(1,26:31,33:34,36:52,54:56)]
 A_days_HH_per_RBS <- A_days_HH_per_RBS %>% 
