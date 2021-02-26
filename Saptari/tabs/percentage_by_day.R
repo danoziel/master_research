@@ -1,33 +1,28 @@
-#-----
 
 # T210701004  (18) | only monsoon+winter 17-18 | Saptari
 # T109902002  (10) | winter_2019_2020          | Sapteri
 # E0104705010 (22) | Summer_2017_2018	         | Sapteri
 # A0110402001 (39) | 2017 missing              | Sapteri
 
-# T302603034(11) T309708020(14) T300901113(12) | monsoon 18-19 | Paddy | Bara
 
-filter(! HH %in% c("T210701004", "T109902002", "E0104705010",
-                   "A0110402001", "T302603034", "T309708020", "T300901113") )
-
-A_days <- water01 %>% 
+A_days <- water01_SEASONs %>% 
+  filter(! HH %in% c("T210701004", "T109902002", "E0104705010","A0110402001") ) %>% 
   group_by(HH,date) %>%
   summarise(hr= sum(Hours)) %>%
   add_column(irri = "A") %>% 
   select(1,2,4)
+
+A_days_list <- A_days[,2] %>%   distinct() %>% arrange(date)
 
 A_days_start_end <- A_days %>% 
   full_join (A_days_list) %>% 
   summarise(start=min(date),end=max(date)) %>% 
   mutate(total_days=end-start)
 
-# A_days_HH_col <- spread(A_days,HH,irri)
-
-A_days_list <- A_days[,2] %>%   distinct() %>% arrange(date)
-
 HH_list <- water01 %>% select(1,26) %>%   distinct()
 
-# 1 - A_days_start_end ----
+# 50-53 HH - yes no irrigation ----
+# 1 - A_days_start_end 
 A0110402001 <- 
   A_days %>% 
   filter(HH=="A0110402001") %>%
@@ -620,6 +615,7 @@ T309900000 <- T309900000	[,c(2,4)]
 
 A1 <- full_join(A1,T309900000	)
 
+# rm  50-53 HH  --------------------
 
 rm(A104507035,A0110402001,E0104705010,T100503002,T102007001,T103204001,T104209001,T106605002,
    T109203001,T109205004,T109902001,T109902002,T110505001,T200103002,T203901002,T203908001,
@@ -629,28 +625,29 @@ rm(A104507035,A0110402001,E0104705010,T100503002,T102007001,T103204001,T10420900
    T305602003,T305607002,T305607004,T305607005	,T306004001,T306102001,T306102002,T308703001,
    T308705001,T308707002,T309306012,T309708020,T309800000,T309900000
 )
-#-----------------
+# A1_seasons  + omit 4 HH-----------------
 
 A1_seasons <- A1 %>%
+  select(-c("T210701004", "T109902002", "E0104705010","A0110402001") ) %>% 
   mutate(season=case_when(
     date >= "2017-06-02" & date <= "2017-09-30" ~ "Monsoon_2017_2018",
     date >= "2017-10-01" & date <= "2018-01-31" ~ "Winter_2017_2018",
     date >= "2018-02-01" & date <= "2018-05-31" ~ "Summer_2017_2018",
     
     date >= "2018-06-01" & date <= "2018-09-30" ~ "Monsoon_2018_2019",
-    date >= "2018-10-01" & date <= "2019-01-31" ~ "winter_2018_2019",
+    date >= "2018-10-01" & date <= "2019-01-31" ~ "Winter_2018_2019",
     date >= "2019-02-01" & date <= "2019-05-31" ~ "Summer_2018_2019",
     
     date >= "2019-06-01" & date <= "2019-09-30" ~ "Monsoon_2019_2020",
-    date >= "2019-10-01" & date <= "2019-12-16" ~ "winter_2019_2020"))
+    date >= "2019-10-01" & date <= "2019-12-16" ~ "Winter_2019_2020"))
 
 # T210701004  (18) | only monsoon+winter 17-18 | Saptari
 # T109902002  (10) | winter_2019_2020          | Sapteri
 # E0104705010 (22) | Summer_2017_2018	         | Sapteri
 # A0110402001 (39) | 2017 missing              | Sapteri
 
-# total----
-A1_days_HH <- A1_seasons[,c(1,3,5:12,14:20,22:56)] %>% 
+# A1_days_HH totalHH----
+A1_days_HH <- A1_seasons %>% 
   rowwise() %>% 
   mutate(sumVar = across(c(A104507035:T309900000),~ifelse(. %in% c("yes", "no"),1,0)) %>% sum) %>% 
   mutate(irri = across(c(A104507035:T309900000),~ifelse(. %in% c("yes"),1,0)) %>% sum) %>% 
@@ -671,44 +668,33 @@ ggplot()+
         plot.title = element_text(size = 14, margin = margin(b = 10)),
         plot.caption = element_text(size = 8, margin = margin(t = 10), color = "grey70", hjust = 0))
 
-class(A1_days_HH$date)
-class(precip$date_time)
 
-# regression
-A1_d <- A1_days_HH[,c(1,55)] %>%
-  rename(date_time=date) %>% 
-  inner_join(precip) %>% 
-  rename(HH_percentage=per)
+# days_of_usage          ----
+days_of_usage <- A1_days_HH %>%
+  select(date,sumVar,irri,per) %>% 
+  rename(nu_HH_use_pmp=irri,total_HH_own_pmp=sumVar,HH_percentage=per)
 
-ggplot(A1_d, aes(x=precipMM, y=HH_percentage))+ geom_point(color='darkblue')+
-  labs(x="Precipitation (In mm)",y="HH Percentage")+  geom_smooth(method=lm)+
-  xlim(0,75)+ylim(0,0.75) +xlim(0,10)+ylim(0,0.6)
-  
-A1_lm <- lm(HH_percentage ~ precipMM, data = A1_d)
-summary(A1_lm)
 
-library(sjPlot)
 tab_model(A1_lm)
 
 
-#saptari----
-A_days_HH_per_saptari <- A1_seasons[,c(1,3,5:12,14:20,22:56)]
+#A_days_HH_per_saptari   ----
+A_days_HH_per_saptari <- A1_seasons[,c(1:21,52)]
 A_days_HH_per_saptari <- A_days_HH_per_saptari %>% 
   rowwise() %>% 
   mutate(sumVar = across(c(A104507035:T210904001),~ifelse(. %in% c("yes", "no"),1,0)) %>% sum) %>% 
   mutate(irri = across(c(A104507035:T210904001),~ifelse(. %in% c("yes"),1,0)) %>% sum) %>% 
   mutate(per=irri/ sumVar) 
 
-#rbs----
-# T302603034(11) T309708020(14) T300901113(12) | monsoon 18-19 | Paddy | Bara
-A_days_HH_per_RBS <- A1_seasons[,c(1,26:31,33:34,36:52,54:56)]
+#A_days_HH_per_RBS       ----
+A_days_HH_per_RBS <- A1_seasons[,c(1,22:52)]
 A_days_HH_per_RBS <- A_days_HH_per_RBS %>% 
   rowwise() %>% 
   mutate(sumVar = across(c(T300307001:T309900000),~ifelse(. %in% c("yes", "no"),1,0)) %>% sum) %>% 
   mutate(irri = across(c(T300307001:T309900000),~ifelse(. %in% c("yes"),1,0)) %>% sum) %>% 
   mutate(per=irri/ sumVar) 
 
-
+#plots    ----
 ggplot(data = A_days_HH_per_saptari, aes(x = date, y = per))+
   labs(title="District of Saptari",
        x=" ",y=" ", caption = " ")+
@@ -767,9 +753,9 @@ ggplot()+
 monsoon      winter        summer          monsoon     winter     summer         monsoon   winter 
 
 
-# ----
+# rm(A_days,A_days_list,A_days_start_end,HH_list,A1_seasons,A1) ----
 
-  
+rm(A_days,A_days_list,A_days_start_end,HH_list,A1_seasons,A1)
 
 
 #  T210708002 T210408001  T203901002  T200103002  T109203001  T210709001  T109902001 T103204001----

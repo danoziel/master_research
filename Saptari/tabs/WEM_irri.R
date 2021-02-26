@@ -204,3 +204,59 @@ days_water_use_6.2 <- days_water_use_6.2 %>%
   group_by(district, year) %>% 
   summarise_at(c("days_smr","days_mnsn","days_wntr","days_year"), sum, na.rm = TRUE)
 
+
+
+#NEW ----
+
+library(haven)
+Water_extraction_mechanism_Baseline_2017_ <- read_dta("~/Nepal Data/Saptari/Baseline 73-74 (Saptari)/Water extraction mechanism_Baseline(2017).dta")
+Water_extraction_mechanism_Baseline_2018_ <- read_dta("~/Nepal Data/REWSSPC/Baseline/Water extraction mechanism_Baseline(2018).dta")
+
+# wem6.1 ----
+Water_extraction_mechanism_RBS_Baseline <- 
+  Water_extraction_mechanism_Baseline_2018_ %>%
+  select(household_questionnaire_id,
+         how_many_bore_wells_do_you_ow,
+         pump_type__bw_a,water_dist_tech__bw_a,
+         pump_type__bw_b,water_dist_tech__bw_b,
+         pump_type__bw_c,water_dist_tech__bw_c
+  ) %>%
+  add_column(district="Rautahat_Bara_Sarlahi")
+
+Water_BW <- 
+  Water_extraction_mechanism_Baseline_2017_ %>%
+  select(household_questionnaire_id,
+         how_many_bore_wells_do_you_ow,
+         pump_type__bw_a,water_dist_tech__bw_a,
+         pump_type__bw_b,water_dist_tech__bw_b,
+         pump_type__bw_c,water_dist_tech__bw_c
+         ) %>% add_column(district="Saptari")%>% 
+  bind_rows(Water_extraction_mechanism_RBS_Baseline) %>% 
+  inner_join(Control_and_treatment_4_districts) %>% 
+  filter(TC==1) %>% 
+  select(-c(TC,TreatmentControl))
+
+table(Water_BW$water_dist_tech__bw_a)
+table(Water_BW$pump_type__bw_b)
+
+# wem6.2 ----
+Wem6.2_RBS_Baseline <- 
+  Water_extraction_mechanism_Baseline_2018_%>%
+  select(household_questionnaire_id,
+         liters_of_fuels_p_hour_p_1, pump_type__p_1 
+  ) %>%
+  add_column(district="Rautahat_Bara_Sarlahi")
+
+Water_pmp <- 
+  Water_extraction_mechanism_Baseline_2017_ %>%
+  select(household_questionnaire_id,
+         liters_of_fuels_p_hour_p_1, pump_type__p_1 
+  ) %>% add_column(district="Saptari")%>% 
+  bind_rows(Wem6.2_RBS_Baseline) %>% 
+  inner_join(Control_and_treatment_4_districts) %>% 
+  filter(TC==1) %>% 
+  select(-c(TC,TreatmentControl))
+
+
+
+

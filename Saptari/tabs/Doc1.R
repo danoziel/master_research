@@ -80,12 +80,21 @@ kable(sip) %>% kable_styling()
 
 
 # Total hours of SPIP use  YEAR----
+x <- water01_SEASONs %>% 
+  group_by(district,HH) %>%  
+  summarise(Hours=sum(Hours)) %>% 
+  filter(!HH %in% c("T210701004","T109902002","E0104705010","A0110402001")) %>% 
+  group_by(district) %>%  
+  summarise(N=n(),`Total Hours`=mean(Hours),SD=sd(Hours)) %>% 
+  mutate(across (is.numeric,round)) %>% 
+  kable() %>% kable_styling()
+
 # c f cf   By Year----
-x <- water01 %>% 
+x <- water01_SEASONs %>% 
   inner_join(Master_HH_N) %>% 
   group_by(district,HH,var3) %>%  
   summarise(Hours=sum(Hours)) %>% 
-  filter(!HH %in% c("T210701004","T109902002","E0104705010","A0110402001","T302603034","T309708020","T300901113")) %>% 
+  filter(!HH %in% c("T210701004","T109902002","E0104705010","A0110402001")) %>% 
   group_by(district,var3) %>%  
   summarise(N=n(),`Total Hours`=mean(Hours),SD=sd(Hours)) %>% 
   mutate(across (is.numeric,round)) %>% 
@@ -1028,3 +1037,57 @@ df %>% group_by(year,Group) %>% summarise(mean(cult_area)) %>% kable() %>% kable
 grid.arrange(g1,g2,ncol=2)
 
 
+
+# fish  ----
+#monitoring data
+wat <- 
+  water01_SEASONs %>%
+  filter( Seasons!="Monsoon 2015-2016") %>% 
+  filter(!HH %in% c("T210701004","T109902002","E0104705010","A0110402001")) %>%
+  filter(crops_category=="Fish Farming") %>% 
+  group_by(HH,district,Seasons) %>%
+  summarise(Area=max(`Total Area Cultivated`))
+
+wat$Seasons[wat$Seasons %in% c("Monsoon 2017-2018","Summer 2017-2018") ] <- "Annual 2017-2018"
+wat$Seasons[wat$Seasons %in% c("Monsoon 2018-2019","Summer 2018-2019") ] <- "Annual 2018-2019"
+wat$Seasons[wat$Seasons %in% c("Monsoon 2019-2020","Winter 2019-2020") ] <- "Annual 2019-2020"
+
+wat <- wat %>%
+  drop_na() %>% 
+  group_by(district,Seasons) %>% 
+  summarise(mean(Area))
+
+#survey data
+aquaculture2.0 <- aquaculture %>%
+  mutate(district=case_when(
+    district %in% c(1,2,3)~"Rautahat_Bara_Sarlahi",
+    district %in% c("Saptari","SAPTARI")~"Saptari")) %>% 
+  filter(TC==1,total_area_of_pond<300 ) %>% 
+  group_by(district,year) %>% 
+  summarise(Mean=mean(total_area_of_pond)*0.0339)
+  
+d1 <- aquaculture2.0 %>% 
+  filter(district=="Saptari") %>% 
+  ggplot( aes(year, Mean)) +
+  stat_summary(geom = 'line',size=1.1) +
+  theme_minimal()+
+  labs(title="Sapteri",x=" ", y="Pond size (ha)") +
+  scale_x_continuous(breaks = c(2017,2018,2019))+
+  theme(legend.position = "none",text = element_text(family = "Times New Roman"))
+d3 <- aquaculture2.0 %>% 
+  filter(district!="Saptari") %>% 
+  ggplot( aes(year, Mean)) +
+  stat_summary(geom = 'line',size=1.1) +
+  theme_minimal()+
+  labs(title="Rautahat, Bara & Sarlahi",x=" ", y=" ") +
+  scale_x_continuous(breaks = c(2018,2019))+
+  theme(legend.position = "none",text = element_text(family = "Times New Roman"))
+grid.arrange(d1, d3, ncol = 2) 
+# croping pattern YES/NO ----
+Ag <- 
+  Agriculture_18_19 %>% 
+  filter(TC==1) %>% 
+  select(household_questionnaire_id ,name_of_crop, year) %>% 
+  distinct() %>% 
+  group_by(year) %>% 
+  count(name_of_crop)

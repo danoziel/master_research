@@ -66,14 +66,24 @@ x3 <- left_join(HH_Farmer_name,Farmers_pump_details)
 
 filter(!HH %in% c("T210701004","T109902002","E0104705010","A0110402001",
                   "T302603034","T309708020","T300901113")) %>% 
-# general ----
+# general DIFFERENCE,Hours----
 f_xx <- 
   water01 %>%
   select(HH,DIFFERENCE,Hours,district,) %>% 
   filter(DIFFERENCE > 0,DIFFERENCE<200)%>%
   rename(District = district) %>% 
   mutate(District = ifelse(District == "Rautahat_Bara_Sarlahi",
-                           "Rautahat\nBara Sarlahi", District)) 
+                           "Rautahat\nBara Sarlahi", District)) %>% 
+  mutate(cubic_meter_per_hour=DIFFERENCE/Hours)
+# table cubic_meter_per_hour---- 
+X <- 
+  f_xx %>% 
+  group_by(District) %>%
+  summarise(`Cubic Meter per Hour`=mean(cubic_meter_per_hour),
+            SD=sd(cubic_meter_per_hour)) %>%
+  mutate(across(is.numeric,round,2)) %>% 
+  kable() %>% kable_classic()
+
 
 # scatter  --            ----
 ggplot(f_xx, aes(x = Hours, y=DIFFERENCE, color=District, shape=District)) +

@@ -6,6 +6,8 @@ library(formattable)
 library(gridExtra)
 library(scales)
 library(extrafont)
+library(sjPlot)
+
 
 library(readxl)
 Master_file_Saptari_REWSSPC_12_27_2019 <-
@@ -236,7 +238,14 @@ xaqua_end <- aquaculture %>%
 
 # --------------------------------------------------- -----------
   #  Irrigation Days ##                                         ----
-days_use_hh <- 
+rainy_days <- 
+  janakpur_climatology_NASA %>% 
+  inner_join(A_days_list) %>% 
+  mutate(rain_day  = ifelse(PRECTOT < 7.5, "0","1"))
+rainy_days[rainy_days==-999] <- 0
+
+# usage_days = n
+usage_days <- 
   water01 %>%   filter(!HH %in% c("A0110402001", "T300608006", "T210701004")) %>% 
   filter(! Seasons %in%c("Monsoon 2015-2016", "Summer 2016-2017","Annual 2019-2020",
                          "Monsoon 2019-2020", "Winter 2019-2020")) %>% 
@@ -247,15 +256,35 @@ days_use_hh <-
   select(date,HH,total_days) %>% distinct() %>% 
   group_by(HH,date) %>% mutate(n=n()) %>% 
   group_by(HH,total_days) %>% summarise(n=sum(n)) %>% 
-  mutate(percentage= (n / total_days)) 
+  select(HH,n)
+
+#total_days withuot rainy/cloudy days
+total_days <- 
+  water01 %>%   filter(!HH %in% c("A0110402001", "T300608006", "T210701004")) %>% 
+  filter(! Seasons %in%c("Monsoon 2015-2016", "Summer 2016-2017","Annual 2019-2020",
+                         "Monsoon 2019-2020", "Winter 2019-2020")) %>% 
+  inner_join(janakpur_climatology_NASA) %>% 
+  mutate(rain_day  = ifelse(PRECTOT < 7.5, "0","1")) %>% 
+  group_by(HH) %>% 
+  mutate(start=min(date),end=max(date)) %>% 
+  mutate(total_days=end-start,
+         total_days = as.numeric(total_days)) %>%
+  filter(rain_day==0) %>% 
+  select(date,HH,total_days) %>% distinct() %>% 
+  group_by(HH,date) %>% mutate(n=n()) %>% 
+  group_by(HH,total_days) %>% summarise(n=sum(n))
+
+# percentage = n / total_days
+days_use_hh3 <- days_use_hh2 %>%
+  rename(total_days2=total_days,n2=n) %>% 
+  inner_join(days_use_hh,by="HH") %>% select(HH,total_days2,n) %>% 
+  mutate(percentage=n/total_days2)
 
 days_use_hh%>% ungroup() %>% 
   summarise(n(),mean=mean(percentage),min(percentage),max(percentage),sd(percentage)) %>% 
   mutate_at(2:5,round,2)
 
-
 hist(days_use_hh$percentage)
-
 
 ggplot(days_use_hh) + 
   geom_histogram(aes(x = percentage ,y=stat(count)/sum(stat(count))),
@@ -289,7 +318,8 @@ ggplot(days_use_hh) +
         text = element_text(family = "Times New Roman"))
 
 
-by_var3 <- days_use_hh %>% inner_join(Master_HH_N) %>% 
+by_var3 <- 
+  days_use_hh %>% inner_join(Master_HH_N) %>% 
   group_by(var3) %>% summarise(n(),mean(percentage)) %>% 
   mutate_at(3,round,2)
 

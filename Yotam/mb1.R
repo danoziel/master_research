@@ -1,5 +1,7 @@
 library(tidyverse)
 library(kableExtra)
+library(sjPlot)
+
 # file----
 library(haven)
 Brooke_Ketchley_APSR_replicationI <-
@@ -29,13 +31,36 @@ mb_sub <-  mb%>%
          literate_pct = ((female_age_5_and_above_read_and_ + male_age_5_and_above_read_and_wr)/
                            literate_denom)*100) 
 
+model <- 
+  glm(mb_1937~literate_pct + agriculture_pct + unemployed_men_pct + non_muslim_pct +
+       state_railway_station + pop_change_20yrs + european_pct + missionaries_per10000 +
+       state_admin_pct + admin_centre,
+      family="binomial", data=mb_sub)
+
+summary(model)
+tab_model(model)
+
+
+
+# gap between MEAN and MEDIAN ----
 mb_subM <- 
   mb_sub %>% 
   select(european_pct,missionaries_per10000,state_admin_pct,non_muslim_pct)  
 
 summary(mb_subM) %>% kable() %>% kable_classic()
 
-#mb_dis----
+model1 <- 
+  lm(european_pct~literate_pct + agriculture_pct + unemployed_men_pct +
+       state_railway_station + pop_change_20yrs +
+       state_admin_pct + admin_centre,
+     data=mb_sub)
+
+summary(model1)
+tab_model(model1,digits=3,p.style="stars",string.ci = "Conf. Int (95%)", 
+          show.se = TRUE,dv.labels = c("Table 5. Predicting the Probability of Literacy (1937) - Subdistrict Level"))
+
+# omit high values 
+#mb_dis  - district level ----
 mb_dis <- mb %>% 
   mutate(agriculture = (male_farmers_fishermen_and_hunti + female_farmers_fishermen_and_hun),
          literate = (female_age_5_and_above_read_and_ + male_age_5_and_above_read_and_wr),
@@ -72,6 +97,23 @@ mb_dis_lm <-
      state_admin_pct + admin_centre,
      mb_dis)
 summary(mb_dis_lm)
+
+tab_model(mb_dis_lm)
+tab_model(mb_dis_lm,digits=3,p.style="stars",string.ci = "Conf. Int (95%)", 
+          show.se = TRUE,dv.labels = c("Table 6. Predicting the Probability of a Muslim Brotherhood Branch (1937) - District Level"))
+
+mb_d_lm <- 
+  lm(literate_pct~ agriculture_pct + unemployed_men_pct + non_muslim_pct +
+       state_railway_station + pop_change_20yrs + european_pct + missionaries_per10000 +
+       state_admin_pct + admin_centre,
+     mb_dis)
+
+mb_d_lm <- 
+  lm(literate_pct~ state_admin_pct,
+     mb_dis)
+summary(mb_d_lm)
+
+
 
 # wuthout european_pct ecs... 
 dlm <- 

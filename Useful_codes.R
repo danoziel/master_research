@@ -1,4 +1,5 @@
 write.csv(Agriculture_18_19, file = "C:/Users/Dan/Documents/R/Rautahat.Bara.Sarlahi/data/Agriculture_18_19.csv", row.names=FALSE)
+write.csv(GHI, file = "C:/Users/Dan/Documents/master_research/DATAs/data_saptari/GHI.csv", row.names=FALSE)
 
 # Save the data in different vector ----
 women_weight <- genderweight %>%
@@ -132,3 +133,10 @@ leaflet() %>%
       "<kharif_2020_rice>Plot Size (acre): </kharif_2020_rice>", kharif_2020_rice$plot_acre, "<br>",
       "<kharif_2020_rice>Farmer ID: </kharif_2020_rice>", kharif_2020_rice$farmer_id, "<br>"
     ))
+
+
+## tab_model for two models ----
+tab_model(model11,model13,digits=3,p.style="stars", show.se = TRUE,string.ci = "Conf. Int (95%)",
+          dv.labels = c("Saptari", "Rautahat Bara Sarlahi"))
+
+

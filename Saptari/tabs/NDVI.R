@@ -1,0 +1,11 @@
+
+library(raster)
+b2 <- raster("region_blue.grd")
+b3 <- raster("region_green.grd")
+b4 <- raster("region_red.grd")
+b5 <- raster("region_IR.grd")
+region.brick <- brick(b2, b3, b4, b5)
+install.packages("solaR")
+library(solaR)
+data(pumpCoef)
+view(pumpCoef)

@@ -1,10 +1,8 @@
 # HA ----
 HA <- water01_SEASONs %>% 
   filter(!crop %in% c("System testing","System Testing","Barren","Barren Land")) %>%
-  filter(!HH %in% c("T210701004","T109902002","E0104705010",
-                    "A0110402001")) %>% 
-  filter(! Seasons %in%c("Monsoon 2015-2016", "Summer 2016-2017","Annual 2019-2020",
-                         "Monsoon 2019-2020", "Winter 2019-2020")) %>% 
+  filter(!HH %in% c("T210701004","T109902002","E0104705010","A0110402001")) %>% 
+  filter(! Seasons %in%c("Monsoon 2015-2016", "Summer 2016-2017")) %>% 
   mutate(`Total Area Cultivated`=`Total Area Cultivated`*0.0339) %>% 
   mutate(crop_type=ifelse(crop %in% c("Paddy", "Summer Paddy","paddy"),"Paddy",
                           ifelse(crop == "Wheat","Wheat",
@@ -237,12 +235,13 @@ HA_hr <-
   filter(Hours>0) %>% 
   group_by(district,Seasons,HH,crop_type) %>% 
   summarise(Hours=sum(Hours),`Total Area Cultivated`=max(`Total Area Cultivated`)) %>% 
+  drop_na() %>%
   mutate(Hours_per_ha=Hours/`Total Area Cultivated`) %>% 
   group_by(district,HH,crop_type) %>% 
   summarise(Hours_per_ha=mean(Hours_per_ha))%>% 
   group_by(crop_type,district) %>% 
   summarise(`Hours per ha`=mean(Hours_per_ha),SD_hr=sd(Hours_per_ha))%>% 
-  drop_na() %>% mutate_at (3:4,round)
+  mutate_at (3:4,round)
 
 # HA_dif----
 HA_dif <-
