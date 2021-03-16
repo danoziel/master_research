@@ -86,6 +86,8 @@ X <-
 
 
 # scatter  --            ----
+
+
 ggplot(f_xx, aes(x = Hours, y=DIFFERENCE, color=District, shape=District)) +
   geom_point() + 
   geom_smooth(method=lm, se=FALSE, fullrange=TRUE,color="black")+

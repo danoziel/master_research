@@ -122,27 +122,6 @@ x %>% rename(District = district) %>%
         plot.caption = element_text(size = 8, margin = margin(t = 10), color = "grey70", hjust = 0))
 -
   
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # c cf     By Season ----

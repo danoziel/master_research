@@ -13,7 +13,7 @@ library(readxl)
 Master_file_Saptari_REWSSPC_12_27_2019 <-
   read_excel("~/Nepal Data/Master file - Saptari & REWSSPC-12-27-2019.xlsx",n_max = 14513)
 
-# T300406135 returned the pump
+#   T300406135  returned the pump
 # "E0104705010" pump broke
 
 water01 <- Master_file_Saptari_REWSSPC_12_27_2019 %>%
@@ -108,6 +108,10 @@ Master_HH_N <- Master_HH_N %>% filter( HH != "T109902002")
 
 "Total Area Cultivated" :steelblue2
 "Area Irrigated" :steelblue
+
+"Winter" : dodgerblue4
+"Monsoon" :dimgrey
+"Summer" : darkolivegreen4
 --------------------------------------------------
 # SEASONs ----
 
