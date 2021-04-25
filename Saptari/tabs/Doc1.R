@@ -75,10 +75,6 @@ sip  <-tribble(~" ", ~"Avg. SPIP usage per day", ~"Avg. sunshine duration hours 
 kable(sip) %>% kable_styling()
 
 
-
-
-
-
 # Total hours of SPIP use  YEAR----
 x <- water01_SEASONs %>% 
   group_by(district,HH) %>%  

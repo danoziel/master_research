@@ -182,8 +182,8 @@ n <-HH_pct_N_rain %>%
   mutate(DA=ifelse(rainCat=="Rainy_Day"& after == "Rainy_Day", NA,
                    after))
 
-saptari_mm <- HH_pct_N_rain %>% filter(district=="Saptari") %>% drop_na(pct)
-rbs_mm <- HH_pct_N_rain %>% filter(district=="Rautahat_Bara_Sarlahi")  %>% drop_na(pct)
+saptari_mm <- HH_pct_N_rain %>% filter(district=="Saptari",seasonCat == "Monsoon") %>% drop_na(pct)
+rbs_mm <- HH_pct_N_rain %>% filter(district=="Rautahat_Bara_Sarlahi",seasonCat == "Monsoon")  %>% drop_na(pct)
 
 # plot ----
 HH_pct_N_rain %>%
@@ -213,11 +213,11 @@ c("season","district","pct","rain_mm","year","seasonCat",
   "Winter","Summer","Monsoon","rainCat","rainIntensity")
 
 #rain_mm  - figure 6.1 ----
-modSAP <- lm(pct ~ rain_mm , data = saptari_mm)
-modRBS <- lm(pct ~ rain_mm , data = rbs_mm)
+modSAP <- lm(pct ~ rainIntensity , data = saptari_mm)
+modRBS <- lm(pct ~ rainIntensity , data = rbs_mm)
 tab_model(modSAP,modRBS,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",
-          dv.labels = c("Saptari", "Rautahat Bara Sarlahi"),
-          pred.labels = c("(Intercept)", "Rain (mm)"))
+          dv.labels = c("Saptari", "Rautahat Bara Sarlahi"))
+          pred.labels = c("(Intercept)", "Rain Intensity"))
 
 #scatterplot
 HH_pct_N_rain %>% rename(District=district) %>% 
@@ -253,6 +253,26 @@ tab_model(modSAP,modRBS,digits=4,p.style= "numeric",show.se = TRUE,string.ci = "
           dv.labels = c("Saptari", "Rautahat Bara Sarlahi"),
           pred.labels = c("(Intercept)", "Rainy Day (>1 mm)"))
 
+# rainy day>2mm ----
+
+HH_pct_N_rain <- HH_pct_N_rain %>% 
+  mutate(rain_day_2mm=ifelse(rain_mm>2,1,0))%>%
+  mutate(one_day_ago= rain_day_2mm )
+
+#HH_pct_N_rain$rain_day_2mm <- as.factor(HH_pct_N_rain$rain_day_2mm)
+
+HH_pct_N_rain[which(HH_pct_N_rain$one_day_ago == 1)+1, "one_day_ago"] <- 1
+
+saptari_mm <- HH_pct_N_rain %>% filter(district=="Saptari") %>% drop_na(pct)
+rbs_mm <- HH_pct_N_rain %>% filter(district=="Rautahat_Bara_Sarlahi")  %>% drop_na(pct)
+
+modSAP <- lm(pct ~ rain_day_2mm+ one_day_ago ,data = saptari_mm)
+modRBS <- lm(pct ~ rain_day_2mm+ one_day_ago , data = rbs_mm)
+
+
+tab_model(modSAP,modRBS,digits=4,p.style= "numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",
+          dv.labels = c("Saptari", "Rautahat Bara Sarlahi"),
+          pred.labels = c("(Intercept)", "Rain Day (2 mm>)","one_day_ago"))
 
 #  dataset - days before  ----
 days_before_rain <- HH_pct_N_rain %>%
@@ -389,3 +409,48 @@ fixef(fixed)
 pFtest(fixed, ols)
 
 tab_model(model2,digits=3,p.style="stars")
+
+# diary ----
+
+diary_saptari <- get_power(
+  community = "SSE",
+  lonlat = c(86.63533, 26.60646),
+  pars = c("PRECTOT","ALLSKY_SFC_SW_DWN"),
+  dates =c( "2017-06-02","2019-12-16"),
+  temporal_average = "DAILY") %>% 
+  add_column(district = "Saptari") %>% 
+  rename(date=YYYYMMDD)
+
+
+diary_rbs <- get_power(
+  community = "SSE",
+  lonlat = c(85.16984, 27.00147),
+  pars = c("PRECTOT","ALLSKY_SFC_SW_DWN"),
+  dates =c( "2018-06-21","2019-12-16"),
+  temporal_average = "DAILY") %>% 
+  add_column(district = "Rautahat_Bara_Sarlahi") %>% 
+  rename(date=YYYYMMDD)
+
+diary_4 <- rbind(diary_saptari[,7:10],diary_rbs[,7:10]) 
+# diary_4$ALLSKY_SFC_SW_DWN[is.na(diary_4$ALLSKY_SFC_SW_DWN)] <- 0
+# ----
+diary_spip_terai <-water01_SEASONs %>% inner_join(diary_4) %>% 
+  rename(ghi=ALLSKY_SFC_SW_DWN,precip=PRECTOT)
+
+----
+ggplot(diary, aes(x=ghi, y=precip,color=precip)) +
+  geom_point()+
+  theme(text = element_text(family = "Georgia"))+
+  theme_minimal()
+
+ggplot(diary, aes(x=ghi, y=precip)) + 
+  geom_point()+
+  geom_smooth(method=lm)+
+  theme_minimal()
+----
+
+ggplot(diary, aes(x=ghi)) + geom_histogram()
+
+ggplot(diary, aes(x=crops_category, y=Hours)) +
+  geom_bar(stat="identity", fill="steelblue")+
+  theme_minimal()

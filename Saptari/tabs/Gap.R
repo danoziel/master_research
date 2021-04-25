@@ -8,9 +8,10 @@ rm(NYgaps_irrigation)
                             
 # GENERAL        ----
 gaps_irrigation <- water01 %>% 
+  filter(!HH %in% c("T210701004","T109902002","E0104705010","A0110402001")) %>% 
   #filter(!HH %in% c("T210701004","T109902002","E0104705010","A0110402001",
 #                   "T302603034","T309708020","T300901113")) %>% 
-  select(district,HH,date)%>%
+  select(district,HH,date,crop)%>%
   group_by(district,HH) %>% 
   mutate(d1=lag(date),d2=lead(date) ) %>% 
   mutate(start=d1+1) %>%
@@ -21,10 +22,10 @@ gaps_irrigation <- water01 %>%
   mutate(n.=end.-start.)
 
 #    count .  days without irrigation
-Ngaps_irrigation <- gaps_irrigation %>% select(district,HH,start,date) %>%
+Ngaps_irrigation <- gaps_irrigation %>% select(district,HH,start,date,crop) %>%
   mutate(Irrigation= "No") %>%  rename(end = date) %>% na.omit()
 #    count .  irrigation days 
-Ygaps_irrigation <- gaps_irrigation %>% select(district,HH,start.,end.) %>% mutate(Irrigation= "Yes") %>% 
+Ygaps_irrigation <- gaps_irrigation %>% select(district,HH,start.,end.,crop) %>% mutate(Irrigation= "Yes") %>% 
   rename(start=start. ,end=end.) %>% na.omit()
 # total count and gaps
 NYgaps_irrigation <- rbind(Ngaps_irrigation,Ygaps_irrigation) %>%
@@ -126,18 +127,36 @@ gapNY4 <-
 title='Gaps between irrigation days'
 subtitle = "The average gaps are calculated for each farmer \nIn the graph - the average of the total farmers\nIrrigation by season in the cultivated area"
   
-# 600/250
+# 1900/500
 ggplot(gapNY4,aes(x=Seasons,y=`Gap Av.`,fill=District))+
-  geom_bar(stat="identity", position=position_dodge())+
+  geom_bar(stat="identity", position=position_dodge(),alpha=0.9)+
   geom_text(aes(label=`Gap Av.`), vjust=1.6, color="white",
-            position = position_dodge(0.9), size=2.5)+
+            position = position_dodge(0.9), size=6.5)+
   theme_bw()+
   labs(x=" ",y="Avg. Gap")+
-  theme(axis.text.x = element_text(angle = 90))+
+  
+  theme( legend.position = "none",
+         axis.title = element_text(size = 30),
+        axis.text.y = element_text(size = 25))+
+  
   scale_fill_manual(values=c("lightsalmon4", "darkolivegreen4","dimgrey"))+
   theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(),
-        text = element_text(family = "Georgia"))
-  
+        text = element_text(family = "Times New Roman"))
+-------------------------------------------------------------------------
+  # 600/250 1200/500
+  ggplot(gapNY4,aes(x=CROPs,y=`Gap Av.`,fill=District))+
+  geom_bar(stat="identity", position=position_dodge(),alpha=0.9)+
+  geom_text(aes(label=`Gap Av.`), vjust=1.6, color="white",
+            position = position_dodge(0.9), size=6.5)+
+  theme_bw()+
+  labs(x=" ",y="Avg. Gap")+
+  theme(axis.title = element_text(size = 30),
+        axis.text.x = element_text(size = 30),axis.text.y = element_text(size = 25),
+        legend.text = element_text(size=25))+
+  scale_fill_manual(values=c("lightsalmon4", "darkolivegreen4","dimgrey"))+
+  theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(),
+        text = element_text(family = "Times New Roman"))
+---------------------------------------------------------------------------
   
   
 
@@ -226,17 +245,19 @@ gapNY4 <-
   mutate(across(is.numeric,round,2)) %>%  rename(District = district) %>% 
   mutate(District = ifelse(District == "Rautahat_Bara_Sarlahi",
                            "Rautahat\nBara Sarlahi", District)) 
-# 600/250
+# 600/250 1200/500
 ggplot(gapNY4,aes(x=CROPs,y=`Gap Av.`,fill=District))+
-  geom_bar(stat="identity", position=position_dodge())+
+  geom_bar(stat="identity", position=position_dodge(),alpha=0.9)+
   geom_text(aes(label=`Gap Av.`), vjust=1.6, color="white",
-            position = position_dodge(0.9), size=3)+
+            position = position_dodge(0.9), size=6.5)+
 theme_bw()+
-  labs(x=" ",y="Days")+
-  theme(plot.title = element_text( size = 9))+
+  labs(x=" ",y="Avg. Gap")+
+  theme(axis.title = element_text(size = 30),
+        axis.text.x = element_text(size = 30),axis.text.y = element_text(size = 25),
+        legend.text = element_text(size=25))+
   scale_fill_manual(values=c("lightsalmon4", "darkolivegreen4","dimgrey"))+
   theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(),
-        text = element_text(family = "Georgia"))
+        text = element_text(family = "Times New Roman"))
 
 
 # --------------------------------------------------------------------
@@ -279,11 +300,31 @@ gapNY <- NYgaps_irrigation %>%filter(Irrigation=="No",gap<30) %>%
   group_by(crop_type) %>%
   summarise(`Gap Av.`=mean(gap),`SD Gap`= sd(gap)) 
 
+# plot : Hours vrs DIFFERENCE Only for irrigation days that are after 5-10 days without irrigation ----
+f_x5 <-
+  NYgaps_irrigation %>% mutate(btwn=lag(gap)) %>%
+  filter(Irrigation!="No") %>% select(1,2,3,5,7) %>%
+  rename(date=start) %>%
+  left_join(water01) %>%
+  select(1,2,3,5,13,26) %>%
+  rename(time=Hours,flow_meter=DIFFERENCE) %>%
+  mutate(time_flowmeter=time/flow_meter) %>% 
+  filter(gap>5,flow_meter>0)
+  
+ggplot(f_x, aes(x = Hours, y=DIFFERENCE, color=district, shape=district)) +
+  geom_point(size = .85) + 
+  # geom_smooth(method=lm, se=FALSE, fullrange=TRUE,color="black")+
+  labs(x="Irrigations hours", y="Flow meter reading")+
+  theme_minimal() +  
+  scale_color_manual(values=c("lightsalmon4", "darkolivegreen4"))+
+  theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(),
+        text = element_text(family = "Georgia")  )
 
 
+res <- 
+  t.test(f_x5$time_flowmeter ~ f_x10$time_flowmeter)
 
-
-
+t.test(sales_before, sales_after,var.equal = TRUE)
 
 
 

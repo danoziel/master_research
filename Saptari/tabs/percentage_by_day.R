@@ -649,8 +649,8 @@ A1_seasons <- A1 %>%
 # A1_days_HH totalHH----
 A1_days_HH <- A1_seasons %>% 
   rowwise() %>% 
-  mutate(sumVar = across(c(A104507035:T309900000),~ifelse(. %in% c("yes", "no"),1,0)) %>% sum) %>% 
-  mutate(irri = across(c(A104507035:T309900000),~ifelse(. %in% c("yes"),1,0)) %>% sum) %>% 
+  mutate(sumVar = across(c(A104507035:),~ifelse(. %in% c("yes", "no"),1,0)) %>% sum) %>% 
+  mutate(irri = across(c(A104507035:T309900000),~T309900000ifelse(. %in% c("yes"),1,0)) %>% sum) %>% 
   mutate(per=irri/ sumVar) 
 colour <- c("dimgrey", "dimgrey","dimgrey", "darkolivegreen4","darkolivegreen4",
             "dodgerblue4","dodgerblue4","dodgerblue4")
@@ -765,3 +765,54 @@ library(vistime)
 vistime(A_days_start_end, events = "total_days", 
         groups = "HH",
         start = "start", end = "end")
+
+# -----------------
+dim(A1_seasons)
+df151  <- A1_seasons[,1:51]
+
+df53 <- diary_spip_terai[,c(1,26)] %>% distinct()
+
+# diary ----
+
+diary_saptari <- get_power(
+  community = "SSE",
+  lonlat = c(86.63533, 26.60646),
+  pars = c("PRECTOT","ALLSKY_SFC_SW_DWN"),
+  dates =c( "2017-06-02","2019-12-16"),
+  temporal_average = "DAILY") %>% 
+  add_column(district = "Saptari") %>% 
+  rename(date=YYYYMMDD)
+
+
+diary_rbs <- get_power(
+  community = "SSE",
+  lonlat = c(85.16984, 27.00147),
+  pars = c("PRECTOT","ALLSKY_SFC_SW_DWN"),
+  dates =c( "2018-06-21","2019-12-16"),
+  temporal_average = "DAILY") %>% 
+  add_column(district = "Rautahat_Bara_Sarlahi") %>% 
+  rename(date=YYYYMMDD)
+
+diary_4 <- rbind(diary_saptari[,7:10],diary_rbs[,7:10]) 
+
+# irrigation_day_yesno y as binary varible ----
+irrigation_day_yesno <- 
+  gather(df151, "HH", "irrigation_day", -date) %>%
+  drop_na() %>% 
+  left_join(df53) %>% 
+  left_join(diary_4) %>% 
+  rename(ghi=ALLSKY_SFC_SW_DWN,precip=PRECTOT) %>% 
+  mutate(irrigation_day=ifelse(irrigation_day=="yes",1,0))
+
+# regrassion
+
+model53 <- lm(irrigation_day~ ghi,irrigation_day_yesno)
+model53 <- lm(irrigation_day~ precip,irrigation_day_yesno)
+model53 <- lm(irrigation_day~ ghi+precip,irrigation_day_yesno)
+
+summary(model53)
+tab_model(model53,digits=3,p.style= "numeric",
+          show.se = TRUE,string.ci = "Conf. Int (95%)",
+          pred.labels = c("(Intercept)", "Solar Radiation (GHI)","Rain mm"))
+
+

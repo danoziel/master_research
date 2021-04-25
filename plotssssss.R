@@ -27,6 +27,8 @@ ggplot(days_use_hh, aes(x = percentage))+
 
 # Scatter plot----
 
+ggplot(mtcars, aes(x=wt, y=mpg,color=cyl)) + geom_point()
+
 #plot I
 peace_and_attackes$ intifada <- factor(peace_and_attackes$intifada)
 
@@ -34,7 +36,8 @@ p6 <- ggplot(peace_and_attackes) +
   geom_point(aes(x = total_attacks, y = q3,color =intifada))+
   scale_x_continuous(breaks = seq(1, 15, 1))+
   ggtitle("Peace_and_attackes") +
-  labs(x = "Number of attacks", y = "Peace Index")
+  labs(x = "Number of attacks", y = "Peace Index")+
+  theme_minimal()
 
 
 
@@ -177,8 +180,10 @@ library(abind)
 new.table = abind(table.satisfaction, table.delay, table.favorite, along = 1) 
 dimnames(new.table)[[3]] = c("Score","Sample Size")
 
-
-
+# grid.arrange----
+library("gridExtra")
+grid.arrange(xdensity, blankPlot, scatterPlot, ydensity, 
+             ncol=2, nrow=2, widths=c(4, 1.4), heights=c(1.4, 4))
 
 
 

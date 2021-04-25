@@ -242,17 +242,13 @@ xaqua_end <- aquaculture %>%
 
 # --------------------------------------------------- -----------
   #  Irrigation Days ##                                         ----
-rainy_days <- 
-  janakpur_climatology_NASA %>% 
-  inner_join(A_days_list) %>% 
-  mutate(rain_day  = ifelse(PRECTOT < 7.5, "0","1"))
-rainy_days[rainy_days==-999] <- 0
 
 # usage_days = n
 usage_days <- 
   water01 %>%   filter(!HH %in% c("A0110402001", "T300608006", "T210701004")) %>% 
-  filter(! Seasons %in%c("Monsoon 2015-2016", "Summer 2016-2017","Annual 2019-2020",
-                         "Monsoon 2019-2020", "Winter 2019-2020")) %>% 
+#  filter(! Seasons %in%c("Monsoon 2015-2016", "Summer 2016-2017","Annual 2019-2020",
+ #                        "Monsoon 2019-2020", "Winter 2019-2020")) %>% 
+  filter(! Seasons %in%c("Monsoon 2015-2016", "Summer 2016-2017")) %>% 
   group_by(HH) %>% 
   mutate(start=min(date),end=max(date)) %>% 
   mutate(total_days=end-start,
@@ -262,31 +258,20 @@ usage_days <-
   group_by(HH,total_days) %>% summarise(n=sum(n)) %>% 
   select(HH,n)
 
-#total_days withuot rainy/cloudy days
-total_days <- 
-  water01 %>%   filter(!HH %in% c("A0110402001", "T300608006", "T210701004")) %>% 
-  filter(! Seasons %in%c("Monsoon 2015-2016", "Summer 2016-2017","Annual 2019-2020",
-                         "Monsoon 2019-2020", "Winter 2019-2020")) %>% 
-  inner_join(janakpur_climatology_NASA) %>% 
-  mutate(rain_day  = ifelse(PRECTOT < 7.5, "0","1")) %>% 
+#total_days # percentage = percentage / total_days
+total_days2 <- 
+  water01_SEASONs %>%   filter(!HH %in% c("A0110402001", "T300608006", "T210701004")) %>% 
+  filter(! Seasons %in%c("Monsoon 2015-2016", "Summer 2016-2017")) %>% 
   group_by(HH) %>% 
   mutate(start=min(date),end=max(date)) %>% 
   mutate(total_days=end-start,
          total_days = as.numeric(total_days)) %>%
-  filter(rain_day==0) %>% 
   select(date,HH,total_days) %>% distinct() %>% 
   group_by(HH,date) %>% mutate(n=n()) %>% 
-  group_by(HH,total_days) %>% summarise(n=sum(n))
+  group_by(HH,total_days) %>% summarise(irrigation_days=sum(n)) 
 
-# percentage = n / total_days
-days_use_hh3 <- days_use_hh2 %>%
-  rename(total_days2=total_days,n2=n) %>% 
-  inner_join(days_use_hh,by="HH") %>% select(HH,total_days2,n) %>% 
-  mutate(percentage=n/total_days2)
-
-days_use_hh%>% ungroup() %>% 
-  summarise(n(),mean=mean(percentage),min(percentage),max(percentage),sd(percentage)) %>% 
-  mutate_at(2:5,round,2)
+days_use_hh <- total_days2 %>% 
+  mutate(percentage = irrigation_days / total_days) 
 
 hist(days_use_hh$percentage)
 

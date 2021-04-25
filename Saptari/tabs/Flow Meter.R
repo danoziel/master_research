@@ -7,14 +7,14 @@ title="Static Water Level"
 subtitle =  "Average borewell depth per household by districts in meters"
 
 xwater_level <- 
-  Farmers_pump_details %>%
+  Farmers_list %>%
   rename(water_level=`Static water level(m)`) %>% 
   mutate(District = ifelse(District %in% c("Rautahat", "Bara" , "Sarlahi"),
                            "Rautahat\nBara Sarlahi",
                            ifelse(District == "Saptari (Pilot)","Saptari",District))) %>% 
   select(2,3,5) %>%
   group_by(District) %>% 
-  summarise(Mean=mean(water_level),SD=sd(water_level)) %>% 
+  summarise(Mean=mean(water_level,na.rm = T),SD=sd(water_level,na.rm = T)) %>% 
   mutate(across(is.numeric,round,2)) %>% 
   
   ggplot(aes(x=District, y= Mean , fill=District)) +
@@ -87,15 +87,23 @@ X <-
 
 # scatter  --            ----
 
-
-ggplot(f_xx, aes(x = Hours, y=DIFFERENCE, color=District, shape=District)) +
-  geom_point() + 
-  geom_smooth(method=lm, se=FALSE, fullrange=TRUE,color="black")+
+ggplot(f_xx, aes(x = Hours, y=DIFFERENCE, color=District)) +
+  geom_point(size = .85) + 
+ # geom_smooth(method=lm, se=FALSE, fullrange=TRUE,color="black")+
   labs(x="Irrigations hours", y="Flow meter reading")+
   theme_minimal() +  
   scale_color_manual(values=c("lightsalmon4", "darkolivegreen4"))+
   theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank(),
         text = element_text(family = "Georgia")  )
+
+# plot : Hours vrs DIFFERENCE Only for irrigation days that are after 5-10 days without irrigation ----
+#dataser and scatterplot in Gap.TAB
+
+
+
+
+
+
 #  ----
 # Time = Energy * HP.
 # Energy = water * depth.
