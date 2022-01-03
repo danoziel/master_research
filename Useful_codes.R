@@ -1,5 +1,8 @@
 write.csv(days_use_hh, file = "C:/Users/Dan/Documents/R/Rautahat.Bara.Sarlahi/data/Agriculture_18_19.csv", row.names=FALSE)
-write.csv(days_use_hh, file = "C:/Users/Dan/Documents/master_research/DATAs/data_saptari/days_use_hh.csv", row.names=FALSE)
+write.csv(wem_liter_fuel_and_time_to_irrigate_1_ha, file = "C:/Users/Dan/Documents/master_research/DATAs/data_saptari/wem_liter_fuel_and_time_to_irrigate_1_ha.csv", row.names=FALSE)
+
+library(foreign)
+write.dta(spip_nepal_time_energy, "spip_nepal_time_energy.dta") 
 
 # Save the data in different vector ----
 women_weight <- genderweight %>%
@@ -63,6 +66,9 @@ at_btselem <- at_btselem %>% mutate(total_events_located_IL  = ifelse(location =
 #location- old, total_events_located_IL-new
 
 
+#round ----
+mutate_at(3,round,2) # (column ,round ,digits)
+
 colMeans(land_Treats)
 
 mutate(avm_self = rowMeans(.[names(.)[7:8]], na.rm = T),#mean per row - by defined columns
@@ -83,7 +89,7 @@ mutate(avm_self = rowMeans(.[names(.)[7:8]], na.rm = T),#mean per row - by defin
        R_Aquaculture_Baseline_2018_ %>%filter(!is.na(practice_aquaculture)) %>%
          count(practice_aquaculture) %>%mutate(freq = n / sum(n))
        
-# ---------------------------------
+# dates---------------------------------
 library(data.table)
 peace_index$date <-  as.Date(peace_index$date, "%Y-%m-%d")
   
@@ -139,4 +145,20 @@ leaflet() %>%
 tab_model(model11,model13,digits=3,p.style="stars", show.se = TRUE,string.ci = "Conf. Int (95%)",
           dv.labels = c("Saptari", "Rautahat Bara Sarlahi"))
 
+# Barplot with error bars----
+# Standard deviation, Standard error or Confidence Interval ----
+https://www.r-graph-gallery.com/4-barplot-with-error-bar.html
 
+
+# ----nasapower--------------------------------------------
+
+26.734950834599527, 85.9272131400479
+
+library(nasapower)
+ag_d <- get_power(
+  community = "SSE",
+  lonlat = c(85.92, 26.73),
+  pars = c( "KT","CLRSKY_SFC_SW_DWN","ALLSKY_SFC_SW_DWN", "PRECTOT"),
+  dates =c( "2017-06-02","2019-12-16"),
+  temporal_average = "DAILY"
+)
