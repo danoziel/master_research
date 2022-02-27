@@ -879,7 +879,7 @@ ggplot(cropping_pattern, aes(x = year, y = mean_cult_area_under_crop, fill = nam
 
 
 # legend ----
-  ggplot(cropping_pattern, aes(x = year, y = mean_cult_area_under_crop, fill = name_of_crop, label = mean_cult_area_under_crop)) +
+  ggplot(cropping_pattern, aes(x = year, y = mean_cult_area_under_crop,fill = name_of_crop, label = mean_cult_area_under_crop)) +
   geom_bar(stat = "identity") +
   theme_minimal()+
   geom_text(size = 5, position = position_stack(vjust = 0.5))+

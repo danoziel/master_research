@@ -1,5 +1,6 @@
 write.csv(days_use_hh, file = "C:/Users/Dan/Documents/R/Rautahat.Bara.Sarlahi/data/Agriculture_18_19.csv", row.names=FALSE)
 write.csv(wem_liter_fuel_and_time_to_irrigate_1_ha, file = "C:/Users/Dan/Documents/master_research/DATAs/data_saptari/wem_liter_fuel_and_time_to_irrigate_1_ha.csv", row.names=FALSE)
+write.csv(banihatti_tidy, file = "C:/Users/Dan/Documents/banihatti_tidy.csv", row.names=FALSE)
 
 library(foreign)
 write.dta(spip_nepal_time_energy, "spip_nepal_time_energy.dta") 
@@ -65,6 +66,9 @@ at_btselem <- at_btselem %>% mutate(total_events_located_IL  = ifelse(location =
   mutate(total_events_located_yesha  = ifelse(location == 2, "1",NA)) 
 #location- old, total_events_located_IL-new
 
+# convert first letter to uppercase----
+library(stringr)
+village_list$village <- str_to_title(village_list$village) 
 
 #round ----
 mutate_at(3,round,2) # (column ,round ,digits)
