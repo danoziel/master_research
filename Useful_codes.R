@@ -166,3 +166,6 @@ ag_d <- get_power(
   dates =c( "2017-06-02","2019-12-16"),
   temporal_average = "DAILY"
 )
+
+
+

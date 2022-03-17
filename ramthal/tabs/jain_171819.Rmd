@@ -1,0 +1,168 @@
+---
+title: "Crop maps of Rabi and Kharif 2017-2019"
+author: "According to data collected by Jain Irrigation Systems Ltd."
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(gridExtra)
+
+library(readr)
+jain_common_crop <- read_csv("~/master_research/DATAs/ramthal_data/jain_common_crop.csv")
+jain_highvalue_crop <- read_csv("~/master_research/DATAs/ramthal_data/jain_highvalue_crop.csv")
+ramthal_east_tidy2 <- read_csv("~/master_research/DATAs/ramthal_data/ramthal_east_tidy2.csv")
+
+group.colors <- c(Cereals="tan3",
+                  Oilseeds= "khaki1",
+                  Pulses= "indianred3",
+                  Vegetables= "olivedrab3",
+                  Others= "lightskyblue3")
+
+```
+
+## Common Crop
+
+Every plot combine several types of crop. The following map signs the most dominant crop in any plot.
+Crops were grouped into categories of cereals, pulses, vegetables, oilseeds, and 'other' . The gray areas are plots with no data. The crop list appears at the end of the report.
+Rabi seasons maps are shown first, followed by the Kharif seasons.
+
+
+#grid.arrange(hhh , ggg , ncol=2)
+```{r pressure0, echo=FALSE}
+
+rabbi_2017 <- 
+  jain_common_crop %>% filter(season == "rabbi_2017") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = " ")+
+  theme_minimal()+theme(legend.position="none")+ 
+  scale_fill_manual(values=group.colors)
+
+rabbi_2018 <- 
+  jain_common_crop %>% filter(season == "rabbi_2018") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = " ")+
+  theme_minimal()+theme(legend.position="none")+ 
+  scale_fill_manual(values=group.colors)
+
+rabbi_2019 <- 
+  jain_common_crop %>% filter(season == "rabbi_2019") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = " ")+
+  theme_minimal()+theme(legend.position="none")+ 
+  scale_fill_manual(values=group.colors)
+
+grid.arrange(rabbi_2017 , rabbi_2018 , rabbi_2019 , ncol=3)
+
+```
+
+
+
+## Rabi 2017
+
+```{r pressure1, echo=FALSE}
+
+jain_common_crop %>% filter(season == "rabbi_2017") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = " ")+
+  theme_minimal()+
+  scale_fill_manual(values=group.colors)
+
+```
+
+## Rabi 2018
+
+```{r pressure2, echo=FALSE}
+jain_common_crop %>% filter(season == "rabbi_2018") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = " ")+
+  theme_minimal()+
+  scale_fill_manual(values=group.colors)
+
+```
+
+## Rabi 2019
+
+```{r pressure3, echo=FALSE}
+
+jain_common_crop %>% filter(season == "rabbi_2019") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = " ")+
+  theme_minimal()+
+  scale_fill_manual(values=group.colors)
+
+```
+
+## Kharif 2017
+
+```{r pressure4, echo=FALSE}
+
+jain_common_crop %>% filter(season == "kharif_2017") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = " ")+
+  theme_minimal()+
+  scale_fill_manual(values=group.colors)
+
+```
+
+## Kharif 2018
+
+```{r pressure5, echo=FALSE}
+jain_common_crop %>% filter(season == "kharif_2018") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = " ")+
+  theme_minimal()+
+  scale_fill_manual(values=group.colors)
+
+```
+
+## Kharif 2019
+
+```{r pressure6, echo=FALSE}
+
+jain_common_crop %>% filter(season == "kharif_2019") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = " ")+
+  theme_minimal()+
+  scale_fill_manual(values=group.colors)
+
+```
+
