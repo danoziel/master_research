@@ -1,0 +1,45 @@
+---
+title: "Untitledan"
+author: "Dan Oziel"
+date: "19 3 2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(readr)
+
+jain_171819  <- read_csv("~/master_research/DATAs/ramthal_data/jain_171819.csv")
+
+group.colorsII <- c(kharif_2017="cadetblue4",kharif_2018= "cadetblue4",kharif_2019= "cadetblue4",
+                    rabbi_2017= "cadetblue3", rabbi_2018= "cadetblue3", rabbi_2019= "cadetblue3")
+
+
+
+```
+
+This document includes maps and graphs illustrating the commonness of the crops by type.
+It is based on data collected by Jain Irrigation Systems Ltd. in 2017-2019.  
+The document has three parts:
+
+The farmer sample do not include all farmers on the east area. As displayed below, the number of farmers sampled differs from one season to another.
+
+| **Season** |  | Total farmers sampled |
+|-------:|------|:---------:|
+|Rabbi | 2017 | 482 |
+|       | 2018 | 725 |
+|       | 2019 | 607 |
+|  |  |  |
+|Kharif | 2017 | 1431 |
+|        | 2018 | 624  |
+|        | 2019 | 1684 |
+
+ * Every plot combines several crops types, so we ought to choose one for the map coloring. In the first following maps, we sign the most dominant crop, Which spreads over most of the plot area.
+
+* In the next maps, only the plots with high-value crops were colored, even if these crops were not the dominant ones in the plot. In this way it is possible to examine the extent to which high-value crops have been adopted.
+
+* The data relating only to high-value crops we plotted on a graphs  to examine the frequency in numbers.
+
+

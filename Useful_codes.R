@@ -14,7 +14,7 @@ women_weight <- genderweight %>%
 res <- 
   t.test(total_litres_consumed_dieselkero ~ TreatmentControl, data = df.match)
 
-#regression
+#regression ----
 ggplot(income.data, aes(x=income, y=happiness))+ geom_point()
 
 income.happiness.lm <- lm(happiness ~ income, data = income.data)

@@ -1,0 +1,352 @@
+---
+title: " Ramthal Micro Irrigation-East Area, Karnataka"
+subtitle: " Crop  maps of Rabi and Kharif 2017-2019"
+author: " "
+output: pdf_document
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(gridExtra)
+
+
+library(readr)
+jain_common_crop <- read_csv("~/master_research/DATAs/ramthal_data/jain_common_crop.csv")
+jain_highvalue_crop <- read_csv("~/master_research/DATAs/ramthal_data/jain_highvalue_crop.csv")
+ramthal_east_tidy2 <- read_csv("~/master_research/DATAs/ramthal_data/ramthal_east_tidy2.csv")
+jain_171819  <- read_csv("~/master_research/DATAs/ramthal_data/jain_171819.csv")
+
+group.colors <- c(Cereals="tan3",
+                  Oilseeds= "khaki1",
+                  Pulses= "indianred3",
+                  Vegetables= "olivedrab3",
+                  Others= "lightskyblue3")
+
+group.colorsII <- c(kharif_2017="cadetblue4",kharif_2018= "cadetblue4",kharif_2019= "cadetblue4",
+                    rabbi_2017= "cadetblue3", rabbi_2018= "cadetblue3", rabbi_2019= "cadetblue3")
+
+
+# \newpage
+```
+
+This document includes maps and graphs illustrating the commonness of the crops by type.
+It is based on data collected by Jain Irrigation Systems Ltd. in 2017-2019.  
+The document has three parts:
+
+The farmer sample do not include all farmers on the east area. As displayed below, the number of farmers sampled differs from one season to another.
+
+| **Season** |  | Total farmers sampled |
+|-------:|------|:---------:|
+|Rabbi | 2017 | 482 |
+|       | 2018 | 725 |
+|       | 2019 | 607 |
+|  |  |  |
+|Kharif | 2017 | 1431 |
+|        | 2018 | 624  |
+|        | 2019 | 1684 |
+
+ * Every plot combines several crops types, so we ought to choose one for the map coloring. In the first following maps, we sign the most dominant crop, Which spreads over most of the plot area.
+
+* In the next maps, only the plots with high-value crops were colored, even if these crops were not the dominant ones in the plot. In this way it is possible to examine the extent to which high-value crops have been adopted.
+
+* The data relating only to high-value crops we plotted on a graphs  to examine the frequency in numbers.
+
+
+
+# Mapping by Common Crop
+
+
+Crops were grouped into categories of cereals, pulses, vegetables, oilseeds, and 'other' . The gray areas are plots with no data. The crop list appears at the end of the report.
+Rabi seasons maps are shown first, followed by the Kharif seasons.
+
+
+## Rabi
+
+```{r pressure1, echo=FALSE, message = FALSE, warning =FALSE, out.width='97%'}
+
+jain_common_crop %>% filter(season == "rabbi_2017") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = "Rabi 2017")+
+  theme_minimal()+
+  scale_fill_manual(values=group.colors)
+
+```
+
+
+```{r pressure2, echo=FALSE, message = FALSE, warning =FALSE , out.width='97%' }
+jain_common_crop %>% filter(season == "rabbi_2018") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = "Rabi 2018")+
+  theme_minimal()+
+  scale_fill_manual(values=group.colors)
+
+```
+
+
+```{r pressure3, echo=FALSE, message = FALSE, warning =FALSE, out.width='97%' }
+
+jain_common_crop %>% filter(season == "rabbi_2019") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = " Rabi 2019")+
+  theme_minimal()+
+  scale_fill_manual(values=group.colors)
+
+```
+
+
+## Kharif
+
+
+```{r pressure4, echo=FALSE,message = FALSE, warning =FALSE , out.width='95%'  }
+
+jain_common_crop %>% filter(season == "kharif_2017") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = "kharif 2017")+
+  theme_minimal()+
+  scale_fill_manual(values=group.colors)
+
+```
+
+
+```{r pressure5, echo=FALSE, message = FALSE, warning =FALSE , out.width='95%'  }
+jain_common_crop %>% filter(season == "kharif_2018") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = "kharif 2018")+
+  theme_minimal()+
+  scale_fill_manual(values=group.colors)
+
+```
+
+
+```{r pressure6, echo=FALSE, message = FALSE, warning =FALSE, out.width='97%' }
+
+jain_common_crop %>% filter(season == "kharif_2019") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = "kharif 2019")+
+  theme_minimal()+
+  scale_fill_manual(values=group.colors)
+
+```
+
+
+
+
+# Mapping by High-Value Crop
+The maps below show only high-value crops of vegetables and oilseeds grown mainly in the Kharif season.
+The primary vegetables are Chilly and Onion, while oilseeds are
+Sunflower and some Cotton.
+
+## Rabi
+
+```{r pressure11, echo=FALSE, message = FALSE, warning =FALSE , out.width='120%'}
+
+# rabbi
+jain_highvalue_crop %>% filter(season == "rabbi_2017") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = "Rabi 2017 ")+
+  theme_minimal()+
+  scale_fill_manual(breaks = c("Vegetables","Oilseeds"), values=c("olivedrab3" ,"khaki1"))
+
+```
+
+
+```{r pressure12, echo=FALSE, message = FALSE, warning =FALSE , out.width='95%'}
+
+jain_highvalue_crop %>% filter(season == "rabbi_2018") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = "Rabi 2018")+
+  theme_minimal()+
+  scale_fill_manual(breaks = c("Vegetables","Oilseeds"),values=c("olivedrab3" ,"khaki1"))
+
+```
+
+
+```{r pressure13, echo=FALSE, message = FALSE, warning =FALSE,out.width='95%'}
+
+jain_highvalue_crop %>% filter(season == "rabbi_2019") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = "Rabi 2019 ")+
+  theme_minimal()+
+  scale_fill_manual(breaks = c("Vegetables","Oilseeds"),values=c("olivedrab3" ,"khaki1"))
+
+```
+
+
+## kharif
+
+```{r pressure14, echo=FALSE, message = FALSE, warning =FALSE,out.width='95%'}
+
+jain_highvalue_crop %>% filter(season == "kharif_2017") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = "kharif 2017")+
+  theme_minimal()+
+  scale_fill_manual(breaks = c("Vegetables","Oilseeds"), 
+                    values=c("olivedrab3" ,"khaki1"))
+
+```
+
+
+```{r pressure15, echo=FALSE, message = FALSE, warning =FALSE, out.width='95%'}
+
+jain_highvalue_crop %>% filter(season == "kharif_2018") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = "kharif 2018")+
+  theme_minimal()+
+  scale_fill_manual(breaks = c("Vegetables","Oilseeds"),values=c("olivedrab3" ,"khaki1"))
+```
+
+
+```{r pressure16, echo=FALSE, message = FALSE, warning =FALSE,out.width='97%'}
+
+jain_highvalue_crop %>% filter(season == "kharif_2019") %>% right_join(ramthal_east_tidy2) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = "kharif 2019")+
+  theme_minimal()+
+  scale_fill_manual(breaks = c("Vegetables","Oilseeds"),values=c("olivedrab3" ,"khaki1"))
+
+```
+
+
+# High-value Crops Frequency
+## Vegetables and Oilseeds
+
+Percentage of farmers growing vegetables and oilseeds out of all sampled farmers
+
+```{r hvc.plot, echo=FALSE, message = FALSE, out.width='65%',fig.align = 'center'}
+
+farmers_per_season <- 
+  jain_171819 %>% select(id_yoav,season) %>%
+  distinct() %>% count(season) %>% rename(`Total farmers sampled`=n)
+
+jain_171819 %>% 
+  filter(cropCat %in% c("Vegetables", "Oilseeds")) %>% 
+  dplyr :: select(-area_ha) %>% 
+  distinct() %>% 
+  group_by(season) %>%summarise(`High-value crops farmers`=n()) %>% 
+  inner_join(farmers_per_season) %>% 
+    mutate(freq = `High-value crops farmers` /`Total farmers sampled`) %>% 
+    mutate(prt = paste0(round(100 * freq, 0), "%")) %>% 
+  
+    ggplot() +
+    geom_bar(aes(y = freq, x = season, fill = season), stat="identity")+
+    scale_fill_manual(values=group.colorsII)+
+    labs(x = " ",y = "% of farmers growing\n vegetables and oilseeds")+
+    theme_minimal()+theme(legend.position="none")
+
+```
+
+The table shows the frequency data in numbers
+
+```{r hvc.table, echo=FALSE, message = FALSE, warning =FALSE, out.width='150%'}
+
+
+hvc <- jain_171819 %>% 
+  filter(cropCat %in% c("Vegetables", "Oilseeds")) %>% 
+  dplyr :: select(-area_ha) %>% 
+  distinct() %>% 
+  group_by(season) %>%summarise(`High-value crops farmers`=n()) %>% 
+  inner_join(farmers_per_season) %>% 
+  mutate(freq = `High-value crops farmers` /`Total farmers sampled`) %>% 
+  mutate(Percentage  = paste0(round(100 * freq, 0), "%")) 
+
+knitr::kable(
+  hvc[,-4 ], 
+  caption = "High-value Crops frequency"
+)
+
+```
+
+## Vegetables only
+
+Percentage of farmers growing vegetables out of all sampled farmers
+
+```{r veg.plot, echo=FALSE, message = FALSE, out.width='65%',fig.align = 'center'}
+
+jain_171819 %>% 
+  filter(cropCat == "Vegetables") %>% 
+  dplyr :: select(-area_ha) %>% 
+  distinct() %>% 
+  group_by(season) %>%summarise(`High-value crops farmers`=n()) %>% 
+  inner_join(farmers_per_season) %>% 
+    mutate(freq = `High-value crops farmers` /`Total farmers sampled`) %>% 
+    mutate(prt = paste0(round(100 * freq, 0), "%")) %>% 
+  
+    ggplot() +
+    geom_bar(aes(y = freq, x = season, fill = season), stat="identity")+
+    scale_fill_manual(values=group.colorsII)+
+    labs(x = " ",y = "% of farmers growing\n vegetables and oilseeds")+
+    theme_minimal()+theme(legend.position="none")
+
+```
+
+The table shows the frequency data in numbers
+
+```{r veg.table, echo=FALSE, message = FALSE, warning =FALSE, out.width='150%'}
+
+
+veg <- jain_171819 %>% 
+  filter(cropCat == "Vegetables") %>% 
+  dplyr :: select(-area_ha) %>% 
+  distinct() %>% 
+  group_by(season) %>%summarise(`High-value crops farmers`=n()) %>% 
+  inner_join(farmers_per_season) %>% 
+  mutate(freq = `High-value crops farmers` /`Total farmers sampled`) %>% 
+  mutate(Percentage  = paste0(round(100 * freq, 0), "%")) 
+
+knitr::kable(
+  veg[,-4 ], 
+  caption = "Vegetable Crops frequency"
+)
+
+```

@@ -1,5 +1,8 @@
+# library() ----
 library(tidyverse)
 library(extrafont)
+library(dplyr)
+library(kableExtra)
 extrafont::loadfonts(device="win")
 font_import()
 loadfonts(device="win")
@@ -16,16 +19,19 @@ library(sf)
 library(rgdal)
 library(sp)
 
+# jain colors ----
+
+# kharif         "cadetblue4" (Monsoon) july-October
+# rabbi  (winter)  october -february   "cadetblue3"    
+# zaid   (Summer)  maech - june        "#E1B378"
+
 #  Ramthal_East  crop map GIS ----
 jain_171819 <- jain_789F%>%
   dplyr::select("id_yoav","village","cropCat","area_ha","season")
 rm(jain_789F)
 
-jain_171819[,1] %>% distinct()      # 1980id id_yoav
-jain_171819[,c(1,5)] %>% distinct() # 5553id id_yoav,season
-jain_171819[,2] %>% distinct()      # 33 villages
-ramthal_east@data                   # 7274/3637id
-rmtl                                 #1850id
+write.csv(jain_171819, file = "C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/jain_171819.csv", row.names=FALSE)
+
 
 ### ### ### ### # ###
 
@@ -117,6 +123,79 @@ jain_highvalue_crop %>% filter(season == "kharif_2019") %>% right_join(ramthal_e
 
 
 
+
+
+### Farmers who grow high-value crops frequency ----
+
+farmers_per_season <- 
+  jain_171819 %>% select(id_yoav,season) %>%
+  distinct() %>% count(season) %>% rename(`Total farmers sampled`=n)
+
+group.colorsII <- c(kharif_2017="cadetblue4",kharif_2018= "cadetblue4",kharif_2019= "cadetblue4",
+                    rabbi_2017= "cadetblue3", rabbi_2018= "cadetblue3", rabbi_2019= "cadetblue3")
+
+# Vegetables & Oilseed 
+
+jain_171819 %>% 
+  filter(cropCat %in% c("Vegetables", "Oilseeds")) %>% 
+  dplyr :: select(-area_ha) %>% 
+  distinct() %>% 
+  group_by(season) %>%summarise(hvc=n()) %>% 
+  inner_join(farmers_per_season) %>% 
+  mutate(freq = hvc /n) %>% 
+  mutate(prt = paste0(round(100 * hvc /n, 0), "%")) %>% 
+  select(1,2,3,5) %>% 
+  kable() %>%
+  kable_styling(latex_options = "striped") %>% 
+  row_spec(1:3, background = 'aliceblue') 
+
+
+  
+  
+  jain_171819 %>% 
+  filter(cropCat %in% c("Vegetables", "Oilseeds")) %>% 
+  dplyr :: select(-area_ha) %>% 
+  distinct() %>% 
+  group_by(season) %>%summarise(hvc=n()) %>% 
+  inner_join(farmers_per_season) %>% 
+    mutate(freq = hvc /n) %>% 
+    mutate(prt = paste0(round(100 * hvc /n, 0), "%")) %>% 
+    
+    ggplot() +
+    geom_bar(aes(y = freq, x = season, fill = season), stat="identity")+
+    scale_fill_manual(values=group.colorsII)+
+    labs(x = " ",y = "% of farmers growing\n vegetables and oilseeds")+
+    theme_minimal()+theme(legend.position="none")
+  
+  
+  
+  
+# Vegetables 
+jain_171819 %>% 
+    filter(cropCat == "Vegetables") %>% 
+    dplyr :: select(-area_ha) %>% 
+    distinct() %>% 
+    group_by(season) %>%summarise(hvc=n()) %>% 
+    inner_join(farmers_per_season) %>% 
+    mutate(freq = hvc /n) %>%
+  mutate(prt = paste0(round(100 * hvc /n, 0), "%")) %>% 
+    select(1,2,3,5) %>% 
+    kable() %>%
+    kable_styling() %>% 
+    row_spec(1:3, background = 'aliceblue') 
+  
+jain_171819 %>% 
+    filter(cropCat == "Vegetables") %>% 
+    dplyr :: select(-area_ha) %>% 
+    distinct() %>% 
+    group_by(season) %>%summarise(hvc=n()) %>% 
+    inner_join(farmers_per_season) %>% 
+    mutate(freq = hvc /n) %>%
+    ggplot() +
+    geom_bar(aes(y = freq, x = season, fill = season), stat="identity")+
+    scale_fill_manual(values=group.colorsII)+
+    labs(x = " ",y = "% of farmers growing\n vegetables")+
+    theme_minimal()+theme(legend.position="none")
 
 
 
