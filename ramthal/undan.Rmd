@@ -20,26 +20,28 @@ group.colorsII <- c(kharif_2017="cadetblue4",kharif_2018= "cadetblue4",kharif_20
 
 ```
 
-This document includes maps and graphs illustrating the commonness of the crops by type.
-It is based on data collected by Jain Irrigation Systems Ltd. in 2017-2019.  
-The document has three parts:
 
-The farmer sample do not include all farmers on the east area. As displayed below, the number of farmers sampled differs from one season to another.
 
-| **Season** |  | Total farmers sampled |
-|-------:|------|:---------:|
-|Rabbi | 2017 | 482 |
-|       | 2018 | 725 |
-|       | 2019 | 607 |
-|  |  |  |
-|Kharif | 2017 | 1431 |
-|        | 2018 | 624  |
-|        | 2019 | 1684 |
+# crops list
 
- * Every plot combines several crops types, so we ought to choose one for the map coloring. In the first following maps, we sign the most dominant crop, Which spreads over most of the plot area.
+### Pulses
+Redgram, Greengram,Bengalgram  
 
-* In the next maps, only the plots with high-value crops were colored, even if these crops were not the dominant ones in the plot. In this way it is possible to examine the extent to which high-value crops have been adopted.
+### Cereals                       
+Jowar, Wheat, Foxtail, Bajara, Millet, Maize  
+                  
+### Seeds                  
+Sesamum, Sunflower, Safflower, Cotton, Yallu  
+           
+### Vegetables                                     
+Chilly, Onion, Cucumber, Corainder, Garlic
 
-* The data relating only to high-value crops we plotted on a graphs  to examine the frequency in numbers.
+  
 
+
+
+
+
+&nbsp;
+How to new line in knitr with MSWord? 222222
 

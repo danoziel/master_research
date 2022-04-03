@@ -34,7 +34,6 @@ group.colorsII <- c(kharif_2017="cadetblue4",kharif_2018= "cadetblue4",kharif_20
 
 This document includes maps and graphs illustrating the commonness of the crops by type.
 It is based on data collected by Jain Irrigation Systems Ltd. in 2017-2019.  
-The document has three parts:
 
 The farmer sample do not include all farmers on the east area. As displayed below, the number of farmers sampled differs from one season to another.
 
@@ -48,13 +47,19 @@ The farmer sample do not include all farmers on the east area. As displayed belo
 |        | 2018 | 624  |
 |        | 2019 | 1684 |
 
+This document contains:
+
  * Every plot combines several crops types, so we ought to choose one for the map coloring. In the first following maps, we sign the most dominant crop, Which spreads over most of the plot area.
 
 * In the next maps, only the plots with high-value crops were colored, even if these crops were not the dominant ones in the plot. In this way it is possible to examine the extent to which high-value crops have been adopted.
 
 * The data relating only to high-value crops we plotted on a graphs  to examine the frequency in numbers.
 
+&nbsp;
 
+&nbsp;
+
+&nbsp;
 
 # Mapping by Common Crop
 
@@ -65,7 +70,7 @@ Rabi seasons maps are shown first, followed by the Kharif seasons.
 
 ## Rabi
 
-```{r pressure1, echo=FALSE, message = FALSE, warning =FALSE, out.width='97%'}
+```{r pressure1, echo=FALSE, message = FALSE, warning =FALSE, out.width='95%'}
 
 jain_common_crop %>% filter(season == "rabbi_2017") %>% right_join(ramthal_east_tidy2) %>% 
   ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
@@ -80,7 +85,7 @@ jain_common_crop %>% filter(season == "rabbi_2017") %>% right_join(ramthal_east_
 ```
 
 
-```{r pressure2, echo=FALSE, message = FALSE, warning =FALSE , out.width='97%' }
+```{r pressure2, echo=FALSE, message = FALSE, warning =FALSE , out.width='95%' }
 jain_common_crop %>% filter(season == "rabbi_2018") %>% right_join(ramthal_east_tidy2) %>% 
   ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
   geom_polygon() +
@@ -94,7 +99,7 @@ jain_common_crop %>% filter(season == "rabbi_2018") %>% right_join(ramthal_east_
 ```
 
 
-```{r pressure3, echo=FALSE, message = FALSE, warning =FALSE, out.width='97%' }
+```{r pressure3, echo=FALSE, message = FALSE, warning =FALSE, out.width='95%' }
 
 jain_common_crop %>% filter(season == "rabbi_2019") %>% right_join(ramthal_east_tidy2) %>% 
   ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
@@ -156,12 +161,17 @@ jain_common_crop %>% filter(season == "kharif_2019") %>% right_join(ramthal_east
 ```
 
 
-
+\newpage
 
 # Mapping by High-Value Crop
 The maps below show only high-value crops of vegetables and oilseeds grown mainly in the Kharif season.
 The primary vegetables are Chilly and Onion, while oilseeds are
 Sunflower and some Cotton.
+
+&nbsp;
+
+&nbsp;
+
 
 ## Rabi
 
@@ -211,7 +221,7 @@ jain_highvalue_crop %>% filter(season == "rabbi_2019") %>% right_join(ramthal_ea
 ```
 
 
-## kharif
+## Kharif
 
 ```{r pressure14, echo=FALSE, message = FALSE, warning =FALSE,out.width='95%'}
 
@@ -257,11 +267,14 @@ jain_highvalue_crop %>% filter(season == "kharif_2019") %>% right_join(ramthal_e
 
 ```
 
+\newpage
 
 # High-value Crops Frequency
 ## Vegetables and Oilseeds
 
 Percentage of farmers growing vegetables and oilseeds out of all sampled farmers
+
+&nbsp;
 
 ```{r hvc.plot, echo=FALSE, message = FALSE, out.width='65%',fig.align = 'center'}
 
@@ -286,6 +299,8 @@ jain_171819 %>%
 
 ```
 
+&nbsp;
+
 The table shows the frequency data in numbers
 
 ```{r hvc.table, echo=FALSE, message = FALSE, warning =FALSE, out.width='150%'}
@@ -307,9 +322,13 @@ knitr::kable(
 
 ```
 
+\newpage
+
 ## Vegetables only
 
 Percentage of farmers growing vegetables out of all sampled farmers
+
+&nbsp;
 
 ```{r veg.plot, echo=FALSE, message = FALSE, out.width='65%',fig.align = 'center'}
 
@@ -329,6 +348,8 @@ jain_171819 %>%
     theme_minimal()+theme(legend.position="none")
 
 ```
+
+&nbsp;
 
 The table shows the frequency data in numbers
 
@@ -350,3 +371,21 @@ knitr::kable(
 )
 
 ```
+
+
+\newpage
+
+
+# crops list
+
+### Pulses
+Redgram, Greengram,Bengalgram  
+
+### Cereals                       
+Jowar, Wheat, Foxtail, Bajara, Millet, Maize  
+                  
+### Seeds                  
+Sesamum, Sunflower, Safflower, Cotton, Yallu  
+           
+### Vegetables                                     
+Chilly, Onion, Cucumber, Corainder, Garlic
