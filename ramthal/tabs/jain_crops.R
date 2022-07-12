@@ -63,7 +63,9 @@ write.csv(jain_common_crop, file = "C:/Users/Dan/Documents/master_research/DATAs
 
 600/500
 
-jain_common_crop %>% filter(season == "rabbi_2017") %>% right_join(ramthal_east_tidy2) %>% 
+group.colors <- c(Cereals="tan3",Oilseeds= "khaki1",Pulses= "indianred3",Vegetables= "olivedrab3",Others= "lightskyblue3")
+
+jain_common_crop %>% filter(season == "kharif_2017") %>% right_join(ramthal_east_tidy2) %>% 
   ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
   geom_polygon() +
   geom_path(color = "white", size = 0.2) +
@@ -73,13 +75,26 @@ jain_common_crop %>% filter(season == "rabbi_2017") %>% right_join(ramthal_east_
   theme_minimal()+
   scale_fill_manual(values=group.colors)
 
-group.colors <- c(Cereals="tan3",
-                  Oilseeds= "khaki1",
-                  Pulses= "indianred3",
-                  Vegetables= "olivedrab3",
-                  Others= "lightskyblue3")
-    
-# kharif_2019 
+
+
+group.colors <- 
+  c(Cereals="tan2",Oilseeds= "yellow",Pulses= "lightskyblue3",
+    Vegetables= "olivedrab1",Others= "lightskyblue4",No_data="gray80")
+
+jcc <- jain_common_crop %>% filter(season == "rabbi_2019") %>%
+  right_join(ramthal_east_tidy2) 
+jcc$cropCat [is.na(jcc$cropCat)] <- "No_data" 
+
+ggplot(jcc,aes(x = long, y = lat, group = group, fill = cropCat)) +
+    geom_polygon() + geom_path(color = "white", size = 0.2) +coord_equal() +
+    theme_minimal()+scale_fill_manual(values=group.colors)+
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank())+
+  labs(x = " ",y = " ",fill = " ")
+
+# kharif_2019 ---- rabbi_2019
 jain_common_crop %>% filter(season == "kharif_2019") %>% right_join(ramthal_east_tidy2) %>% 
   ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
   geom_polygon() +

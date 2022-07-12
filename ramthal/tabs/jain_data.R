@@ -50,11 +50,11 @@ jain_789C<-jain_789B %>%
            ifelse(crop %in% c("Wheat","bgm/wheat","wheat","Wheat/Jowar","Bgm/Wheat",
                        "Jwr/Wheat","Wheat/Bgm","Jwr/Wheat/BG","Wheat,Bgm","Wheat/Jwr"),"Wheat",
                   ifelse(crop %in% c("Foxtail millet","Foxtailmillet","foxtail Millet","Foxtail","Bajra","Bajara"),"Millet",
-                         ifelse(crop %in% c("Maize","Cotton,Maize","maize","Maize-Sandoge"),"Maize",
+                         ifelse(crop %in% c("Maize","maize","Maize-Sandoge"),"Maize",
                   
 # Seeds                  
     ifelse(crop %in% c("Sesamum","Sunflower","Redgram,Sunflower","Redgram, Sunflower","Bgm/Snfwr","Jowar/Safflower",
-                       "SF/BG","Safflower","Cotton"),"Oilseeds",
+                       "SF/BG","Safflower","Cotton","Cotton,Maize"),"Oilseeds",
            
 # Vegetables                                     
     ifelse(crop %in% c("Chilli","Chilly","chilly","Chilly,Jowar","Chilly,Sugar","Redgram,Chilly",
@@ -71,12 +71,9 @@ jain_789D<-jain_789C %>%
   mutate(cropCat=ifelse(crop2 %in% c("Greengram","Redgram","Bengalgram","Cowpea","Blackgram"),"Pulses",
                         ifelse(crop2 %in% c("Jowar","Wheat","Millet","Maize","Soybean","Soyabean"),"Cereals",
                                ifelse(crop2 %in% c( "Oilseeds","Yallu"),"Oilseeds",
-#                                      ifelse(crop2 %in% c( "Cotton"),"Cotton",
                                              ifelse(crop2 %in% c("Chilly","Onion","Other Vegetables","Papaya"),"Vegetables",
                                              crop2)))))
 
-# freqcrop <-as.data.frame(table(jain_789C$crop2)) 
-# freqcropD <-as.data.frame(table(jain_789D$cropCat)) 
 
 
 
@@ -100,4 +97,3 @@ jain_789F$survey_plot <- str_pad(jain_789F$survey_plot, 3, pad = "0")
 jain_789F$id_yoav <- str_c(jain_789F$a6,jain_789F$survey_plot)
 
 rm(jain_789A,jain_789B,jain_789C,jain_789D,jain_789E)
-rm(freqcrop,freqcropD)
