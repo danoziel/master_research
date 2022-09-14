@@ -49,6 +49,9 @@ roster_2016$relationship[roster_2016$relationship == 7] <- "mother/father_in_law
 
 write.csv(roster_2016, file = "~/master_research/DATAs/ramthal_data/baseline_survey_2016/roster_2016.csv", row.names=FALSE)
 
+library("writexl")
+write_xlsx(roster_2016,"~/master_research/DATAs/ramthal_data/iroster_2016.xlsx")
+
 
 # HH plots_2016 ----
 HH_plots_2016 <- ifmr_base_2016 %>% 

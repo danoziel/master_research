@@ -35,7 +35,7 @@ mutate(x= sub(NaN, NA, x)) %>%
   
 #renam column----
 R_intensity_Baseline %>% 
-  rename(net_cropped_area = land_for_cultivation) #renam column land_ TO net_
+  rename(new = old) #renam column old TO new
 
 # copy column----
 R.Agriculture_Baseline_2018_ <- R.Agriculture_Baseline_2018_ %>%
@@ -59,9 +59,25 @@ Data$TC[Data$TC == 2] <- 1
 
 R_Lands_I_Baseline_2018_[6,3]<- 40
 
+# digits after point
+coords$print <- as.numeric((coords$`2`),digits=8)
+
+# column 1-nth
+df$ID <- seq.int(nrow(df))
+> df1$consecutive_numbers<-1:nrow(df1)
+mutate (observation = 1:n())
+add_column(Column_After = "After",.after = "A") 
+
 
 #from rows to column ----
 Q1 <- spread(Q1, oslosp, freq) 
+
+#short to long
+library(rstatix)
+library(ggpubr)
+
+mydata.long <- tse %>% 
+  pivot_longer(-gender, names_to = "variables", values_to = "value")
 
 #split column to two - ifelse----
 at_btselem <- at_btselem %>% mutate(total_events_located_IL  = ifelse(location == 1, "1",NA)) %>%

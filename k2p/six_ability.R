@@ -63,6 +63,16 @@ ability_base_end_a2122 <-bind_cols(ability_1_6_a2122,ability_7_13_a2122)
 rm(baseline_cefr_mooc_A.21.22,#endline_cefr_mooc_A.21.22,
    baseline_a2122,endline_a2122,ability_7_13_a2122,ability_1_6_a2122)
 
+# Cronbach's alpha ----
+
+library(ltm) 
+
+data <- ability_base_end_a2122 %>% filter(database=="Baseline") %>% dplyr::select(7:12) %>% na.omit()
+data <- ability_base_end_a2122 %>% dplyr::select(7:12) %>% na.omit()
+
+cronbach.alpha(data)
+cronbach.alpha(data, CI=TRUE)
+
 # ability_avsd ----
 
 ability_av <- 

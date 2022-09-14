@@ -102,6 +102,8 @@ rm(farmers16,farmers18,farmers)
 
 write.csv(ifmr_hissa_2016_2018,"~/master_research/DATAs/ramthal_data/ifmr_hissa_2016_2018.csv", row.names = FALSE)
 
+library("writexl")
+write_xlsx(ifmr_hissa_2016_2018,"~/master_research/DATAs/ramthal_data/ifmr_hissa_2016_2018.xlsx")
 
 
 
