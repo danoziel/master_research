@@ -11,7 +11,9 @@ hissa_jain <- jain_2017_2019 %>% select(farmer_name ,village ,survey_number)
 
 # ifmr_hissa ----
 ifmr_base_2016 <- read_dta("~/master_research/DATAs/ramthal_data/baseline_survey_2016/CMF_RAMTHAL_IRRIGATION_18 Aug 2016 - cleaned.dta")
-ifmr_base_2018 <- read_dta("~/master_research/DATAs/ramthal_data/Ramthal Midline/Clean Data/Irrigation_Midline_Clean_with Callbacks.dta")
+ifmr_mid_2018 <- read_dta("~/master_research/DATAs/ramthal_data/Ramthal Midline/Clean Data/Irrigation_Midline_Clean_with Callbacks.dta")
+
+ifmr_mid_2018 == ifmr_base_2018
 
 # hissa_ifmr_2016 ----
 hissa_ifmr_2016A <- ifmr_base_2016 %>% select("Id","A9","A17","C1" ,matches ("D4_"))
@@ -34,7 +36,7 @@ hissa_ifmr_2016D <- hissa_ifmr_2016C%>%
 rm(hissa_ifmr_2016A,hissa_ifmr_2016B,hissa_ifmr_2016C)
 
 # hissa_ifmr_2018 ----
-hissa_ifmr_2018A <- ifmr_base_2018 %>% select("id","a5","a13","d3" ,starts_with("D3_")) 
+hissa_ifmr_2018A <- ifmr_mid_2018 %>% select("id","a5","a13","d3" ,starts_with("D3_")) 
 
 hissa_ifmr_2018B <-hissa_ifmr_2018A %>%
   select("id","a5","a13","d3",starts_with("D3_"),
@@ -106,8 +108,10 @@ library("writexl")
 write_xlsx(ifmr_hissa_2016_2018,"~/master_research/DATAs/ramthal_data/ifmr_hissa_2016_2018.xlsx")
 
 
+# Plots list by crop/size
 
-
+ifmr_base_2016 <- read_dta("~/master_research/DATAs/ramthal_data/baseline_survey_2016/CMF_RAMTHAL_IRRIGATION_18 Aug 2016 - cleaned.dta")
+ifmr_base_2018 <- read_dta("~/master_research/DATAs/ramthal_data/Ramthal Midline/Clean Data/Irrigation_Midline_Clean_with Callbacks.dta")
 
 
 

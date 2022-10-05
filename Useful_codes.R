@@ -37,6 +37,9 @@ mutate(x= sub(NaN, NA, x)) %>%
 R_intensity_Baseline %>% 
   rename(new = old) #renam column old TO new
 
+names(crop0) <- c('ID', 'svy', 'hisa', 'crop1','crop2')
+
+
 # copy column----
 R.Agriculture_Baseline_2018_ <- R.Agriculture_Baseline_2018_ %>%
   mutate( name_of_crop_detail = name_of_crop ) #(copy=original)
