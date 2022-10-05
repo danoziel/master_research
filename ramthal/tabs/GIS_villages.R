@@ -4,6 +4,9 @@ library(sf)
 library(rgdal)
 library(sp)
 
+shape_code <- read_dta("~/master_research/DATAs/ramthal_data/Ramthal Midline/shape_code.dta")
+
+
 # villages map    ----
 library(rgdal)
 Amaravathi <- readOGR("~/master_research/DATAs/ramthal_data/project_map/villages" ,"Amaravathi")

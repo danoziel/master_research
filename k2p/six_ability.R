@@ -8,7 +8,7 @@ library(broom)
 baseline_cefr_mooc_A.21.22 <- read_excel("~/master_research/DATAs/k2p_2022/CEFR_course/baseline_CEFR_course_21.22_semesterA.xlsx",sheet = "clean_data")
 endline_cefr_mooc_A.21.22 <- read_excel("~/master_research/DATAs/k2p_2022/CEFR_course/endline_CEFR_course_21.22_semesterA.xlsx",sheet = "endline_clean_data")
 distribution_CEFR_course <- read_excel("~/master_research/DATAs/k2p_2022/CEFR_course/endline_CEFR_course_21.22_semesterA.xlsx", sheet = "distribution")
-#distribution_CEFR_course ----
+#distribution_CEFR_course -----
 df2 <- 
   distribution_CEFR_course %>% filter(database=="Baseline", var != "qa4_thinking", var != "qa6_initiative") %>%
   mutate(across(is.numeric, round, 2))   #%>% mutate(value = paste0(round(100 * value, 0), "%")) 

@@ -4,7 +4,7 @@ library(tidyverse)
 
 https://www.uwo.ca/fhs/tc/labs/10.FactorAnalysis.pdf
 
-data("bfi")
+data("bfi")0
 #tse <- time_space_ethic_ol %>% select(q1_1_social_contacts:q4_5_classroom_more_organized,q10_1_recorded_refrain_expressing:q10_7_zoom_is_less_safe)
 tse <- time_space_ethic_ol
 

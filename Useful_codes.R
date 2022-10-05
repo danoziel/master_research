@@ -33,7 +33,7 @@ x$land_cult [is.na(x$land_cult)] <- 0
 #replace NaN to Na, x=column
 mutate(x= sub(NaN, NA, x)) %>%
   
-#renam column----
+#renam column-----
 R_intensity_Baseline %>% 
   rename(new = old) #renam column old TO new
 

@@ -45,7 +45,7 @@ YR_stata13 <- YR_Ramthal_Data_Entry_2_stata13 %>% select(id,starts_with("c2"))
 
 rm(YR_Ramthal_Data_Entry,YR_Ramthal_Data_Entry_2,
    YR_Ramthal_Data_Entry_2_stata12,YR_Ramthal_Data_Entry_2_stata13)
-# ----
+# -----
 
 crop <- ifmr_base_2016 %>% filter(Id=="100014") %>% 
   select(Id,matches ("D4_"),matches ("D24"))

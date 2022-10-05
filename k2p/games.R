@@ -2,7 +2,7 @@ library(tidyverse)
 library(extrafont)
 #---- pai----
 count.data <- data.frame(
-  class = c("Support Learning", "Do Not\nsupport learning"),
+  class = c("Support Learning", "Do Not\nsupport learning"),;
   n = c(9, 20),
   prop = c(31.04, 68.96)
 )

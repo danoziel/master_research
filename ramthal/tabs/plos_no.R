@@ -2,7 +2,7 @@ library(tidyverse)
 library(haven)
 library("stringi")  
 
-#bhoomi and jain_2017_2019 ----
+#bhoomi and jain_2017_2019 -----
 bhoomi <- read_excel("~/master_research/DATAs/ramthal_data/baseline_survey_2016/20160610_irrigation_Bhoomi_entire_sample_YR_5.xlsx")
 hissa_bhoomi <- bhoomi %>% select(-c(7,8,9))
 
