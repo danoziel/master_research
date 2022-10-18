@@ -1,5 +1,11 @@
 # library() -----
 
+# Databases created in this Rscript ----
+write.csv( FILE, "~/master_research/DATAs/ramthal_data/Jain_data/FILE.csv")
+
+jain_171819
+
+##----
 library(haven)
 shape_code <- read_dta("~/master_research/DATAs/ramthal_data/Ramthal Midline/shape_code.dta")
 

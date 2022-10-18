@@ -1,6 +1,7 @@
 write.csv(days_use_hh, file = "C:/Users/Dan/Documents/R/Rautahat.Bara.Sarlahi/data/Agriculture_18_19.csv", row.names=FALSE)
 write.csv(wem_liter_fuel_and_time_to_irrigate_1_ha, file = "C:/Users/Dan/Documents/master_research/DATAs/data_saptari/wem_liter_fuel_and_time_to_irrigate_1_ha.csv", row.names=FALSE)
 write.csv(banihatti_tidy, file = "C:/Users/Dan/Documents/banihatti_tidy.csv", row.names=FALSE)
+write.csv(H1557_2018_m6_m19, file = "C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/bH1557_2018_m6_m19.csv", row.names=FALSE)
 
 library(foreign)
 write.dta(spip_nepal_time_energy, "spip_nepal_time_energy.dta") 
@@ -20,6 +21,10 @@ ggplot(income.data, aes(x=income, y=happiness))+ geom_point()
 income.happiness.lm <- lm(happiness ~ income, data = income.data)
 
 summary(income.happiness.lm)
+
+#remove the "-"
+ifmr_hissa_16_18A$hissa_srvy_no <- gsub("-$","",ifmr_hissa_16_18A$hissa_srvy_no )
+
 
 #  NA----
 #in full dataset - dplyr
@@ -235,7 +240,8 @@ i{n,}      i occures >= n times
 [:xdigit:] Hexadecimal digits: 0 1 2 3 4 5 6 7 8 9 A B C D E F a b c d e f
 
 
-
+D24_[] <- lapply(D24_, function(x) if(is.numeric(x)) 
+  as.character(x) else x)
 
 
 

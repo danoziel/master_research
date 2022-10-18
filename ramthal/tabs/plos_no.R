@@ -118,3 +118,29 @@ ifmr_base_2018 <- read_dta("~/master_research/DATAs/ramthal_data/Ramthal Midline
 
 
 
+
+
+# NEW LIST: PLOTS-CROP-HISSA ----
+
+# D3	How many plots of land does your household currently own?
+#   FOR EACH CURRENTLY OWNED SURVEY NUMBER:
+# D4	Survey/hissa number
+# D5	Village in which survey plot is located
+# D6	Area of Plot (acres/gunta)
+
+
+
+
+  
+  
+  
+
+
+
+write.csv(x104349, file = "C:/Users/Dan/Documents/x104349.csv", row.names=FALSE)
+
+xx103216 <- plot_ifmr_2016A %>% filter(Id== "103216") %>% select(1:6,39:40,73,167:174) %>% 
+  unite("S2_crop", D24_2_Crop_1_1:D24_2_Crop_4_os_1, na.rm = TRUE, remove = FALSE)
+
+write.csv(FILE,"C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/FILE.csv", row.names=FALSE)
+FILE <- read.csv("~/master_research/DATAs/ramthal_data/FILE.csv")

@@ -1,24 +1,89 @@
 library(tidyverse)
--library(readxl)
+library(readxl)
 library(dplyr)
+library(kableExtra)
+
+# Databases created in this Rscript ----
+write.csv( jain_2017_2018_2019, "~/master_research/DATAs/ramthal_data/Jain_data/jain_2017_2018_2019.csv")
+
+jain_789A
+jain_2017_2018_2019
+Jain_2020_2021
+
+# list ----
+
+jain_rabi_2019 <- read_excel("~/master_research/DATAs/ramthal_data/Jain_data/jain_february_2020.xlsx", 
+                                 sheet = "rabbi_2019")
+jain_rabi_2019[jain_rabi_2019=="Chinnapur S T"] <- "Chinnapur ST"
+jain_rabi_2019[jain_rabi_2019=="Kadiwal inam"] <- "Kadiwal Inam"
+
+list01 <-
+  jain_rabi_2019[,3:5] %>% distinct()%>% arrange(village) %>% 
+  select(3,2,1) %>% 
+  kable() %>% kable_minimal()
+
+
+village_list4 %>% select(village,a6) %>% rename(village_code=a6) %>% 
+  kable() %>% kable_minimal()
+
+ifmr_base_2016 %>% select(A9,Id) %>% arrange(A9) %>% rename(village=A9) %>% 
+  kable() %>% kable_minimal()
+
+
+ifmr_mid_2018 %>% select(a5,id) %>% arrange(a5) %>% rename(village=a5) %>% 
+  kable() %>% kable_minimal()
+
+
+
+budihal,gadisunkapur,gorabal,hachanur,hulgera,hullalli,jalakamaladini,konnur,nagur
+
 
 # bind  data jain_2017_2018_2019 ==> jain_789 ----
-jain_kharif_2017 <- read_excel("~/master_research/DATAs/ramthal_data/Jain_feb_2020/jain_february_2020.xlsx",sheet = "kharif_2017")
-jain_kharif_2018 <- read_excel("~/master_research/DATAs/ramthal_data/Jain_feb_2020/jain_february_2020.xlsx",sheet = "kharif_2018")
-jain_kharif_2019 <- read_excel("~/master_research/DATAs/ramthal_data/Jain_feb_2020/jain_february_2020.xlsx",sheet = "kharif_2019")
+jain_kharif_2017 <- read_excel("~/master_research/DATAs/ramthal_data/Jain_data/jain_february_2020.xlsx",sheet = "kharif_2017")
+jain_kharif_2018 <- read_excel("~/master_research/DATAs/ramthal_data/Jain_data/jain_february_2020.xlsx",sheet = "kharif_2018")
+jain_kharif_2019 <- read_excel("~/master_research/DATAs/ramthal_data/Jain_data/jain_february_2020.xlsx",sheet = "kharif_2019")
 
-jain_rabbi_2017 <- read_excel("~/master_research/DATAs/ramthal_data/Jain_feb_2020/jain_february_2020.xlsx",sheet = "rabbi_2017")
-jain_rabbi_2018 <- read_excel("~/master_research/DATAs/ramthal_data/Jain_feb_2020/jain_february_2020.xlsx",sheet = "rabbi_2018")
-jain_rabbi_2019 <- read_excel("~/master_research/DATAs/ramthal_data/Jain_feb_2020/jain_february_2020.xlsx",sheet = "rabbi_2019")
+jain_rabbi_2017 <- read_excel("~/master_research/DATAs/ramthal_data/Jain_data/jain_february_2020.xlsx",sheet = "rabbi_2017")
+jain_rabbi_2018 <- read_excel("~/master_research/DATAs/ramthal_data/Jain_data/jain_february_2020.xlsx",sheet = "rabbi_2018")
+jain_rabbi_2019 <- read_excel("~/master_research/DATAs/ramthal_data/Jain_data/jain_february_2020.xlsx",sheet = "rabbi_2019")
 
 jain_2017_2018_2019 <- rbind(jain_kharif_2017,jain_kharif_2018,jain_kharif_2019,jain_rabbi_2017,jain_rabbi_2018,jain_rabbi_2019)
+jain_17_18_19 <- jain_2017_2018_2019
 rm(jain_kharif_2017,jain_kharif_2018,jain_kharif_2019,jain_rabbi_2017,jain_rabbi_2018,jain_rabbi_2019)
 
-# Remove everything after backslash 
-jain_2017_2018_2019$survey_plot <- gsub("(^\\d+)([\a-zA-Z0-9]*)", "\\1", jain_2017_2018_2019$survey_number)
+library(readr)
+Jain_2020_2021 <- read_csv("~/master_research/DATAs/ramthal_data/Jain_data/Jain_2020_2021.csv")
+Jain_20_21 <- Jain_2020_2021
 
-jain_789A <- jain_2017_2018_2019
-rm(jain_2017_2018_2019)
+names(Jain_20_21)
+names(jain_17_18_19)
+
+# jain_17_18_19 
+jain_17_18_19 <- jain_2017_2018_2019
+
+jain_17_18_19 <- jain_17_18_19 %>%
+  rename(survey_hissa=survey_number)
+
+# Remove everything after backslash 
+jain_17_18_19$survey_number <- gsub("(^\\d+)([\a-zA-Z0-9]*)", "\\1", jain_789A$survey_hissa)
+jain_17_18_19$hissa_number <-   171819
+
+
+jain_17_18_19 <- jain_17_18_19 %>%
+  select("si_number","farmer_name","zone","block","village","survey_hissa",
+         "survey_number","hissa_number","area_ha","crop","sowing_date",
+         "season","existing_crop_kharif_2017","newly_sown_crop_kharif","total_area")           
+
+# Jain_20_21 
+Jain_20_21 <- Jain_2020_2021
+
+Jain_20_21 <- Jain_20_21 %>%
+  select(-c("asterisk","." ) )
+
+#====================================================]
+  Jain_crop_17_22 <- rbind(Jain_20_21,jain_17_18_19)
+#====================================================]
+
 
 # villages names corrections----
 jain_789B <- jain_789A %>% 
@@ -97,3 +162,12 @@ jain_789F$survey_plot <- str_pad(jain_789F$survey_plot, 3, pad = "0")
 jain_789F$id_yoav <- str_c(jain_789F$a6,jain_789F$survey_plot)
 
 rm(jain_789A,jain_789B,jain_789C,jain_789D,jain_789E)
+
+
+# =========================================================================================
+# =========================================================================================  
+
+
+
+
+
