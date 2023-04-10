@@ -97,7 +97,7 @@ use_supply_water=
                 mw14) %>% # Typically, in your experience, during the period water is provided, how often is it provided?
   left_join(ramtal_groups)
 write.csv(use_supply_water,'C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/dt4py/use_supply_water.csv')
-rm(use_supply_water)
+#rm(use_supply_water)
 
 # damage_irri_sys_water                                 ----
 #Damaged irrigation system
