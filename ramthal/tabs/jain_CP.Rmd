@@ -1,0 +1,85 @@
+---
+title: "Ramthal Croppin Pattern 2017-2022"
+author: "Initial report"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+
+
+
+```
+
+## Ramthal Croppin
+Ramthal iirigation project croppin pattern 2017-2022
+based on data"collected by Jain
+
+```{r cars}
+
+```
+
+## Including Plots
+
+![ ](C:/Users/Dan/Pictures/ramthal_crops/01.png)
+&nbsp;
+
+&nbsp;
+
+&nbsp;
+
+
+![ ](C:/Users/Dan/Pictures/ramthal_crops/02.png)
+
+&nbsp;
+
+&nbsp;
+
+&nbsp;
+![ ](C:/Users/Dan/Pictures/ramthal_crops/05.png)
+
+&nbsp;
+
+&nbsp;
+
+&nbsp;
+
+&nbsp;
+
+&nbsp;
+
+![ ](C:/Users/Dan/Pictures/ramthal_crops/03.png)
+
+&nbsp;
+
+&nbsp;
+
+&nbsp;
+
+&nbsp;
+
+&nbsp;
+
+![ ](C:/Users/Dan/Pictures/ramthal_crops/04.png)
+
+&nbsp;
+
+&nbsp;
+
+&nbsp;
+
+&nbsp;
+
+&nbsp;
+
+### Tradutional crops
+
+
+![ ](C:/Users/Dan/Pictures/ramthal_crops/06.png)
+
+
+![ ](C:/Users/Dan/Pictures/ramthal_crops/08.png)
+
+

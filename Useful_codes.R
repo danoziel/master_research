@@ -1,7 +1,14 @@
 write.csv(days_use_hh, file = "C:/Users/Dan/Documents/R/Rautahat.Bara.Sarlahi/data/Agriculture_18_19.csv", row.names=FALSE)
 write.csv(wem_liter_fuel_and_time_to_irrigate_1_ha, file = "C:/Users/Dan/Documents/master_research/DATAs/data_saptari/wem_liter_fuel_and_time_to_irrigate_1_ha.csv", row.names=FALSE)
-write.csv(banihatti_tidy, file = "C:/Users/Dan/Documents/banihatti_tidy.csv", row.names=FALSE)
-write.csv(H1557_2018_m6_m19, file = "C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/bH1557_2018_m6_m19.csv", row.names=FALSE)
+write.csv(suevey_number_in_out_rmtl, file = "C:/Users/Dan/Documents/suevey_number_in_out_rmtl.csv", row.names=FALSE)
+
+write.csv(ji_261122, file ="C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/ji_261122.csv", row.names=FALSE)
+
+library(foreign)
+write.dta(ramthal_module, "C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/ramthal_module.dta")
+library(haven)
+write_dta(ramthal_module, "C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/ramthal_module.dta")
+
 
 library(foreign)
 write.dta(spip_nepal_time_energy, "spip_nepal_time_energy.dta") 
@@ -10,6 +17,9 @@ write.dta(spip_nepal_time_energy, "spip_nepal_time_energy.dta")
 women_weight <- genderweight %>%
   filter(group == "F") %>%
   pull(weight)
+
+# arrange ----
+arrange(desc(Grp))
 
 # t test ----
 res <- 
@@ -32,8 +42,13 @@ rowwise() %>%
 
 drop_na(irri_for_season,season_of_crop)%>% library(tidyverse)
 
+# remove columns only NA or empty
+select(where(~!all(.x=="")))
+select(where(~!all(is.na(.x))))
+
 #replace NA to 0
 x$land_cult [is.na(x$land_cult)] <- 0 
+CR3 [CR3 ==""] <- NA 
 
 #replace NaN to Na, x=column
 mutate(x= sub(NaN, NA, x)) %>%
@@ -42,14 +57,16 @@ mutate(x= sub(NaN, NA, x)) %>%
 R_intensity_Baseline %>% 
   rename(new = old) #renam column old TO new
 
-names(crop0) <- c('ID', 'svy', 'hisa', 'crop1','crop2')
+names(crop) <- c('ID', 'svy', 'hisa', 'crop1','crop2')
 
 
 # copy column----
 R.Agriculture_Baseline_2018_ <- R.Agriculture_Baseline_2018_ %>%
   mutate( name_of_crop_detail = name_of_crop ) #(copy=original)
+
 #subset----
 Treats_Lands <- subset(R.Lands_Endline_EPC_2019_,  TC == 1) 
+
 #Controlling number of decimal digits----
 mutate(across(is.numeric, round, 2)) 
 
@@ -78,7 +95,7 @@ add_column(Column_After = "After",.after = "A")
 
 
 #from rows to column ----
-Q1 <- spread(Q1, oslosp, freq) 
+
 
 #short to long
 library(rstatix)
@@ -87,9 +104,19 @@ library(ggpubr)
 mydata.long <- tse %>% 
   pivot_longer(-gender, names_to = "variables", values_to = "value")
 
-#split column to two - ifelse----
-at_btselem <- at_btselem %>% mutate(total_events_located_IL  = ifelse(location == 1, "1",NA)) %>%
-  mutate(total_events_located_yesha  = ifelse(location == 2, "1",NA)) 
+#ifelse----
+at_btselem <- at_btselem %>% 
+  mutate(total_events_located_IL  = ifelse(location == 1, "1",NA))
+
+df <-data.frame(Name = c("Tom","Mary","Tim","Chris") )
+# if name starting with T
+# if name include i
+# if name ends with s
+
+ifelse(grepl('^T', df$Name), 'YES', 'NO')
+ifelse(grepl('i', df$Name), 'YES', 'NO')
+ifelse(grepl('s$', df$Name), 'YES', 'NO')
+
 #location- old, total_events_located_IL-new
 
 # convert first letter to uppercase----
@@ -101,24 +128,12 @@ mutate_at(3,round,2) # (column ,round ,digits)
 
 colMeans(land_Treats)
 
+#  Get the column number in R given the column name [duplicate]
+match("column_name",names(df))
+
+
 mutate(avm_self = rowMeans(.[names(.)[7:8]], na.rm = T),#mean per row - by defined columns
-       
-       #-----  frequency in percentage   ----    
-       R_Aquaculture_Baseline_2018_ %>% filter(!is.na(practice_aquaculture)) %>%
-         group_by(practice_aquaculture,TreatmentControl) %>%summarise(n=n()) %>% 
-         mutate(freq = n / sum(n)) #Percentage per sub group
-       
-       R_Aquaculture_Baseline_2018_ %>% filter(!is.na(practice_aquaculture)) %>%
-         count(practice_aquaculture,TreatmentControl) %>%mutate(freq = n / sum(n))#Percentage per group
-       
-       #   R_Aquaculture_Baseline_2018_ %>%filter(!is.na(practice_aquaculture)) %>%
-       #     group_by(practice_aquaculture)%>%summarise(n=n()) %>%mutate(freq = n / sum(n))
-       #                                 _||_
-       #                                 \  /
-       #                                  \/
-       R_Aquaculture_Baseline_2018_ %>%filter(!is.na(practice_aquaculture)) %>%
-         count(practice_aquaculture) %>%mutate(freq = n / sum(n))
-       
+
 # dates---------------------------------
 library(data.table)
 peace_index$date <-  as.Date(peace_index$date, "%Y-%m-%d")

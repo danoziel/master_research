@@ -1,0 +1,472 @@
+---
+title: "Ramthal Midline 2022 Survey"
+author: "Renew Version, Started on December 19, 2022"
+output:
+  html_document:
+    df_print: paged
+  pdf_document:
+    latex_engine: pdflatex
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(knitr)
+library(tinytex)
+library(kableExtra)
+library(haven)
+Adt_211222 <- read_dta("C:/Users/Dan/Downloads/Adt_raw_21 Dec 2022.dta")
+Adt_24_12_22 <- read_dta("C:/Users/Dan/Downloads/Anonymized_Dataset_raw_24 Dec 2022.dta")
+
+Adt  <- Adt_211222 %>% mutate(Grp=ifelse(grepl('1', mm2), "treatment", "control"))
+Adt3 <- Adt_24_12_22 %>% mutate(Grp=ifelse(grepl('1', mm2), "treatment", "control"))
+
+
+adt <- Adt_211222 %>% 
+  mutate(Grp=ifelse(grepl('1', mm2), "treatment", "control")) %>% filter(Grp=="treatment")
+
+adt3 <- Adt_24_12_22 %>% 
+  mutate(Grp=ifelse(grepl('1', mm2), "treatment", "control")) %>% filter(Grp=="treatment")
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r Grp, echo=F}
+ 
+ dt <- Adt_24_12_22 %>% 
+   mutate(Grp=ifelse(grepl('1', mm2), "treatment", "control")) %>% 
+   select(id,Grp)
+ 
+df_df <- Adt_211222 %>% 
+   mutate(Grp=ifelse(grepl('1', mm2), "treatment", "control")) %>% 
+   select(id,Grp) %>% bind_rows(dt) %>% 
+   count(Grp) %>% arrange(desc(Grp))
+
+
+kbl(df_df) %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+
+  
+```
+
+
+
+
+&nbsp;
+
+**mm5** Have you ever (even once) made any use of this water for irrigating your land?
+```{r mm5, echo=F}
+
+dt5 <- adt3%>%select(Grp,mm5)
+
+dt_dt5 <- adt %>%select(Grp,mm5)%>% bind_rows(dt5)%>% count(Grp,mm5)%>%select(2:3)%>%mutate(mm5=ifelse(mm5==1,"Yes","No"))%>%arrange(desc(mm5))
+
+kbl(dt_dt5) %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+```
+
+&nbsp;
+
+**mm9** How many farmers are there between you and the valve/pipeline?
+```{r mm9, echo=F}
+
+dt9 <- adt3%>%select(Grp,mm9)
+
+dt_dt9 <- adt %>%select(Grp,mm9)%>% bind_rows(dt9)%>%
+  count(Grp,mm9)%>%select(2:3)%>% rename(farmers_B4_me=mm9)
+
+kbl(dt_dt9) %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+
+```
+
+&nbsp;
+
+#### **Use of Water from the Project**
+
+&nbsp;
+
+**mm10**		Has it ever happened to you that farmers "before" you have used up a lot of the water from the pipe, so you did not have enough?
+```{r table_mm10, echo=FALSE}
+
+dt10 <- adt3%>%select(Grp,mm10)
+
+dt_dt10 <- adt %>%select(Grp,mm10)%>% bind_rows(dt10)%>%
+  count(Grp,mm10)%>%
+  mutate(a=case_when(
+    mm10==1 ~  "1 It has never happened",
+    mm10==2 ~  "2 It happens about once a season",
+    mm10==3 ~  "3 It happens several times a season",
+    mm10==4 ~  "4 It happens on a constant basis",
+    mm10==5 ~  "5 Some seasons it happens and some it doesn't",
+    TRUE ~ "na")) %>% 
+  filter(!is.na(mm10)) %>% 
+  mutate(sumA=sum(n)) %>% 
+  mutate(freq = paste0(round(100 * n/sumA, 0), "%")) %>% 
+  select(a,n,freq)
+
+kbl(dt_dt10) %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+
+```
+
+&nbsp;
+
+**mw2**	Have you used it in [ _____ ]?
+```{r mw2, echo=F}
+
+dt2w <- adt3%>%select(Grp,mw2)
+
+dt_dt2w <- adt %>%select(Grp,mw2)%>% bind_rows(dt2w)%>%
+    count(Grp,mw2)%>%select(2:3)%>%
+    mutate(mw2=ifelse(mw2==1,"Kharif",ifelse(mw2==2,"Rabi", "Both")))
+
+kbl(dt_dt2w) %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+
+
+```
+
+&nbsp;
+
+**mw1a** If Yes, in which year did you first make use of the water?
+```{r table_mw1a, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
+
+dtwmw1a <- adt3%>%select(Grp,mw1a)
+
+dt_dtwmw1a <- adt %>%select(Grp,mw1a)%>% bind_rows(dtwmw1a)%>%
+  count(Grp,mw1a)%>%select(2:3)
+
+  kable(dt_dtwmw1a) %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+```
+
+&nbsp;
+
+**mw1b**In what season did you use it in that year?
+```{r mw1b, echo=F}
+
+dtmw1b <- adt3%>%select(Grp,mw1b)
+
+dt_dtmw1b <- adt %>%select(Grp,mw1b)%>% bind_rows(dtmw1b)%>%
+  count(Grp,mw1b)%>%select(2:3)%>%
+  mutate(mw1b=ifelse(mw1b==1,"Kharif","Rabi"))
+
+  kable(dt_dtmw1b) %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+```
+
+&nbsp;
+
+**mw1c** "If No, Why? (Multiple choice)
+```{r mw1c, echo=F}
+
+dtmw1c <- adt3%>%  select(mw1c_1:mw1c_10)
+
+dt_dtmw1c <- adt %>%select(mw1c_1:mw1c_10)%>% bind_rows(dtmw1c)%>%
+    summarize_if(is.numeric, sum, na.rm=TRUE) %>% 
+  gather("mw1c","n") %>% 
+  mutate(Q=c("The main piping was never functional",
+             "The laterals was never installed in my field",
+             "The laterals in my field was damaged",
+             "Rainfall was sufficient",
+             "I wanted to irrigate, but other farmers took all the water",
+             "Water was supplied only after I already sowed a rainfed crop",
+             "Water was not supplied when needed",
+             "I did not know when water was supplied",
+             "I do not trust the company",
+             "Water supply is unpredictable I cant count on it"
+  ), .before=mw1c) %>%  select(Q,n)
+
+  kable(dt_dtmw1c) %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+```
+
+&nbsp;
+
+**mw4** Are you still making use of the water from the project to irrigate your land?"
+```{r mw4,echo=FALSE}
+
+dtmw4 <- adt3%>%  select(Grp,mw4)
+
+dt_dtmw4 <- adt %>%select(Grp,mw4)%>% bind_rows(dtmw4)%>%
+  count(Grp,mw4)%>%select(2:3)%>%
+  mutate(Q=c("1 Yes, Everytime Water is provided",
+             "2 No, I stopped, even if water is provided",
+             "3 Sometimes, Depends",NA
+  ), .before=mw4) %>% 
+  filter(!is.na(Q)) %>% 
+  mutate(sumA=sum(n)) %>% 
+  mutate(freq = paste0(round(100 * n/sumA, 0), "%")) %>% 
+  select(-c(mw4,sumA))
+
+  kable(dt_dtmw4) %>% kable_classic(full_width = F, html_font = "Cambria",position = "left")
+```
+
+&nbsp;
+
+**mw4b**		If *No* or *Sometimes* What was the last year you use of the water?
+```{r mw4b, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
+
+dtmw4b <- adt3%>%  select(Grp,mw4b)
+
+dt_dtmw4b <- adt %>%select(Grp,mw4b)%>% bind_rows(dtmw4b) %>% 
+    count(Grp,mw4b)%>%select(2:3)
+
+kable(dt_dtmw4b) %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+```
+
+&nbsp;
+
+**mw5 mw6**		How many years in total did you ever make use of the water for irrigation during ____ ?
+```{r mw5mw6,echo=FALSE}
+
+dtmw5mw6 <- adt3%>% select(Grp,mw5,mw6) 
+
+dt_dtmw5mw6  <- adt %>%select(Grp,mw5,mw6) %>% bind_rows(dtmw5mw6)%>%
+  gather("season","toat_years",-Grp) %>% 
+  count(Grp,season,toat_years)%>%select(2:4)%>%
+  mutate(season=ifelse(season=="mw5","Kharif","Rabi"))
+
+kable(dt_dtmw5mw6) %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+```
+
+&nbsp;
+
+**m20**		Can you indicate in which years and seasons you ever make use of the water for irrigation?
+```{r m20,echo=FALSE} 
+dtm20 <- adt3%>% select(Grp,starts_with("m20_") )
+
+dt_dtm20  <- adt %>% select(Grp,starts_with("m20_") ) %>% bind_rows(dtm20)%>%
+  summarize_if(is.numeric, sum, na.rm=TRUE) %>%
+  gather("m20","n") %>% arrange(m20)
+  kable(dt_dtm20) %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+```
+
+&nbsp;
+
+**mw7	mw9**	In Kharif/Rabi, when you did **NOT** irrigate, what are the reasons? (Multiple choice)   
+
+The most frequent answers:   
+[3]	Rainfall was sufficient  
+[4]	I wanted to irrigate, but company did not supply water   
+[7]	Water was not supplied when needed  
+
+```{r mw7_mw9,echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
+
+dtmw_7_9 <- adt3 %>%select(Grp,starts_with("mw7"),starts_with("mw9") ) 
+
+mw_7_9<- adt %>%select(Grp,starts_with("mw7"),starts_with("mw9") ) %>% bind_rows(dtmw_7_9)%>%
+  summarize_if(is.numeric, sum, na.rm=TRUE) %>%
+  gather("mw","n")
+
+mw_7_9$mw = substring(mw_7_9$mw, 5)
+mw_7_9 <-mw_7_9 %>%separate(mw,c("season" ,"year","a"),sep="_")
+mw_7_9 <-mw_7_9 %>% 
+  group_by(season,year) %>% 
+  mutate(sumA=sum(n)) %>% 
+  mutate(freq = paste0(round(100 * n/sumA, 0), "%")) %>% 
+  filter(a %in% c("3","4","7"))%>% 
+  select(-c(n,sumA)) %>% 
+  spread(year, freq)
+  
+kable(mw_7_9) %>% kable_classic(full_width = F, html_font = "Cambria",position = "left")
+```
+
+&nbsp;
+
+**mw12**		Typically, in your experience, when water is provided in a particular year, in which month does it start?
+```{r mw12,echo=FALSE} 
+
+dtmw12 <- adt3%>%  select(id,Grp,starts_with("mw12"))
+
+dt_dtmw12 <- 
+  adt %>%select(id,Grp,starts_with("mw12") ) %>% bind_rows(dtmw12) %>%
+  count(mw12) %>% 
+  mutate(month=case_when(
+    mw12==1~ "January",mw12==2~"February",mw12==3~ "March",
+    mw12==4~ "April",mw12==5~ "May",mw12==6~ "June",
+    mw12==7~ "July",mw12==8~ "August",mw12==9~ "September",
+    mw12==10~ "October",mw12==11~ "November",mw12==12~ "December",TRUE ~ 'dont know')) %>% 
+  mutate(sumA=sum(n)) %>% 
+  mutate(freq = paste0(round(100 * n/sumA, 0), "%")) %>% 
+  select(month,n,freq)
+
+  kable(dt_dtmw12) %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+```
+
+&nbsp;
+
+**mw13**		Typically, in your experience, when water is provided in a particular year, in which month does it end for the year?
+```{r mw13,echo=FALSE} 
+
+dtmw13 <- adt3%>%  select(id,Grp,starts_with("mw13"))
+
+dt_dtmw13 <- 
+  adt %>%select(id,Grp,starts_with("mw13") ) %>% bind_rows(dtmw13) %>%
+  count(mw13) %>%
+  mutate(month=case_when(
+    mw13==1~ "January",mw13==2~ "February",mw13==3~ "March",
+    mw13==4~ "April",mw13==5~ "May",mw13==6~ "June",
+    mw13==7~ "July",mw13==8~ "August",mw13==9~ "September",
+    mw13==10~ "October",mw13==11~ "November",mw13==12~ "December",TRUE ~ 'dont know')) %>% 
+  mutate(sumA=sum(n)) %>% 
+  mutate(freq = paste0(round(100 * n/sumA, 0), "%")) %>% 
+  select(month,n,freq)
+
+  kable(dt_dtmw13) %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+```
+
+&nbsp;
+
+**mw14**		Typically, in your experience, during the period water is provided, how often is it provided?
+```{r mw14,echo=FALSE} 
+
+dtmw14 <- adt3%>%  select(id,Grp,starts_with("mw14"))
+
+dt_dtmw14 <- adt %>%select(id,Grp,starts_with("mw14") ) %>% bind_rows(dtmw14) %>%
+  count(mw14)%>% 
+  mutate(a=case_when(
+    mw14==1~ "Every _____ Days",
+    mw14==2~ "Very unpredictable and irreular",
+    mw14==4~ "Water never Provided]",
+    TRUE ~ 'dont know')) %>% 
+  mutate(sumA=sum(n)) %>% 
+  mutate(freq = paste0(round(100 * n/sumA, 0), "%")) %>% 
+  select(a,n,freq)
+
+kable(dt_dtmw14) %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+
+
+adt %>%select(id,Grp,starts_with("mw14") ) %>% bind_rows(dtmw14) %>% 
+  filter(!is.na(mw14_int)) %>% 
+  select(id,mw14_int)%>% 
+  rename("Every _____ Days"=mw14_int) %>% 
+  kable() %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+```
+
+&nbsp;
+
+&nbsp;
+
+#### **Damaged irrigation system**  
+**m35** What is the status of the main pipe coming into your land ?
+```{r m35,echo=FALSE} 
+
+dtm35 <- adt3%>%  select(id,Grp,m35)
+
+dt_dtm35 <- adt %>%select(id,Grp,m35) %>% bind_rows(dtm35) %>%
+  count(m35)%>% 
+  mutate(sumA=sum(n)) %>% 
+  mutate(freq = paste0(round(100 * n/sumA, 0), "%")) %>% 
+  select(-sumA) %>% 
+  mutate(m35=ifelse(m35==1,"Works",ifelse(m35==2,"Damaged",NA)))
+
+kable(dt_dtm35) %>% kable_classic(full_width = F,html_font = "Cambria",position = "left")
+```
+
+&nbsp;
+
+**m35a** What caused the damage?
+```{r m35a,echo=FALSE} 
+
+dtm35a <- adt3%>%  select(Grp,starts_with("m35a"))
+
+dt_dtm35a <- adt %>%select(Grp,starts_with("m35a") ) %>% bind_rows(dtm35a) %>%
+  summarize_if(is.numeric, sum, na.rm=TRUE) %>%
+  gather("mw","n") %>% 
+  mutate(sumA=sum(n)) %>% 
+  mutate(freq = paste0(round(100 * n/sumA, 0), "%")) %>% 
+  mutate(a=case_when(
+    mw== "m35a_1"~ "Animals that graze in the field",
+    mw=="m35a_2"~ "Rodents",
+    mw=="m35a_3"~ "Machinery like tractors or threshers",
+    mw=="m35a_4"~ "Thieves",
+    mw=="m35a_5"~ "Other Farmers",
+    mw=="m35a_6"~ "Damaged during operation",
+    TRUE ~ "Company")) %>% 
+  select(a,n,freq)
+
+kable(dt_dtm35a) %>% kable_classic(full_width = F,html_font="Cambria",position = "left")
+```
+
+&nbsp;
+
+**m35b** How long has the main pipes been damaged?
+```{r m35b,echo=FALSE} 
+dtm35b <- adt3%>%  mutate(m35b_year=m35b_year*12) %>% 
+  select(id,m35b_month,m35b_year)
+
+dt_dtm35b <- adt %>% mutate(m35b_year=m35b_year*12) %>%
+  select(id,m35b_month,m35b_year) %>% bind_rows(dtm35b) %>%
+  summarise(m35b=m35b_month+m35b_year) %>%
+  summarise(m35b=mean(m35b,na.rm = T)) %>% 
+  mutate_at(1,round,2) %>% 
+  mutate("Average"= sub("^(.*)$", "\\1 month", m35b)) %>% select(-1)
+
+kable(dt_dtm35b) %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+
+```
+
+&nbsp;
+
+**m35c** What is the status of the laterals?
+```{r m35c,echo=FALSE} 
+
+dtm35c <-adt3 %>% select(id,Grp,m35c)
+
+dt_dtm35c <- adt %>% select(id,Grp,m35c)%>% bind_rows(dtm35c) %>%
+  count(m35c)%>% 
+  mutate(m35c=
+           ifelse(m35c==1,"Works, laid in the field",
+                  ifelse(m35c==2,"OK, but in storage","Damaged")))
+
+kable(dt_dtm35c) %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+
+```
+
+&nbsp;
+
+**L7** What irrigation source are you dependent on? (Rank according to the degree of importance)
+```{r L7,echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
+ans <- data.frame(
+  Grp = c ("control","control","control","control","control","control",
+           "treatment","treatment","treatment","treatment","treatment","treatment"),
+  op = c (2,3,4,5,-888,NA,
+          2,3,4,5,-888,NA), 
+  source = c("Tank","Open well","Borewell","Government water supply","Other (Rain)","non",
+             "Tank","Open well","Borewell","Government water supply","Other (Rain)","non"))
+
+dtl7_rank_1 <- Adt3 %>%select(id,Grp,starts_with("l7_"))
+  
+l7_rank_1 <- Adt %>%select(id,Grp,starts_with("l7_")) %>% bind_rows(dtl7_rank_1)%>%
+  count(Grp,l7_rank_1) %>% 
+  rename(op=l7_rank_1,n_rank_1=n) %>% 
+  full_join(ans) %>% 
+  arrange(desc(Grp))
+
+l7_rank <- Adt %>%select(id,Grp,starts_with("l7_")) %>% bind_rows(dtl7_rank_1)%>%
+    count(Grp,l7_rank_2) %>%
+  rename(op=l7_rank_2,n_rank_2=n) %>% 
+  full_join(l7_rank_1) %>% 
+  arrange(desc(Grp) ) %>% 
+  group_by(Grp) %>%
+  mutate(sumA=sum(n_rank_1,na.rm = T)) %>% 
+  mutate(rank_1_freq_in_group = paste0(round(100 * n_rank_1/sumA, 0), "%"),
+         rank_2_freq_in_group = paste0(round(100 * n_rank_2/sumA, 0), "%")) %>% 
+  mutate(rank_1_freq_in_group=ifelse(n_rank_1=="NA%",NA,rank_1_freq_in_group),
+         rank_2_freq_in_group=ifelse(n_rank_2=="NA%",NA,rank_2_freq_in_group)) %>% 
+  select(Grp,source,n_rank_1,rank_1_freq_in_group,n_rank_2,rank_2_freq_in_group)
+
+kable(l7_rank) %>%  kable_classic(full_width = F, html_font = "Cambria",position = "left")
+
+```
+
+
+#### fix
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,5 +1,6 @@
 library(tidyverse)
-
+library(readxl)
+library(readr)
 library(haven)
 Irrigation_Cultivation_Section_Long_Form_20180622 <- read_dta("C:/Users/Dan/master_research/DATAs/ramthal_data/Ramthal Midline/Irrigation_Cultivation Section_Long Form_20180622.dta")
 
@@ -15,7 +16,63 @@ PLOT_list_ifmr_2018<- read.csv("~/master_research/DATAs/ramthal_data/PLOT_list_i
 PLOT_b16a<- read.csv("~/master_research/DATAs/ramthal_data/PLOT_b16a.csv")
 
 #first plot list (survey,hissa)
-ifmr_hissa_2016_2018<- read.csv("~/master_research/DATAs/ramthal_data/ifmr_hissa_2016_2018.csv")
+ifmr_hissa_2016_2018 <- read_excel("~/master_research/DATAs/ramthal_data/ifmr_hissa_2016_2018.xlsx")
+BB <- ifmr_hissa_2016_2018 %>% filter(KeyQ=="b16")
+# Leased in ----
+
+Leased_2016A <- 
+  ifmr_base_2016 %>% 
+  select("Id","A9","A17",matches ("D61_"),matches ("D62_"),matches ("D63_"),-ends_with("_0"))
+
+              
+#farmer Leased in list 2018
+leased_2018<- 
+  ifmr_mid_2018 %>% 
+  select("id","a5","a13","d6") %>% 
+  filter(d6 !="",d6 !=0)  # %>%  rename(Id=id,village=a5,farmer_name=a13) 
+
+
+
+# leased in plot size
+d25_acre <- 
+  ifmr_mid_2018  %>% 
+  right_join(leased_2018) %>% 
+  select("id","a5","a13", starts_with("d25_acre_") ) %>% 
+  gather(key1 ,acre,4:9)
+
+d25_guntas <- 
+  ifmr_mid_2018  %>% 
+  right_join(leased_2018) %>% 
+  select("id","a5","a13", starts_with("d25_guntas_")) %>% 
+  gather(key2 ,guntas,4:9) 
+
+leased_size <- cbind(d25_acre,d25_guntas) %>%
+  select(1:4,acre,guntas) %>% 
+  filter(acre != "")
+# no.
+totaland18 <- ifmr_mid_2018 %>%
+  select("id","a5","a13","d5" ,"d6") %>% 
+  right_join(leased_2018) %>%
+  arrange(id)
+  
+
+
+#crops
+
+crops <- 
+  read_excel("~/master_research/DATAs/ramthal_data/ifmr_ml_2022_01112022.xlsx",sheet = "Plots_list")
+
+cropscrops <- crops %>% 
+  rename(id=Id) %>% 
+  right_join(leased_2018)
+
+leased_size %>% arrange(id)
+
+leased_crop_18 <- 
+  ifmr_mid_2018 %>% 
+  right_join(leased_2018) %>% 
+  select("id","a5","a13",matches("d41_"))
+
 
 
 #==== ifmr_mid_2018 =====
@@ -62,7 +119,8 @@ plot_ifmr_2018cd <-
   plot_ifmr_2018cd %>%  
   mutate(srvy_hissa=ifelse(is.na (hissa_srvy_correct),hissa_srvy_no,hissa_srvy_correct) ) %>% 
   mutate(baseline_incorrect_plot_number=ifelse(hissa_srvy_correct==srvy_hissa,hissa_srvy_no,"") ) %>% 
-  select(-starts_with(c("hissa","key"))) # %>% filter(!is.na(srvy_hissa)) 4318
+  select(-starts_with(c("hissa","key"))) %>%
+  select(-baseline_incorrect_plot_number )# %>% filter(!is.na(srvy_hissa)) 4318
 
 
 rm(plot_ifmr_2018b,plot_ifmr_2018c,plot_ifmr_2018d)
@@ -191,8 +249,10 @@ PLOT_list <- PLOT_list %>% mutate(delete=ifelse(plot == "plot_1","stay1",
                                                 ifelse(srvy_hissa >-1000 ,"stay2"))) %>% 
   filter(!is.na(delete)) %>% 
   select(Id,village,farmer_name,total_plots,plot,S1_crop,S2_crop,S3_crop,
-         plot_size_acre,plot_size_guntas,srvy_hissa,baseline_incorrect_plot_number) %>% 
+         plot_size_acre,plot_size_guntas,srvy_hissa) %>% 
   rename(rabi_crop=S1_crop,kharif_crop=S2_crop, summer_crop=S3_crop)
+
+PLOT_list%>% kable() %>% kable_classic() #4372
 
 4686
 PLOT_b16a <- 
@@ -213,7 +273,16 @@ AA <-
   rename(village=A9,farmer_name=A17,total_plots=D3) %>%
   right_join(PLOT_b16a) 
 
-D24_<- AA %>% select(Id,farmer_name,hissa_srvy,starts_with("D24_"),-matches("D24_3"))
+D24_<- AA %>% #select(Id,farmer_name,hissa_srvy,starts_with("D24_"),-matches("D24_3"))
+
+#  select( -starts_with(c("d3_1_hissa_nu_yesno_","d3_1_status_","d3_1_hissa_nu_correct_")),
+#          -ends_with("cb")) %>% 
+  select(1:38) %>% 
+  gather("key1", "hissa_srvy_no",5:38)
+
+
+
+
 
 write.csv(D24_, file = "C:/Users/Dan/Documents/master_research/DATAs/D24_.csv", row.names=FALSE)
 library(readr)
@@ -242,3 +311,62 @@ write.csv(PLOT_list_ifmr_2018_2016, file = "C:/Users/Dan/Documents/master_resear
 
 write.csv(FILE,"C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/FILE.csv", row.names=FALSE)
 FILE <- read.csv("~/master_research/DATAs/ramthal_data/FILE.csv")
+
+
+
+
+
+
+Irrigation_Midline_Survey_2022_2_ <- Irrigation_Midline_Survey_2022_1_
+Irrigation_Midline_Survey_2022_2_[ Irrigation_Midline_Survey_2022_2_ == "___"] <- NA
+Irrigation_Midline_Survey_2022_2_[ Irrigation_Midline_Survey_2022_2_ == "______"] <- NA
+Irrigation_Midline_Survey_2022_2_[ Irrigation_Midline_Survey_2022_2_ == "NA"] <- NA
+
+Ir=Irrigation_Midline_Survey_2022_2_ %>%
+  filter(!rabi_crop %in% c("-444.0","-444_-444", "-666.0","-888_-888"  )) %>% 
+
+  mutate(plt=ifelse(!is.na( rabi_crop),rabi_crop,kharif_crop)) %>%
+  filter(!is.na(plt))
+
+dat <- Ir %>% group_by(Id) %>% 
+  summarise(cultivated_plot_per_hh=n()) %>%
+  group_by(cultivated_plot_per_hh) %>% 
+  count() %>% rename(total=n) %>% 
+#  mutate(freq =fd/1721) %>% 
+  mutate(freq = paste0(round(100 * total/1721, 0), "%"))
+
+dat2 <- Irrigation_Midline_Survey_2022_2_ %>%
+  select(1,4) %>% 
+  distinct() %>% 
+  filter(total_plots>=1) %>% rename(plots_per_hh=total_plots) %>% 
+  group_by(plots_per_hh) %>% count() %>% rename(total=n) %>%
+  mutate(freq = paste0(round(100 * total/1808, 0), "%")) %>% 
+  arrange(desc(total))
+
+
+
+
+sum(dat2$total)
+
+  group_by(Id) %>%
+  summarise(n=n()) %>% 
+  
+  mutate(freq = n / sum(n))
+  
+  
+Ir$nun <- as.character(Ir$num)
+
+
+
+
+ggplot(Ir, aes(x=Id)) + geom_histogram(binwidth=.5)
+
+
+
+
+
+
+
+
+
+

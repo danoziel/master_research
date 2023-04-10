@@ -1,0 +1,105 @@
+---
+title: "mid2022"
+author: "-IFMR's data-"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(knitr)
+library(tinytex)
+library(kableExtra)
+library(haven)
+
+ramtal_groups <- read_dta("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/ramtal_groups.dta")
+Adt_211222 <- read_dta("C:/Users/Dan/Downloads/Adt_raw_21 Dec 2022.dta")
+Adt_24_12_22 <- read_dta("C:/Users/Dan/Downloads/Anonymized_Dataset_raw_24 Dec 2022.dta")
+Adt_4_1_23 <- read_dta("C:/Users/Dan/Downloads/Anonymized_Dataset_raw_04 Jan 2023.dta")
+
+RG <- ramtal_groups[,c(1,7)] %>% rename(group=in_out)
+Adt2 <- Adt_211222 %>%  mutate(Im_in_out=ifelse(grepl('1', mm2), "in", "out"))
+Adt3 <- Adt_24_12_22 %>% mutate(Im_in_out=ifelse(grepl('1', mm2),  "in", "out"))
+Adt4 <- Adt_4_1_23%>%mutate(Im_in_out=ifelse(grepl('1',mm2), "in", "out"))
+
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+mm1		Have you heard of any government irrigation project in your area?
+```{r mm1, eval=FALSE, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+
+mm1_2 <- Adt2 %>% select(id,mm1)
+mm1_3 <- Adt3 %>% select(id,mm1)
+mm1_4 <- Adt4 %>% select(id,mm1)
+rbind(mm1_2,mm1_3,mm1_4) %>% left_join (RG)
+
+
+```
+	
+		
+mm2		Is your land coming under such a government project?
+```{r mm2, echo=FALSE, message=FALSE, warning=FALSE, paged.print=F}
+
+Grp2 <- Adt2 %>% select(id,Im_in_out)
+Grp3 <- Adt3 %>% select(id,Im_in_out)
+Grp4 <- Adt4 %>% select(id,Im_in_out)
+rbind(Grp2,Grp3,Grp4) %>% left_join (RG) %>% count(Im_in_out)
+rbind(Grp2,Grp3,Grp4) %>% left_join (RG) %>% count(group)
+
+```
+	
+		
+		
+mm4		Has any infrastructure (e.g. piping) been installed in your land at any time in the past?
+```{r mm4 , echo=FALSE, message=FALSE, warning=FALSE, paged.print=F}
+
+
+
+```
+	
+
+	
+mm5		Have you ever (even once) made any use of this water for irrigating your land?
+
+
+
+
+
+
+```{r WA , echo=FALSE, message=FALSE, warning=FALSE, paged.print=F}
+
+WA2 <- Adt2 %>%select(id,mm5,mm9,mm10, mw1b,mw1c, mw4,mw5,mw6)
+WA3 <- Adt3 %>%select(id,mm5,mm9,mm10, mw1b,mw1c, mw4,mw5,mw6)
+WA4 <- Adt4 %>%select(id,mm5,mm9,mm10, mw1b,mw1c, mw4,mw5,mw6)
+
+rbind(WA2,WA3,WA4) %>% left_join (RG) %>% arrange(group) %>%  
+  kbl() %>% kable_paper()
+
+
+```
+
+
+
+```{r m, echo=FALSE, message=FALSE, warning=FALSE, paged.print=F}
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
