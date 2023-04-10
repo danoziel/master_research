@@ -49,7 +49,6 @@ participation=
 write.csv(participation,'C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/dt4py/participation.csv')
 rm(participation)
 
-# let's test
 # land_value                                            ----
 land_value=
   jan %>% select(
