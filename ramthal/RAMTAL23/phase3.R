@@ -171,70 +171,74 @@ rm(pay_maintenance_water)
 #==================| CULTIVTION |============================================
 
 # PLOTS        ----
-#   What the status of the plot?
-plot_status=jan %>% select(id,contains("plot_status") ) %>%  
+
+# L_plot_status : What the status of the plot? ====
+L_plot_status=jan %>% select(id,contains("plot_status") ) %>%  
   pivot_longer(
     cols = `l_plot_status_1`:`l_plot_status_10`, 
     names_to = "plot",
     values_to = "plot_status")
 #  filter(!is.na(plot_status) ) 
-plot_status$plot <- gsub('l_plot_status_', 'plot_', plot_status$plot)
+
+L_plot_status$plot <- gsub('l_plot_status_', 'plot_', L_plot_status$plot)
 
 
-#   L13		Why does your household no longer own the plot?
+# L13 :		Why does your household no longer own the plot? ====
 #==   NOTE: in case of "5.Partial Sold"
-#==   we have the "area_share" vars 
-#==  (l13_area_share_acre_ , l13_area_share_guntha_)
+#==   we have the "area_share" vars (l13_area_share_acre_ , l13_area_share_guntha_)
 
-#L13 <- subset(jan, select = c(id, starts_with("l13")))
 L13 <- select(jan, id, starts_with("l13"))
 
-L13_long <- pivot_longer(L13,
+L13 <- pivot_longer(L13,
                         cols = -id,
                         names_to = c(".value", "plot"),
                         names_pattern = "^(l13|l13_other|l13_area_share_acre|l13_area_share_guntha)_(\\d+)$"
 )
-L13_long$plot <- paste("plot_", L13_long$plot, sep="")
+L13$plot <- paste("plot_", L13$plot, sep="")
 
-plot_cult=full_join(plot_status, L13_long)
-rm(plot_status, L13_long,L13)
+# L20 :		Current Operation Status + acre_guntha ====
+#         (multiple choice)
 
-
-
-#   L20		Current Operation Status (multiple choice)
 L20 = jan %>% select(id,starts_with("l20") ) 
 
-L20_long <- pivot_longer(L20,
-                         cols = -id,
-                         names_to = c(".value", "plot"),
-                         names_pattern = "^(l13|l13_other|l13_area_share_acre|l13_area_share_guntha)_(\\d+)$"
-)
+# Removing the binary "choice" columns
+df <-select(L20, -matches("_\\d+_\\d+$"))
 
-names_pattern = "^(l20|l20_other|l13_area_share_acre|l13_area_share_guntha)_(\\d+)$"
+L20 <- df %>%
+  pivot_longer(-id,
+               names_to = c(".value", "plot"),
+               names_pattern = "(.*)_(.*)"
+  )
+L20$plot <- paste0("plot_", L20$plot)
 
 
 
 
 
-#   L25		When did you start cultivating this plot? 
-L25 <- select(jan, id, starts_with("l25"))%>%   
-  pivot_longer(
-  cols = -id, 
-  names_to = "key",
-  values_to = "date") %>% 
-  mutate(plot = as.numeric(stringr::str_extract(key, "\\d+$")))
 
-# Create new columns for each pair of month and year columns
-for (i in 1:10) {
+
+
+
+
+
+# L25  When did you start cultivating this plot? ====
+
+L25 <- select(jan, id, starts_with("l25"))
+
+for (i in 1:10) { # Create new columns for each pair of month and year columns
   month_col <- paste0("l25_month_", i)
   year_col <- paste0("l25_year_", i)
-  new_col <- paste(df[[year_col]], df[[month_col]], sep = "_")
+  new_col <- paste(L25[[year_col]], L25[[month_col]], sep = "_")
   L25 <- cbind(L25, new_col)
-  colnames(L25)[ncol(L25)] <- paste0("year_month_", i)
-}
+  colnames(L25)[ncol(L25)] <- paste0("L25_year_month_", i)
+} 
+L25 <- select(L25,'id', grep('^L25', colnames(L25))) %>% 
+  pivot_longer(
+    cols = -id, 
+    names_to = "plot",
+    values_to = "L25_start_cult")
 
-
-
+L25$plot <- gsub('L25_year_month_', 'plot_', L25$plot)
 
 
 
