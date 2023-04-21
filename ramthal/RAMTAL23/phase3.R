@@ -224,6 +224,16 @@ L25 <- select(jan, id, starts_with("l25"))%>%
   values_to = "date") %>% 
   mutate(plot = as.numeric(stringr::str_extract(key, "\\d+$")))
 
+# Create new columns for each pair of month and year columns
+for (i in 1:10) {
+  month_col <- paste0("l25_month_", i)
+  year_col <- paste0("l25_year_", i)
+  new_col <- paste(df[[year_col]], df[[month_col]], sep = "_")
+  L25 <- cbind(L25, new_col)
+  colnames(L25)[ncol(L25)] <- paste0("year_month_", i)
+}
+
+
 
 
 
