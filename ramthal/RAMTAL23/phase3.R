@@ -2,6 +2,15 @@
 getwd()
 library(haven)
 library(tidyverse) 
+# remove columns ----
+# remove columns that contain only NAs
+x %>% 
+  select(-which(sapply(., function(x) all(is.na(x)))))
+# remove columns that contain only empty cells
+x %>%
+  mutate_all(as.character) %>%  # Convert all columns to character type
+  select_if(~ !all(is.null(.)) & !all(. == ""))
+
 
 # ramtal_groups ----
 YR_Ramthal_Data_Entry_2_stata13 <- read_dta("~/master_research/DATAs/ramthal_data/Ramthal Midline/YR_Ramthal_Data_Entry_2_stata13.dta")
@@ -163,24 +172,66 @@ rm(pay_maintenance_water)
 
 # PLOTS        ----
 #   What the status of the plot?
-L=jan %>% select(id,contains("plot_status") ) 
-
-pivot_longer(
+plot_status=jan %>% select(id,contains("plot_status") ) %>%  
+  pivot_longer(
     cols = `l_plot_status_1`:`l_plot_status_10`, 
-    names_to = "plot_num",
-    values_to = "plot_status") %>%
-  filter(!is.na(plot_status) ) 
+    names_to = "plot",
+    values_to = "plot_status")
+#  filter(!is.na(plot_status) ) 
+plot_status$plot <- gsub('l_plot_status_', 'plot_', plot_status$plot)
+
 
 #   L13		Why does your household no longer own the plot?
-L13 = jan %>% select(id,starts_with("l13") ) 
+#==   NOTE: in case of "5.Partial Sold"
+#==   we have the "area_share" vars 
+#==  (l13_area_share_acre_ , l13_area_share_guntha_)
+
+#L13 <- subset(jan, select = c(id, starts_with("l13")))
+L13 <- select(jan, id, starts_with("l13"))
+
+L13_long <- pivot_longer(L13,
+                        cols = -id,
+                        names_to = c(".value", "plot"),
+                        names_pattern = "^(l13|l13_other|l13_area_share_acre|l13_area_share_guntha)_(\\d+)$"
+)
+L13_long$plot <- paste("plot_", L13_long$plot, sep="")
+
+plot_cult=full_join(plot_status, L13_long)
+rm(plot_status, L13_long,L13)
+
+
 
 #   L20		Current Operation Status (multiple choice)
 L20 = jan %>% select(id,starts_with("l20") ) 
 
+L20_long <- pivot_longer(L20,
+                         cols = -id,
+                         names_to = c(".value", "plot"),
+                         names_pattern = "^(l13|l13_other|l13_area_share_acre|l13_area_share_guntha)_(\\d+)$"
+)
+
+names_pattern = "^(l20|l20_other|l13_area_share_acre|l13_area_share_guntha)_(\\d+)$"
+
+
+
+
 
 #   L25		When did you start cultivating this plot? 
-L25 = jan %>% select(id,list2016, survy2022,starts_with("l25") ) %>% 
-  select(where(~!all(is.na(.x))))
+L25 <- select(jan, id, starts_with("l25"))%>%   
+  pivot_longer(
+  cols = -id, 
+  names_to = "key",
+  values_to = "date") %>% 
+  mutate(plot = as.numeric(stringr::str_extract(key, "\\d+$")))
+
+
+
+
+
+
+
+
+
 
 #   L28		Why was it left fallow?
 L28 = jan %>% select(id,list2016, survy2022,starts_with("l28") ) %>% 
@@ -204,5 +255,44 @@ L1 <- Adt3 %>% select(id,starts_with("l32") ) %>%
   select(where(~!all(is.na(.x))))
 
 
+
+# HH filter for testing === === === === === === === === === === === === === ===  
+HH_L13 <-
+  subset(df, id == "101069") %>% 
+  # remove columns that contain only NAs
+  select(-which(sapply(., function(x) all(is.na(x))))) %>% 
+  # remove columns that contain only empty cells
+  mutate_all(as.character) %>% # Convert all columns to character type
+  select_if(~ !all(is.null(.)) & !all(. == ""))
+
+HH_plot_status =  subset(plot_status, id == "32101402")
+
+df <- data.frame(
+  id = c("Dan" ,"Michelle", "Ryan"), 
+  LO= c(3, 5, 1), 
+  KEN=c(7,6,8))
+#=== === === === === === === === === === === === === === === === === === === ===
+
+df <- data.frame(
+  id = c("Dan" ,"Michelle", "Ryan"), 
+  LO= c(3, 5, 1), 
+  KEN=c(7,6,8))
+
+
+my <- as.data.frame(tibble(
+  id = c(101044, 101044, 101044, 101044),
+  key = c("l25_month_1", "l25_year_1", "l25_month_2", "l25_year_2"),
+  date = structure(c(2, 2020, 4, 2050), labels = structure(
+    c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17),
+    .Names = c(
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December", "Jan", "Feb",
+      "Mar", "Apr", "May"), class = "labelled"
+  ), class = "labelled")))
+
+my %>%
+  mutate(star = paste0(date[2], "_", date[1]) )
+
+         plot_col = if_else(key == "l25_month_1" | key == "l25_year_1", "plot_1", NA_character_))
 
 
