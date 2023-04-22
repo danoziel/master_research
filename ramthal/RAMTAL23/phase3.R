@@ -169,10 +169,144 @@ rm(pay_maintenance_water)
 
 
 #==================| CULTIVTION |============================================
+# IRRIGATION   ----		
+#       L7 rank irrigation source ====
+# What irrigation source are you dependent on? (Rank according to the degree of importance)
+# wide df
+L7 <- jan %>%select(id,starts_with("l7_"))
+
+# long df
+L7 <- jan %>%select(id,starts_with("l7_"))%>%  
+  mutate_all(as.character) %>% 
+  pivot_longer(
+    cols = -id, 
+    names_to = "L7_source_rank",
+    values_to = "L7_source_type")
+# CROP         ----
+L39 <- jan  %>% select(id,matches("^l39"))
+
+# L39 What crop are planted on this plot? ====
+# Perennial/biseasonal crops will be listed in Kharif
+
+
+
+
+# L39b What crops were planted in [Year]? ====
+# [Crop-Year] 2020/2019/2018
+
+# Crops in serial numbers
+L39b <-  select(L39 ,c(id, l39b_y_20,l39b_y_19,l39b_y_18))
+
+#Crops by name
+L39b=L39 %>%
+  select(id,
+         l39b_y_20_crop_name_1:l39b_y_20_crop_name_6,
+         l39b_y_20_crop_1_other:l39b_y_20_crop_4_other,
+         
+         l39b_y_19_crop_name_1:l39b_y_19_crop_name_5,
+         l39b_y_19_crop_1_other:l39b_y_19_crop_4_other,
+         
+         l39b_y_18_crop_name_1:l39b_y_18_crop_name_6,
+         l39b_y_18_crop_1_other:l39b_y_18_crop_4_other)%>%  
+  pivot_longer(
+    cols = -id, 
+    names_to = "L39b_year",
+    values_to = "L39b_crop")
+
+         
+
+         l39_prev_kha_1:l39_prev_kha_4,
+         l39_prev_kha_10_1,l39_prev_kha_9_1,l39_prev_kha_11_1,l39_prev_kha_2_1
+         
+
+
+
+# L39a [Crop-Plot-Season] 
+CR3 <- Adt3 %>% filter(id %in% c(1000709 ,39305302 ,39305501)) %>% 
+  select(id,list2016, survy2022,starts_with("l39_") ) %>% 
+  
+  
+  CR3 <- Adt3 %>% 
+  select(id,list2016, survy2022,mm5,# l39_ _ _1 - l39_ _ _9 l39_new_kha_1
+         l39_prev_kha_1,l39_prev_rab_1,l39_prev_sum_1,
+         l39_prev_kha_2,l39_prev_rab_2,l39_prev_sum_2,
+         l39_prev_kha_3,l39_prev_rab_3,l39_prev_sum_3,
+         l39_prev_kha_4,l39_prev_rab_4,l39_prev_sum_4,
+         l39_prev_kha_5,l39_prev_rab_5,l39_prev_sum_5,
+         l39_prev_kha_6,l39_prev_rab_6,l39_prev_sum_6,
+         l39_prev_kha_7,l39_prev_rab_7,l39_prev_sum_7,
+         l39_prev_kha_8,l39_prev_rab_8,l39_prev_sum_8,
+         l39_prev_kha_9,l39_prev_rab_9,l39_prev_sum_9,
+         
+         # L39b	What crops were planted in [ Crop-Year ]?
+         l39b_y_20,l39b_y_19,l39b_y_18)
+
+V <- CR3 %>%
+  filter(mm5==0,l39_prev_kha_1=="",l39_prev_rab_1=="",l39_prev_sum_1=="",
+         l39_prev_kha_2=="",l39_prev_rab_2=="",l39_prev_sum_2=="")
+
+#       L48	How often was the crop irrigated manually? ====
+
+# L48a		What is the method of irrigation?
+#          L39a Crop-Plot-Season
+#          L39b Crop
+
+IM3 <- Adt3 %>%  #l48_prev/new_season*3_plot*9_crop*3
+  select(id,Im_in_out,in_out,mm5,
+         l48_prev_kha_1_1,l48_prev_kha_1_2,l48_prev_kha_1_3,
+         l48_prev_kha_2_1,l48_prev_kha_2_2,l48_prev_kha_2_3,
+         # l48_y_year18/19/20_crop*7/6/6
+         l48_y_18_1,l48_y_18_2,
+         l48_y_19_1,l48_y_19_2,
+         l48_y_20_1,l48_y_20_2)
+
+#       L39 What crop # L48	How often # L48a	What method # ====
+V <- Adt3 %>%  
+  select(id,Im_in_out,in_out,mm5,
+         l39_prev_kha_1,# L39 What crop
+         l48_prev_kha_1_1,l48_prev_kha_1_2,  # L48	How often
+         l48a_prev_kha_1_1,l48a_prev_kha_1_2,# L48a	What method
+         
+         l39b_y_18,l39b_y_19,l39b_y_20,# L39 What crop
+         l48_y_18_1,# L48	How often
+         l48_y_19_1,# L48	How often
+         l48_y_20_1,# L48	How often
+         l48a_y_18_1,# L48a	What method
+         l48a_y_19_1,# L48a	What method
+         l48a_y_20_1)# L48a	What method
+
+
+
+#       L41 Have you used this cultivation method?  [Crop level] ====
+
+L41_3 <- Adt3 %>%
+  select(id,Im_in_out,in_out,mm5,
+         l41_1_1, # Mulching
+         l41_2_1, # Trellising הדליה
+         l41_3_1, # Furrow תלם.תעלות
+         l41_4_1, # Line sowing
+         l41_5_1, # Fertigation
+         
+         l41_1_8) # crop 8
+
+
+#       ??? L41a common cultivation method ====
+#Which are the most common cultivation method you used 3 years before 2021/2022? (2018/2019)
+#    single question
+
+Adt3 %>%
+  select(starts_with("l41")) # 
+# Mulching
+# Trellesing
+# Furrow
+# Line sowing
+# Fertigation  
+
+
 
 # PLOTS        ----
 
-# L_plot_status : What the status of the plot? ====
+#       L_plot_status : What the status of the plot? ====
 L_plot_status=jan %>% select(id,contains("plot_status") ) %>%  
   pivot_longer(
     cols = `l_plot_status_1`:`l_plot_status_10`, 
@@ -183,7 +317,7 @@ L_plot_status=jan %>% select(id,contains("plot_status") ) %>%
 L_plot_status$plot <- gsub('l_plot_status_', 'plot_', L_plot_status$plot)
 
 
-# L13 :		Why does your household no longer own the plot? ====
+#       L13 :		Why does your household no longer own the plot? ====
 #==   NOTE: in case of "5.Partial Sold"
 #==   we have the "area_share" vars (l13_area_share_acre_ , l13_area_share_guntha_)
 
@@ -196,7 +330,7 @@ L13 <- pivot_longer(L13,
 )
 L13$plot <- paste("plot_", L13$plot, sep="")
 
-# L20 Current Operation Status + acre_guntha          ====
+#       L20 Current Operation Status + acre_guntha          ====
 #         (multiple choice)
 
 L20 = jan %>% select(id,starts_with("l20") ) 
@@ -221,7 +355,7 @@ L20$plot <- paste0("plot_", L20$plot)
 
 
 
-# L25 When did you start cultivating this plot?       ====
+#       L25 When did you start cultivating this plot?       ====
 
 L25 <- select(jan, id, starts_with("l25"))
 
@@ -247,7 +381,7 @@ L25$plot <- gsub('L25_year_month_', 'plot_', L25$plot)
 
 
 
-# L28 Why was it left fallow?                         ====
+#       L28 Why was it left fallow?                         ====
 L28 = jan %>% select(id,starts_with("l28") ) %>%
   select(-matches("_\\d+_\\d+$"))
 
@@ -261,16 +395,16 @@ L28$plot <- paste("plot_", L28$plot, sep="")
 colnames(L28)[3] <- "l28_why_fallow"
 colnames(L28)[4] <- "l28_why_fallow_other"
 
-### NEW plots     ----
-# L29 Have you gained/received new lands since 2018? XX  ====
+#   # NEW plots     ----
+#       L29 Have you gained/received new lands since 2018? XX  ====
 L29 <- jan %>% select(id,starts_with("l29") ) 
 
-# L30 How many NEW plots?                                ====
+#       L30 How many NEW plots?                                ====
 L30 <- jan %>% select(id,starts_with("l30") ) 
 colnames(L30)[2] <- "l30_plotNEW_since_2018"
 
 
-# L31 [ Village ]                                     ====  
+#       L31 [ Village ]                                     ====  
 L31 <- jan %>% select(id,starts_with("l31") ) 
 L31 <- pivot_longer(L31,
                     cols = -id,
@@ -281,8 +415,8 @@ L31$plot <- paste("new_plot_", L31$plot, sep="")
 
 colnames(L31)[3] <- "l31_plotNEW_village"
 colnames(L31)[4] <- "l31_plotNEW_village_other"
-# L31 [ Survey nu ] [ Hissa number ] [ acre ]    XX   ====
-# L32 How did you come to own this land? select one   ====
+#       L31 [ Survey nu ] [ Hissa number ] [ acre ]    XX   ====
+#       L32 How did you come to own this land? select one   ====
 L32 <- jan %>% select(id,matches("^l32"))
 
 L32 <- jan %>% select(id,matches("^l32"))%>%  
@@ -293,7 +427,7 @@ L32 <- jan %>% select(id,matches("^l32"))%>%
 
 L32$plot <- gsub('l32_', 'new_plot_', L32$plot)
 
-### NEW plots   BIND   ----  
+#   # NEW plots   BIND   ----  
 
 L_NEW_plots <- full_join(L30,L31) %>% full_join(L32)
 
