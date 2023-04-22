@@ -196,7 +196,7 @@ L13 <- pivot_longer(L13,
 )
 L13$plot <- paste("plot_", L13$plot, sep="")
 
-# L20 :		Current Operation Status + acre_guntha ====
+# L20 Current Operation Status + acre_guntha          ====
 #         (multiple choice)
 
 L20 = jan %>% select(id,starts_with("l20") ) 
@@ -221,7 +221,7 @@ L20$plot <- paste0("plot_", L20$plot)
 
 
 
-# L25  When did you start cultivating this plot? ====
+# L25 When did you start cultivating this plot?       ====
 
 L25 <- select(jan, id, starts_with("l25"))
 
@@ -247,66 +247,53 @@ L25$plot <- gsub('L25_year_month_', 'plot_', L25$plot)
 
 
 
-#   L28		Why was it left fallow?
-L28 = jan %>% select(id,list2016, survy2022,starts_with("l28") ) %>% 
-  select(where(~!all(is.na(.x))))
+# L28 Why was it left fallow?                         ====
+L28 = jan %>% select(id,starts_with("l28") ) %>%
+  select(-matches("_\\d+_\\d+$"))
 
---------
+L28 <- pivot_longer(L28,
+                    cols = -id,
+                    names_to = c(".value", "plot"),
+                    names_pattern = "^(l28|l28_other)_(\\d+)$"
+)
+L28$plot <- paste("plot_", L28$plot, sep="")
 
+colnames(L28)[3] <- "l28_why_fallow"
+colnames(L28)[4] <- "l28_why_fallow_other"
 
-#   L29		Have you gained/received new lands since 2018?
-L1 <- Adt3 %>% select(id,list2016, survy2022,starts_with("l29") ) %>% 
-  select(where(~!all(is.na(.x))))
+### NEW plots     ----
+# L29 Have you gained/received new lands since 2018? XX  ====
+L29 <- jan %>% select(id,starts_with("l29") ) 
 
-#   L30		How many NEW plots?
-L1 <- Adt3 %>% select(id,list2016, survy2022,starts_with("l30") ) %>% 
-  select(where(~!all(is.na(.x))))
-#   L31		[ Village ] [ Survey nu ] [ Hissa number ] [ acre ]  
-L1 <- Adt3 %>% select(id,starts_with("l31") ) %>% 
-  select(where(~!all(is.na(.x))))
-#   L32		 How did you come to own this land? select one 
-L1 <- Adt3 %>% select(id,starts_with("l32") ) %>% 
-  select(where(~!all(is.na(.x))))
-
-
-
-# HH filter for testing === === === === === === === === === === === === === ===  
-HH_L13 <-
-  subset(df, id == "101069") %>% 
-  # remove columns that contain only NAs
-  select(-which(sapply(., function(x) all(is.na(x))))) %>% 
-  # remove columns that contain only empty cells
-  mutate_all(as.character) %>% # Convert all columns to character type
-  select_if(~ !all(is.null(.)) & !all(. == ""))
-
-HH_plot_status =  subset(plot_status, id == "32101402")
-
-df <- data.frame(
-  id = c("Dan" ,"Michelle", "Ryan"), 
-  LO= c(3, 5, 1), 
-  KEN=c(7,6,8))
-#=== === === === === === === === === === === === === === === === === === === ===
-
-df <- data.frame(
-  id = c("Dan" ,"Michelle", "Ryan"), 
-  LO= c(3, 5, 1), 
-  KEN=c(7,6,8))
+# L30 How many NEW plots?                                ====
+L30 <- jan %>% select(id,starts_with("l30") ) 
+colnames(L30)[2] <- "l30_plotNEW_since_2018"
 
 
-my <- as.data.frame(tibble(
-  id = c(101044, 101044, 101044, 101044),
-  key = c("l25_month_1", "l25_year_1", "l25_month_2", "l25_year_2"),
-  date = structure(c(2, 2020, 4, 2050), labels = structure(
-    c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17),
-    .Names = c(
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December", "Jan", "Feb",
-      "Mar", "Apr", "May"), class = "labelled"
-  ), class = "labelled")))
+# L31 [ Village ]                                     ====  
+L31 <- jan %>% select(id,starts_with("l31") ) 
+L31 <- pivot_longer(L31,
+                    cols = -id,
+                    names_to = c(".value", "plot"),
+                    names_pattern = "^(l31|l31_other)_(\\d+)$"
+)
+L31$plot <- paste("new_plot_", L31$plot, sep="")
 
-my %>%
-  mutate(star = paste0(date[2], "_", date[1]) )
+colnames(L31)[3] <- "l31_plotNEW_village"
+colnames(L31)[4] <- "l31_plotNEW_village_other"
+# L31 [ Survey nu ] [ Hissa number ] [ acre ]    XX   ====
+# L32 How did you come to own this land? select one   ====
+L32 <- jan %>% select(id,matches("^l32"))
 
-         plot_col = if_else(key == "l25_month_1" | key == "l25_year_1", "plot_1", NA_character_))
+L32 <- jan %>% select(id,matches("^l32"))%>%  
+  pivot_longer(
+    cols = -id, 
+    names_to = "plot",
+    values_to = "l32_plotNEW_How_own_land")
 
+L32$plot <- gsub('l32_', 'new_plot_', L32$plot)
+
+### NEW plots   BIND   ----  
+
+L_NEW_plots <- full_join(L30,L31) %>% full_join(L32)
 

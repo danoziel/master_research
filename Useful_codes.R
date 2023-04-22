@@ -161,6 +161,13 @@ df %>% add_column(new_col = 0)
 
 https://www.listendata.com/2017/03/if-else-in-r.html
 
+# remove columns that contain only NAs ----
+subset(df, id == "101069") %>% 
+  # remove columns that contain only NAs
+  select(-which(sapply(., function(x) all(is.na(x))))) %>% 
+  # remove columns that contain only empty cells
+  mutate_all(as.character) %>% # Convert all columns to character type
+  select_if(~ !all(is.null(.)) & !all(. == ""))
 
 #map----
 library(leaflet)
