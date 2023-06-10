@@ -4,6 +4,12 @@ library(stringr)
 library(readxl)
 library(kableExtra)
 
+baseline_2016 <- read_dta("~/master_research/DATAs/ramthal_data/baseline_survey_2016/CMF_RAMTHAL_IRRIGATION_18 Aug 2016 - cleaned.dta")
+Irrigation_Cultivation2018 <- read_dta("~/master_research/DATAs/ramthal_data/Ramthal Midline/Irrigation_Cultivation Section_Long Form_20180622.dta")
+
+# D24 What crops planted 
+baseline_2016 %>%  select (starts_with("D24"))
+
 
 # Databases created in this Rscript ----
 

@@ -167,7 +167,7 @@ L50_4 <- na.omit (L50_4)
 L <- Adt3 %>% select(id,list2016, survy2022,starts_with("l51")) 
 
 
-# How much of the yield was ________ (Answer in %)  [Season-Crop]	
+# How much of the yield was ________ (Answer in %)  [Season-Crop]	----
 # L52		Sold
 # L53		Kept for HH consumption
 # L54		Lost in post-harvest
@@ -202,11 +202,11 @@ L4 <- Adt3 %>% select(id,list2016, survy2022,starts_with("l54")) %>%
     values_to = "LostPCT") %>% 
   filter(LostPCT>0)
 
-
+#----
 # Since 2016, have you adopted any of the above crops? # If YES →  L46
 # 
 # L81		Sunflower
-L <- Adt3 %>% select(id,list2016, survy2022,starts_with("l81"))
+L <- jan %>% select(id,starts_with("l81"))
 
 # L82		Tomato
 # L83		Onion

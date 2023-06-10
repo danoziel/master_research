@@ -1,17 +1,45 @@
-write.csv(days_use_hh, file = "C:/Users/Dan/Documents/R/Rautahat.Bara.Sarlahi/data/Agriculture_18_19.csv", row.names=FALSE)
-write.csv(wem_liter_fuel_and_time_to_irrigate_1_ha, file = "C:/Users/Dan/Documents/master_research/DATAs/data_saptari/wem_liter_fuel_and_time_to_irrigate_1_ha.csv", row.names=FALSE)
-write.csv(suevey_number_in_out_rmtl, file = "C:/Users/Dan/Documents/suevey_number_in_out_rmtl.csv", row.names=FALSE)
+# IMPORT csv dta files ----
 
-write.csv(ji_261122, file ="C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/ji_261122.csv", row.names=FALSE)
+write.csv(water01, file ="C:/Users/Dan/Documents/master_research/DATAs/water01.csv", row.names=FALSE)
 
 library(foreign)
 write.dta(ramthal_module, "C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/ramthal_module.dta")
 library(haven)
-write_dta(ramthal_module, "C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/ramthal_module.dta")
+write_dta(water01_SEASONs, "C:/Users/Dan/Documents/master_research/DATAs/water01_SEASONs.dta")
+
+# read_dta
+baseline_rmtl_2016 <- read_dta("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/baseline_survey_2016/CMF_RAMTHAL_IRRIGATION_18 Aug 2016 - cleaned.dta")
 
 
-library(foreign)
-write.dta(spip_nepal_time_energy, "spip_nepal_time_energy.dta") 
+# IMPORT from google drive ----
+
+install.packages("googlesheets4")
+library(googlesheets4)
+gs4_auth()
+
+# Check if you have a valid token
+gs4_has_token()
+# [1] TRUE
+
+# Get the Google Sheets file
+sheet <- gs4_get("https://docs.google.com/spreadsheets/d/1pNh0CnNdTBDoneDt0rG_apaLZNI4iQVuzIl9Cms2pgk/edit#gid=1024016564")
+
+# Import data from the first sheet
+data <- read_sheet(sheet, sheet = 1)
+
+#### If Stata file (.dta) stored in Google Drive
+library(haven)
+
+# file link from the drive
+# https://drive.google.com/file/d/10yPJXnxAxLprwaU7SNtYUzMDw0mSuz4A/view?usp=share_link
+
+file_id <- "10yPJXnxAxLprwaU7SNtYUzMDw0mSuz4A"
+file_path <- sprintf("https://drive.google.com/uc?export=download&id=%s", file_id)
+baseline_rmtl_2016 <- read_dta(file_path)
+
+
+
+
 
 # Save the data in different vector ----
 women_weight <- genderweight %>%

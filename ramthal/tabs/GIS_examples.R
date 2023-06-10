@@ -108,7 +108,9 @@ NHSBoards$id <- row.names(NHSBoards)
 NHSBoards_tidy2 <- left_join(NHSBoards_tidy, NHSBoards@data)
 
 
-hospitalsSco <- data.frame(HBName = sort(NHSBoards@data$HBName), Hospitals = c(16,15,23,12,8,34,45,28,20,34,1,1,32,3))
+hospitalsSco <- data.frame(HBName = sort(NHSBoards@data$HBName),
+                           Hospitals = c(16,15,23,12,8,34,45,28,20,34,1,1,32,3))
+
 NHSBoards_tidy3 <- left_join(NHSBoards_tidy2, hospitalsSco)
 
 ggplot(NHSBoards_tidy3, aes(x = long, y = lat, group = group, fill = Hospitals)) +

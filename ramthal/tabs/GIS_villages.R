@@ -1,3 +1,4 @@
+library(haven )
 library(tidyverse)
 library(raster)
 library(sf)
@@ -8,6 +9,7 @@ shape_code <- read_dta("~/master_research/DATAs/ramthal_data/Ramthal Midline/sha
 
 
 # villages map    ----
+library(sp)
 library(rgdal)
 Amaravathi <- readOGR("~/master_research/DATAs/ramthal_data/project_map/villages" ,"Amaravathi")
 Banihatti <- readOGR ("~/master_research/DATAs/ramthal_data/project_map/villages" , "Banihatti")
@@ -82,11 +84,12 @@ ggplot(rmtl,aes(x=long,y=lat,group=group))+geom_polygon(color="black",size=0.1,f
 #  Ramthal_East   ----
 
 # Top N highest values
+jain_171819 <- read.csv("~/master_research/DATAs/ramthal_data/Jain_data/jain_171819.csv")
 kharif_2017P <- 
   jain_171819%>%arrange(desc(area_ha))%>%group_by(id_yoav,season)%>%
   slice(1) %>% filter(season == "kharif_2017") 
 
-### ### ### ### # ###
+### ### ### ### # ### 
 
 Ramthal_East <- readOGR("~/master_research/DATAs/ramthal_data/project_map/villages" ,"Ramthal_East")
 ramthal_east <- Ramthal_East
@@ -98,7 +101,7 @@ ramthal.east.data <- ramthal_east@data ### ### ### ###
 
 plot(ramthal_east)
 
-## Plot NYC ----
+## Plot ----
 A <- ramthal_east@data
 AA <- ramthal_east@data$id
 # in order to plot polygons, first fortify the data
@@ -148,4 +151,47 @@ df <- spread(df, key=V1, value=val)
 
 df %>%
   separate(lab, c("col1", "col2"), "...")
+
+
+
+
+# ramteal 2022
+Ramthal_East <- readOGR("~/master_research/DATAs/ramthal_data/project_map/New folder" ,"Ramthal_East")
+NHSBoards <- readOGR(dsn = "C:/Users/Dan/Documents/master_research/DATAs/map_of_scotland", "SG_NHS_HealthBoards_2019")
+NHSBoards <- Hulgera
+plot(NHSBoards)
+plot(Ramthal_East@data )
+#A First Simple Map
+
+
+
+library(broom)
+NHSBoards_tidy <- tidy(NHSBoards)
+Ramthal_East_tidy <- tidy(Ramthal_East )
+
+#Adding Data Attributes
+NHSBoards$id <- row.names(NHSBoards)
+NHSBoards_tidy2 <- left_join(NHSBoards_tidy, NHSBoards@data)
+NHSBoards_tidy3 <- left_join(NHSBoards_tidy2, hospitalsSco)
+
+Ramthal_East$id <- row.names(Ramthal_East)
+Ramthal_East_tidy2 <- left_join(Ramthal_East_tidy ,Ramthal_East@data)
+Ramthal_East_tidy3 <- left_join(Ramthal_East_tidy2,)
+
+ramthal_east
+jain_common_crop
+ramthal_east_tidy2
+
+rabbi_2017 <- jain_common_crop %>% filter(season == "rabbi_2017")
+  right_join(ramthal_east_tidy2  )
   
+rabbi_2017 %>%
+  ggplot(aes(x = long, y = lat, group = group, fill = cropCat)) +
+  geom_polygon() +
+  geom_path(color = "white", size = 0.2) +
+  coord_equal() +
+  theme(axis.title = element_blank(), axis.text = element_blank()) +
+  labs(x = " ",y = " ",fill = " ")+
+  theme_minimal()+
+  scale_fill_manual(values=group.colors)
+

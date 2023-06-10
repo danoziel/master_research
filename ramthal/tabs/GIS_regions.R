@@ -6,10 +6,20 @@ library(rgdal)
 library(readxl)
 library(dplyr)
 
+# DWG file ----
+# Specify the file path to the DWG file
+file_path <- "~/master_research/DATAs/ramthal_data/project_map/Ramthal Command Map- East SIde 12300 Ha.dwg"
+
+# Read the DWG file
+dwg <- read.dwg(file_path)
+
+
+ramthal_border
+
 # Division into regions (north, south, etc.) ----
 
-south12 <- readOGR("~/master_research/DATAs/Ramthal Data to Dan/Project Map/New folder", "1 south-in")
-north22 <- readOGR("~/master_research/DATAs/Ramthal Data to Dan/Project Map/New folder", "2 north-in")
+south12 <- readOGR("~/master_research/DATAs/ramthal_data/project_map/New folder","1 south-in")
+north22 <- readOGR("~/master_research/DATAs/ramthal_data/project_map/New folder", "2 north-in")
 
 row.names(south12)
 row.names(north22)
