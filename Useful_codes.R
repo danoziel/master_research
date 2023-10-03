@@ -1,11 +1,11 @@
 # IMPORT csv dta files ----
 
-write.csv(water01, file ="C:/Users/Dan/Documents/master_research/DATAs/water01.csv", row.names=FALSE)
+write.csv(a_plots_geo, file ="C:/Users/Dan/Documents/master_research/DATAs/a_plots_geo.csv", row.names=FALSE)
 
 library(foreign)
-write.dta(ramthal_module, "C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/ramthal_module.dta")
+write.dta(a_water_usage_key_var, "C:/Users/Dan/Documents/master_research/DATAs/a_water_usage_key_var.dta")
 library(haven)
-write_dta(water01_SEASONs, "C:/Users/Dan/Documents/master_research/DATAs/water01_SEASONs.dta")
+write_dta(a_water_usage_key_var, "C:/Users/Dan/Documents/master_research/DATAs/a_water_usage_key_var.dta")
 
 # read_dta
 baseline_rmtl_2016 <- read_dta("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/baseline_survey_2016/CMF_RAMTHAL_IRRIGATION_18 Aug 2016 - cleaned.dta")
@@ -295,3 +295,18 @@ D24_[] <- lapply(D24_, function(x) if(is.numeric(x))
 
 
 
+
+
+#colorblind-friendly palette ----
+
+# The palette with grey:
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+# The palette with black:
+cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+# To use for fills, add
+scale_fill_manual(values=cbPalette)
+
+# To use for line and point colors, add
+scale_colour_manual(values=cbPalette)
