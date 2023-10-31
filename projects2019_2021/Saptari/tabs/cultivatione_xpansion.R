@@ -335,5 +335,118 @@ total_irrigated_baseline <-
 
 total_irrigated_baseline %>% 
   summarise(mean(y,na.rm = T)) 
+# NEW 24/10/2023 ----
+cultivation_expansion <- read.csv("~/master_research/DATAs/data_master/cultivation_expansion.csv")
+cultivation_expansion <- 
+  cultivation_expansion %>%
+  mutate(season = case_when(
+    x %in% c("monsoon_2017_2018", "monsoon_2018_2019") ~ "monsoon",
+    x %in% c("summer_2017_2018","summer_2018_2019") ~ "summer",
+    x %in% c("winter_2017_2018","winter_2018_2019") ~ "winter",
+    TRUE ~ x)) 
+
+cultivation_expansion$HH[cultivation_expansion$HH=="E104705010"] ="E0104705010"
+cultivation_expansion$HH[cultivation_expansion$HH=="A0104507035"] ="A104507035"
+cultivation_expansion$HH[cultivation_expansion$HH=="A0110402001"] ="A110402001"
+
+cultivation_expansion$HH[cultivation_expansion$HH=="T309800000"] ="T304802123"
+cultivation_expansion$HH[cultivation_expansion$HH=="T309900000"] ="T304802123"
+
+cultivation_expansion <- 
+  cultivation_expansion %>%
+  filter(!HH %in% c("A104507035","E0104705010", "E104705010","A110402001","A0110402001")) %>%  # HH pilot
+  filter(!HH %in% c("T303007001", "T300901091","T210701004","T300901113")) %>%    ## missing a year
+  filter(!HH %in% c("T300608033","T308707002"))#Removed due to conflicting pond size data -lands_I_18_19/aquaculture
+
+
+days_use_hh$HH[days_use_hh$HH=="T309800000"] ="T304802123"
+days_use_hh$HH[days_use_hh$HH=="T309900000"] ="T304802123"
+
+
+# A110402001 (monitoring)= A0110402001(survey)
+# E0104705010 (monitoring) = E104705010 (survey)
+# T309900000 T309800000 (monitoring)== T304802123  (survey)
+
+
+
+days_use_hh <- read.csv("~/master_research/DATAs/data_master/data_saptari/days_use_hh.csv")
+
+mean(days_use_hh$percentage)
+days_use_hh$use_high_low <- ifelse(days_use_hh$percentage>0.37,"high","low")
+days_use_hh$use_high_low <- ifelse(days_use_hh$percentage>0.4,"high","low")
+days_use_hh$y_d <-   days_use_hh$percentage*365
+days_use_hh %>% summarise(mean(y_d))
+days_use_hh %>% filter(y_d<41) %>% summarise(mean(y_d)) # btm 10%
+days_use_hh %>% filter(y_d>283) %>% summarise(mean(y_d)) #top 10%
+days_use_hh %>% group_by(use_high_low) %>% summarise(mean(y_d)) #top 10%
+
+aa=
+inner_join(cultivation_expansion,days_use_hh,relationship = "many-to-many") %>% 
+  group_by(use_high_low,x,Source) %>% 
+  summarise(M1=mean(y,na.rm = T)) %>%
+  mutate(season = case_when(
+    x %in% c("monsoon_2017_2018", "monsoon_2018_2019") ~ "monsoon",
+    x %in% c("summer_2017_2018","summer_2018_2019") ~ "summer",
+    x %in% c("winter_2017_2018","winter_2018_2019") ~ "winter",
+    TRUE ~ x)) %>% 
+  group_by(use_high_low,season,Source) %>% 
+  summarise(M2=mean(M1)) 
+  
+
+fc=
+  inner_join(cultivation_expansion,days_use_hh,relationship = "many-to-many") %>% 
+  select(HH,use_high_low) %>% distinct()
+
+crop=
+  water01 %>%  select(HH,crop,season) %>% 
+  filter(season %in% c(
+    "Monsoon_2017_2018","Monsoon_2018_2019","Summer_2017_2018",
+    "Summer_2018_2019","Winter_2017_2018","Winter_2018_2019")) %>% distinct()
+
+crop$HH[crop$HH=="T309800000"] ="T304802123"
+crop$HH[crop$HH=="T309900000"] ="T304802123"
+
+fc1=
+days_use_hh[1:49,c(1,5)] %>% inner_join(crop) %>%  
+  filter(!crop %in% c("Barren", "Barren Land","System testing","System Testing")) %>% 
+  filter(HH != "A104507035") %>% 
+  filter(HH != "E0104705010") %>% 
+  mutate(seasons = case_when(
+    season %in% c("Monsoon_2017_2018", "Monsoon_2018_2019") ~ "monsoon",
+    season %in% c("Summer_2017_2018","Summer_2018_2019") ~ "summer",
+    TRUE ~ "winter"))
+  
+fc2%>% count(use_high_low,crops)
+
+fc1 %>% 
+  select(HH, use_high_low,crop) %>%  
+  mutate(crops = case_when(
+    crop %in% c("Summer Paddy", "Paddy") ~ "paddy ",
+    crop %in% c("Beans", "Black Eyed Beans","Lentil",
+                "Horse Gram","Long Yard Beans","Split Red Lentil") ~ "pulses",
+    crop %in% c("Linseed","Oil", "Mustard", "Sesame Seeds") ~ "oilseeds",
+    crop %in% c("Brinjal","Cauliflower","Chilli","Coriander","Sunflower","Sugarcane",
+                "Cucumber","Tomato","Onion","Potato","Mango Plant") ~ "high-value veg/fruit",
+    crop %in% c("Cabbage", "Ridge Gourd","Pumpkin","Sponge Gourd",
+                "Garlic","Grass","Green Leafy Vegetables",
+                "Lady's Finger", "Radish","Bitter Gourd","Bottle Gourd") ~ "low-value veg/fruit",
+    TRUE ~ crop)) %>% select(HH,use_high_low,crops) %>% distinct() %>% 
+  count(use_high_low,crops)
+  
+high         Fish Farming (Xlow) oilseeds
+low         paddy(Xhi) veg/fruit pulses
+Maize Wheat
+
+
+
+
+# Irrigated land Monitoring-Irrigated land Survey- Total land holding(Survey) 
+# monsoon_2017_2018  monsoon_2018_2019   summer_2017_2018   summer_2018_2019 Total land holding 
+# winter_2017_2018   winter_2018_2019
+
+
+
+
+
 
 

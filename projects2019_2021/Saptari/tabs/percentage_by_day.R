@@ -18,6 +18,30 @@ A_days_start_end <- A_days %>%
   full_join (A_days_list) %>% 
   summarise(start=min(date),end=max(date)) %>% 
   mutate(total_days=end-start)
+# NEW add 23/10/2023 ----
+
+A_days <- water01 %>% 
+  filter(! HH %in% c("T210701004", "T109902002", "E0104705010","A0110402001") ) %>% 
+  group_by(HH,date) %>%
+  summarise(hr= sum(Hours)) %>%
+  add_column(irri = "A") %>% 
+  select(1,2,4)
+
+A_days_list <- A_days[,2] %>%   distinct() %>% arrange(date)
+
+A_days_start_end <- A_days %>% 
+  full_join (A_days_list) %>% 
+  summarise(start=min(date),end=max(date)) %>% 
+  mutate(start=as.Date(start),
+         end=as.Date(end)) %>% 
+  mutate(last_day="2019-12-16") %>%   mutate(last_day=as.Date(last_day)) %>% 
+  mutate(total_days=end-start,till_last_day=last_day-start) %>% 
+  filter(total_days>18)
+
+A_days_start_end %>% summarise(min(total_days),mean(total_days),max(total_days))
+A_days_start_end %>% summarise(min(start),max(start))
+
+# ----
 
 HH_list <- water01 %>% select(1,26) %>%   distinct()
 

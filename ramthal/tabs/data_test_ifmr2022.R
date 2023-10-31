@@ -12,6 +12,7 @@ rm(YR_Ramthal_Data_Entry_2_stata13) #heavy file- better to remove it
 ramtal_groups$in_out = ifelse(ramtal_groups$in1_out0 ==1,"Inside","Outside")
 ramtal_groups$south_north = ifelse(ramtal_groups$south1_north0==1,"Southern","Northern")
 
+
 # rmtl_in_out ----
 rmtl_in_out <- ramtal_groups %>% select(c(id,in1_out0))
 

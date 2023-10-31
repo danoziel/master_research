@@ -17,19 +17,11 @@ ifmr_mid_2018 == ifmr_base_2018
 
 
 
-
-
-
-
-
-
-
-
-
 # hissa_ifmr_2016 ----
 hissa_ifmr_2016A <- ifmr_base_2016 %>% select("Id","A9","A17","C1" ,matches ("D4_"))
 
-hissa_ifmr_2016B <- hissa_ifmr_2016A %>% select("Id","A9","A17", "C1",matches ("D4_hissa")) %>% 
+hissa_ifmr_2016B <- hissa_ifmr_2016A %>% 
+  select("Id","A9","A17", "C1",matches ("D4_hissa")) %>% 
   gather( "key1", "hissa_no",5:22) %>% mutate(no=1:32598)
 
 #NEED TO FIX

@@ -2,6 +2,9 @@
 
 write.csv(a_plots_geo, file ="C:/Users/Dan/Documents/master_research/DATAs/a_plots_geo.csv", row.names=FALSE)
 
+
+write.csv(list_shape_code, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/list_shape_code.csv", row.names=FALSE)
+
 library(foreign)
 write.dta(a_water_usage_key_var, "C:/Users/Dan/Documents/master_research/DATAs/a_water_usage_key_var.dta")
 library(haven)
@@ -54,11 +57,17 @@ res <-
   t.test(total_litres_consumed_dieselkero ~ TreatmentControl, data = df.match)
 
 #regression ----
+
+
 ggplot(income.data, aes(x=income, y=happiness))+ geom_point()
 
 income.happiness.lm <- lm(happiness ~ income, data = income.data)
 
 summary(income.happiness.lm)
+
+library(sjPlot)
+tab_model(m1, show.se = TRUE)
+https://cran.r-project.org/web/packages/sjPlot/vignettes/tab_model_estimates.html
 
 #remove the "-"
 ifmr_hissa_16_18A$hissa_srvy_no <- gsub("-$","",ifmr_hissa_16_18A$hissa_srvy_no )
@@ -74,13 +83,21 @@ drop_na(irri_for_season,season_of_crop)%>% library(tidyverse)
 select(where(~!all(.x=="")))
 select(where(~!all(is.na(.x))))
 
+#replace value to another value ----
+
 #replace NA to 0
 x$land_cult [is.na(x$land_cult)] <- 0 
 CR3 [CR3 ==""] <- NA 
 
 #replace NaN to Na, x=column
 mutate(x= sub(NaN, NA, x)) %>%
-  
+
+#replace 2 to 1 
+Data$TC[Data$TC == 2] <- 1 
+
+R_Lands_I_Baseline_2018_[6,3]<- 40
+
+
 #renam column-----
 R_intensity_Baseline %>% 
   rename(new = old) #renam column old TO new
@@ -106,11 +123,7 @@ mutate(freq = paste0(round(100 * n/sum(n), 0), "%"))
 
 mutate(label_percent()(x))
  
-#replace 2 to 1 ----
-#replace 2 to 1 
-Data$TC[Data$TC == 2] <- 1 
 
-R_Lands_I_Baseline_2018_[6,3]<- 40
 
 # digits after point
 coords$print <- as.numeric((coords$`2`),digits=8)

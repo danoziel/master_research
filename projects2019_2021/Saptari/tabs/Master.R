@@ -369,14 +369,43 @@ kable(by_Seasons) %>% kableone()
 # Avg. irrigation hours per day                                ----
 #   Cultivated Land    ----
 #all
+  # by HH
 xc <- water01 %>% 
-  filter(!crop %in% c("Fish Farming","Kurli")) %>% 
+#  filter(!crop %in% c("Fish Farming","Kurli")) %>% 
   group_by(HH,date) %>%  
   summarise(Hours=sum(Hours)) %>% 
   group_by(HH) %>% 
   summarise(Hours=mean(Hours)) %>% 
   summarise(N=n(),`Hours per day`=mean(Hours),SD=sd(Hours))
 
+  # by date 10/2023 ----
+hrs_day <- water01 %>% 
+    group_by(HH,date) %>%  
+    summarise(Hours=sum(Hours)) %>% 
+    group_by(date) %>% 
+    summarise(Hours=mean(Hours)) 
+  
+ghi_day <- GHI %>% 
+  group_by(date) %>% 
+  summarise(ghi=mean(ALLSKY_SFC_SW_DWN))
+  
+ghi_hrs_day <- left_join(hrs_day,ghi_day)
+
+ggplot(ghi_hrs_day, aes(x=ghi, y=Hours)) + 
+  geom_point(size = 1, alpha = .4,color="dodgerblue4")+
+  geom_smooth(method=lm, se=FALSE,color="dimgrey")+
+  labs(title="SIP usage hours & solar radiation, per day",
+       x="Global Horizontal Irradiance", 
+       y=" Fraction of Farmers Using SIP")+
+  scale_x_continuous(breaks = seq(0, 8, 1))+
+  theme_minimal()+
+  theme(panel.grid.major.x = element_blank(), 
+        panel.grid.minor = element_blank(),
+        text = element_text(family = "Georgia")  )
+
+  #-----
+  
+  
 # district
 xcd <- water01 %>% 
   filter(!crop %in% c("Fish Farming","Kurli")) %>% 

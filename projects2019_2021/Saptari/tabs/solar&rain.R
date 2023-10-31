@@ -55,7 +55,8 @@ solar_potential %>%drop_na(ALLSKY_SFC_SW_DWN) %>%
 ggplot(solar_potential, aes(x=ALLSKY_SFC_SW_DWN, y=pct)) + 
   geom_point(size = 1, alpha = .4,color="dodgerblue4")+
   geom_smooth(method=lm, se=FALSE,color="dimgrey")+
-  labs(x="Global Horizontal Irradiance", y=" Fraction of Farmers Using SPIP")+
+  labs(title="Percentage of SIP users & Solar radiation, per day",
+       x="Global Horizontal Irradiance", y=" Fraction of Farmers Using SPIP")+
   scale_x_continuous(breaks = seq(0, 8, 1))+
   theme_minimal()+
   theme(panel.grid.major.x = element_blank(), 
@@ -83,6 +84,17 @@ sr <- solar_potential %>% filter(!is.na(ALLSKY_SFC_SW_DWN))
 sr$irradiance <- as.factor(sr$irradiance)
 sr$irradiance<- relevel(sr$irradiance, ref = "low")
 
+# addition 10/2023 ----
+HH_pct_N_rain <- read.csv("~/master_research/DATAs/data_master/data_saptari/HH_pct_N_rain.csv")
+
+sr <- HH_pct_N_rain  %>% filter(!is.na(ALLSKY_SFC_SW_DWN))
+
+AA=lm(pct ~ ALLSKY_SFC_SW_DWN+ rain_day_1mm,sr)
+
+library(sjPlot)
+tab_model(AA,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",
+          dv.labels = c(" "),pred.labels = c("(Intercept)", "GHI [Solar Radiation]","Rainy Day [>1 mm]"))
+#-----
 modSR <- lm(pct ~ ALLSKY_SFC_SW_DWN,sr)
 
 tab_model(modSR,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",

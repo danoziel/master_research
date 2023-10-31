@@ -5,7 +5,7 @@ library(sf)
 library(rgdal)
 library(sp)
 
-shape_code <- read_dta("~/master_research/DATAs/ramthal_data/Ramthal Midline/shape_code.dta")
+shape_code <- read.csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/shape_code.csv")
 
 
 # villages map    ----
@@ -91,13 +91,14 @@ kharif_2017P <-
 
 ### ### ### ### # ### 
 
+library(rgdal)
 Ramthal_East <- readOGR("~/master_research/DATAs/ramthal_data/project_map/villages" ,"Ramthal_East")
 ramthal_east <- Ramthal_East
 ramthal_east@data <- rename(ramthal_east@data, id_yoav = id)
 
 # ** ramthal_east@data <-na.omit(ramthal_east@data)
 
-ramthal.east.data <- ramthal_east@data ### ### ### ###
+ramthal.east.data <- ramthal_east@data 
 
 plot(ramthal_east)
 
@@ -107,14 +108,19 @@ AA <- ramthal_east@data$id
 # in order to plot polygons, first fortify the data
 ramthal_east@data$id <- row.names(ramthal_east@data) 
 
-library(maptools)
-if (!require(gpclib)) install.packages("gpclib", type="source")
-gpclibPermit()
+# library(maptools)
+# if (!require(gpclib)) install.packages("gpclib", type="source")
+# gpclibPermit()
+
 
 # create a data.frame from our spatial object
 ramthal_4_data <- fortify(ramthal_east,by = "id")
 
-kharif_17 <-inner_join (kharif_2017P,ramthal_east@data = "id")
+kharif_17 <-inner_join (kharif_2017P,ramthal_east@data = "id")  ###
+
+
+
+
 
 # merge the "fortified" data with the data from our spatial object
 ramthal_east.df <- merge(kharif_17, ramthal_4_data,by = "id")
@@ -160,7 +166,7 @@ Ramthal_East <- readOGR("~/master_research/DATAs/ramthal_data/project_map/New fo
 NHSBoards <- readOGR(dsn = "C:/Users/Dan/Documents/master_research/DATAs/map_of_scotland", "SG_NHS_HealthBoards_2019")
 NHSBoards <- Hulgera
 plot(NHSBoards)
-plot(Ramthal_East@data )
+plot(Ramthal_East )
 #A First Simple Map
 
 
@@ -171,12 +177,29 @@ Ramthal_East_tidy <- tidy(Ramthal_East )
 
 #Adding Data Attributes
 NHSBoards$id <- row.names(NHSBoards)
+
+hospitalsSco <- data.frame(HBName = sort(NHSBoards@data$HBName),
+                           Hospitals = c(16,15,23,12,8,34,45,28,20,34,1,1,32,3))
+
 NHSBoards_tidy2 <- left_join(NHSBoards_tidy, NHSBoards@data)
 NHSBoards_tidy3 <- left_join(NHSBoards_tidy2, hospitalsSco)
 
+
+
 Ramthal_East$id <- row.names(Ramthal_East)
+
+hospitalsSco <- data.frame(HBName = sort(NHSBoards@data$HBName))
+                           
 Ramthal_East_tidy2 <- left_join(Ramthal_East_tidy ,Ramthal_East@data)
-Ramthal_East_tidy3 <- left_join(Ramthal_East_tidy2,)
+
+kharif_17 <- 
+  kharif_2017P %>% 
+  mutate(id_yoav = as.character (id_yoav)) %>% 
+  inner_join (ramthal.east.data)
+Ramthal_East_tidy3 <- left_join(Ramthal_East_tidy2,kharif_17)
+
+
+
 
 ramthal_east
 jain_common_crop
@@ -194,4 +217,5 @@ rabbi_2017 %>%
   labs(x = " ",y = " ",fill = " ")+
   theme_minimal()+
   scale_fill_manual(values=group.colors)
+
 

@@ -120,7 +120,7 @@ ggplot(NHSBoards_tidy3, aes(x = long, y = lat, group = group, fill = Hospitals))
   labs(title = "Hospital Density in Scotland (2019)") +
   theme(plot.title = element_text(margin = margin(t = 40, b = -40)))
 
-#Adding Another Layer
+#Adding Another Layer 
 HBLabel <- NHSBoards_tidy %>%
   group_by(HBName) %>%
   summarise(label_long = mean(range(long)), label_lat = mean(range(lat)), Hospitals = mean(Hospitals))
