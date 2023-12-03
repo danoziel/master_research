@@ -1,14 +1,14 @@
 # IMPORT csv dta files ----
 
-write.csv(a_plots_geo, file ="C:/Users/Dan/Documents/master_research/DATAs/a_plots_geo.csv", row.names=FALSE)
+write.csv(Master_HH_N, file ="C:/Users/Dan/Documents/master_research/DATAs/data_master/data_saptari/Master_HH_N.csv", row.names=FALSE)
 
 
-write.csv(list_shape_code, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/list_shape_code.csv", row.names=FALSE)
+write.csv(a_sample, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/a_sample.csv", row.names=FALSE)
 
 library(foreign)
-write.dta(a_water_usage_key_var, "C:/Users/Dan/Documents/master_research/DATAs/a_water_usage_key_var.dta")
+write.dta(pump_type.csv, "C:/Users/Dan/Documents/master_research/DATAs/data_master/data_saptari/pump_type.dta")
 library(haven)
-write_dta(a_water_usage_key_var, "C:/Users/Dan/Documents/master_research/DATAs/a_water_usage_key_var.dta")
+write_dta(peace_index, "C:/Users/Dan/OneDrive - mail.tau.ac.il/terror_and_peace/terror_df_16102023/peace_index.dta")
 
 # read_dta
 baseline_rmtl_2016 <- read_dta("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/baseline_survey_2016/CMF_RAMTHAL_IRRIGATION_18 Aug 2016 - cleaned.dta")
@@ -52,21 +52,60 @@ women_weight <- genderweight %>%
 # arrange ----
 arrange(desc(Grp))
 
-# t test ----
-res <- 
-  t.test(total_litres_consumed_dieselkero ~ TreatmentControl, data = df.match)
+# summary_stats ----
+library(rstatix)
+DF %>% group_by(HH_project) %>%
+  get_summary_stats(income_2016, type = "mean_sd")# %>% mutate_at(4:5,round) # (column ,round ,digits)
+
+
+# t_test t.test ----
+
+
+# t_test
+DF01 <- DF %>% t_test(income_2016 ~ HH_project, detailed = F) %>% add_significance()
+DF02 <- vars_inc %>% t_test(income_2022 ~ farmers_hh, detailed = T) %>% add_significance()
+
+library(rempsyc)
+nice_table(DF02 )
+nice_table(DF01[c(6:9)])
+
+# t.test
+library(broom)
+t01 <- t.test(income_2022 ~ farmers_hh, data = vars_inc)
+t01 <- tidy(t01, conf.int = TRUE)
+nice_table(t01)
+
+
+t.test.results <- nice_t_test(
+  data = mtcars,
+  response = names(mtcars)[1:6],
+  group = "am",
+  warning = FALSE
+)
+t.test.results
+
+
+
+
+edu1=baseline_RMTL[,c(1,grep("^C5_[1-9]|^C7_[1-9]",names(baseline_RMTL)))] %>% select(-ends_with("bin"))%>% mutate(edu_head_hh=NA ) 
+
+
+
 
 #regression ----
 
+ggplot(data, aes(x=income, y=happiness))+ geom_point()
 
-ggplot(income.data, aes(x=income, y=happiness))+ geom_point()
+ggplot(DF, aes(x=total_acres, y=total_plots)) +
+  geom_point(shape=18, color="green4")+
+  geom_smooth(method=lm, se=FALSE, color="brown4")+ theme_minimal()
 
-income.happiness.lm <- lm(happiness ~ income, data = income.data)
-
-summary(income.happiness.lm)
+model <- lm(total_acres ~ total_plots, DF)
+summary( model )
 
 library(sjPlot)
-tab_model(m1, show.se = TRUE)
+tab_model(model, show.se = TRUE)
+
 https://cran.r-project.org/web/packages/sjPlot/vignettes/tab_model_estimates.html
 
 #remove the "-"
@@ -130,7 +169,7 @@ coords$print <- as.numeric((coords$`2`),digits=8)
 
 # column 1-nth
 df$ID <- seq.int(nrow(df))
-> df1$consecutive_numbers<-1:nrow(df1)
+ df1$consecutive_numbers<-1:nrow(df1)
 mutate (observation = 1:n())
 add_column(Column_After = "After",.after = "A") 
 
@@ -145,6 +184,8 @@ library(ggpubr)
 mydata.long <- tse %>% 
   pivot_longer(-gender, names_to = "variables", values_to = "value")
 
+   pivot_wider(names_from = D12_, values_from = n) 
+  
 #ifelse----
 at_btselem <- at_btselem %>% 
   mutate(total_events_located_IL  = ifelse(location == 1, "1",NA))

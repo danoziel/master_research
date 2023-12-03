@@ -8,6 +8,14 @@ library(scales)
 library(extrafont)
 library(sjPlot)
 
+
+
+
+
+
+
+
+#----
 library(readxl)
 Master_file_Saptari_REWSSPC_12_27_2019 <-
   read_excel("~/Nepal Data/Master file - Saptari & REWSSPC-12-27-2019.xlsx",n_max = 14513)
@@ -31,18 +39,21 @@ water01$HH [water01$HH== "T3HH"] <- "T309900000"
 #T309800000 - `Total Area Irrigated` : 20 instead of NA
 water01[12538,19]<- 20
 
-water01_SEASONs <- water01_SEASONs %>%
+water01_SEASONs <- water01_SEASONs %>% #old analyses
+  # 10/2013  main season (July-October); winter (November-February); and summer (March-June).
+w_102023 <- diary_spip_terai %>%
+  mutate(date=as.Date (date)) %>% 
   mutate(season=case_when(
-    date >= "2017-06-02" & date <= "2017-09-30" ~ "monsoon_2017_2018",
-    date >= "2017-10-01" & date <= "2018-01-31" ~ "winter_2017_2018",
-    date >= "2018-02-01" & date <= "2018-05-31" ~ "summer_2017_2018",
+    date >= "2017-06-02" & date <= "2017-10-31" ~ "monsoon_2017_2018",
+    date >= "2017-11-01" & date <= "2018-02-28" ~ "winter_2017_2018",
+    date >= "2018-03-01" & date <= "2018-06-30" ~ "summer_2017_2018",
     
-    date >= "2018-06-01" & date <= "2018-09-30" ~ "monsoon_2018_2019",
-    date >= "2018-10-01" & date <= "2019-01-31" ~ "winter_2018_2019",
-    date >= "2019-02-01" & date <= "2019-05-31" ~ "summer_2018_2019",
+    date >= "2018-07-01" & date <= "2018-10-31" ~ "monsoon_2018_2019",
+    date >= "2018-11-01" & date <= "2019-02-28" ~ "winter_2018_2019",
+    date >= "2019-03-01" & date <= "2019-06-30" ~ "summer_2018_2019",
     
-    date >= "2019-06-01" & date <= "2019-09-30" ~ "monsoon_2019_2020",
-    date >= "2019-10-01" & date <= "2019-12-16" ~ "winter_2019_2020"))
+    date >= "2019-07-01" & date <= "2019-10-31" ~ "monsoon_2019_2020",
+    date >= "2019-11-01" & date <= "2019-12-16" ~ "winter_2019_2020"))
 
 num_days_in_season <- 
   water01_SEASONs%>%select(date,season) %>%
@@ -104,33 +115,33 @@ filter(HH %in% c("T210701004","T109902002","E0104705010","A0110402001","T3026030
 --------------------------------------------------------------
 # colors       ----
 
-"Aquaculture" : dodgerblue 
-"Cultivated Land" : #a1d99b
+"Aquaculture" : "dodgerblue" 
+"Cultivated Land" : "#a1d99b"
 
 "Saptari": darkolivegreen4
-"Rautahat\nBara Sarlahi":lightsalmon4 
+"Rautahat\nBara Sarlahi":"lightsalmon4" 
 
-"Total Area Cultivated" :steelblue2
-"Area Irrigated" :steelblue
+"Total Area Cultivated" :"steelblue2"
+"Area Irrigated" :"steelblue"
 
-"Winter" : dodgerblue4
-"Monsoon" :dimgrey
-"Summer" : darkolivegreen4
+"Winter" : "dodgerblue4"
+"Monsoon" :"dimgrey"
+"Summer" : "darkolivegreen4"
 --------------------------------------------------
 # SEASONs ----
 
 x1 <- water01 %>% filter(is.na(Seasons)) %>% 
   mutate(Seasons=case_when(
-    date >= "2017-06-02" & date <= "2017-09-30" ~ "Monsoon 2017-2018",
-    date >= "2017-10-01" & date <= "2018-01-31" ~ "Winter 2017-2018",
-    date >= "2018-02-01" & date <= "2018-05-31" ~ "Summer 2017-2018",
+    date >= "2017-06-02" & date <= "2017-10-31" ~ "monsoon_2017_2018",
+    date >= "2017-11-01" & date <= "2018-02-28" ~ "winter_2017_2018",
+    date >= "2018-03-01" & date <= "2018-06-30" ~ "summer_2017_2018",
     
-    date >= "2018-06-01" & date <= "2018-09-30" ~ "Monsoon 2018-2019",
-    date >= "2018-10-01" & date <= "2019-01-31" ~ "Winter 2018-2019",
-    date >= "2019-02-01" & date <= "2019-05-31" ~ "Summer 2018-2019",
+    date >= "2018-07-01" & date <= "2018-10-31" ~ "monsoon_2018_2019",
+    date >= "2018-11-01" & date <= "2019-02-28" ~ "winter_2018_2019",
+    date >= "2019-03-01" & date <= "2019-06-30" ~ "summer_2018_2019",
     
-    date >= "2019-06-01" & date <= "2019-09-30" ~ "Monsoon 2019-2020",
-    date >= "2019-10-01" & date <= "2019-12-16" ~ "Winter 2019-2020"))
+    date >= "2019-07-01" & date <= "2019-10-31" ~ "monsoon_2019_2020",
+    date >= "2019-11-01" & date <= "2019-12-16" ~ "winter_2019_2020"))
 
 water01_SEASONs$Seasons[water01_SEASONs$Seasons=="Monsoon 2017"] <- "Monsoon 2017-2018"
 water01_SEASONs$Seasons[water01_SEASONs$Seasons=="winter 2019-2020"] <- "Winter 2019-2020"
@@ -156,21 +167,35 @@ water01_SEASONs <- water01_SEASONs %>% mutate(Seasons=case_when(
   TRUE ~ as.character(Seasons)))
 
 # crops category ----
-
-water01_SEASONs <- water01_SEASONs %>% 
+diary01=diary_spip_terai %>% 
+#water01_SEASONs <- water01_SEASONs %>% 
   mutate(crops_category=ifelse(
     crop %in% c("Bitter gourd" , "Bitter Gourd" , "Bottle Gourd","Brinjal","Cabbage",
                 "cauliflower","Cauliflower","Chilli","Garlic","Grass","Cucumber",
                 "Green Leafy Vegetables","Lady's Finger","Long Yard Beans",
                 "Luffa Gourd","Onion","Potato","Pumpkin","Radish","Ridge Gourd","Coriander",
-                "Sponge Gourd","Sunflower","Tomato","vegetable","vegetables"),"Vegetables",
+                "Sponge Gourd","Sunflower","Tomato","vegetable","vegetables","Mango Plant"),"Vegetables_Fruits",
     ifelse(crop %in% c("Beans","Split Red Lentil","Black Eyed Beans","Horse Gram","Lentil","Red Kidney Beans"),"Pulses",
            ifelse(crop %in% c("Fenugreek","Linseed","Mustard","Oil","Sesame Seeds"),"Oilseeds",
                   ifelse(crop == "Sugarcane","Sugarcane",
-                         ifelse(crop == "Mango Plant","Mango Plant",
                                 ifelse(crop %in% c("Fish Farming","Kurli","pond"),"Fish Farming",
                                        ifelse(crop %in% c("Paddy", "Summer Paddy","paddy","Maize","Wheat"),"Cereals",
-                                              NA))))))))
+                                              NA)))))))
+
+diary_spip_terai=diary_spip_terai %>% 
+  #water01_SEASONs <- water01_SEASONs %>% 
+  mutate(crops_category=ifelse(
+    crop %in% c("Bitter gourd" , "Bitter Gourd" , "Bottle Gourd","Brinjal","Cabbage",
+                "cauliflower","Cauliflower","Chilli","Garlic","Grass","Cucumber",
+                "Green Leafy Vegetables","Lady's Finger","Long Yard Beans",
+                "Luffa Gourd","Onion","Potato","Pumpkin","Radish","Ridge Gourd","Coriander",
+                "Sponge Gourd","Sunflower","Tomato","vegetable","vegetables","Mango Plant"),"Vegetables_Fruits",
+    ifelse(crop %in% c("Beans","Split Red Lentil","Black Eyed Beans","Horse Gram","Lentil","Red Kidney Beans"),"Pulses",
+           ifelse(crop %in% c("Fenugreek","Linseed","Mustard","Oil","Sesame Seeds"),"Oilseeds",
+                  ifelse(crop == "Sugarcane","Sugarcane",
+                         ifelse(crop %in% c("Fish Farming","Kurli","pond"),"Fish_Farming",
+                                ifelse(crop %in% c("Paddy", "Summer Paddy","paddy","Maize","Wheat"),"Cereals",
+                                       NA)))))))
 
 
 
@@ -252,10 +277,11 @@ A110402001 == A0110402001
 
 wa1 <- 
   water01_SEASONs %>% 
-  filter(!HH %in% c("A0110402001")) %>% 
+  water01 %>% 
+#  filter(!HH %in% c("A0110402001")) %>% 
   group_by(HH) %>% 
-  mutate(start=min(date),end=max(date)) %>% 
-  mutate(after365=start+365) %>% 
+  mutate(start=min(date),end=max(date)) %>% select(1,date,start,end,Hours) %>%
+  mutate(after365=start+365) %>%
   mutate(rm=ifelse(end>after365,"yes","no")) %>% filter(rm=="yes") %>% 
   group_by(HH) %>% mutate(rm=ifelse(date<=after365,"yes","no")) %>% filter(rm=="yes") %>% 
   group_by(HH,date) %>% summarise(hrs=sum(Hours)) %>% 
@@ -267,13 +293,13 @@ wa1 <-
 
 # usage_days = n
 usage_days <- 
-  water01 %>% 
+  water01 %>% mutate(date=as.Date(date)) %>%
   filter(!HH %in% c("A0110402001", "T300608006", "T210701004")) %>% 
 #  filter(! Seasons %in%c("Monsoon 2015-2016", "Summer 2016-2017","Annual 2019-2020",
  #                        "Monsoon 2019-2020", "Winter 2019-2020")) %>% 
   filter(! Seasons %in%c("Monsoon 2015-2016", "Summer 2016-2017")) %>% 
   group_by(HH) %>% 
-  mutate(start=min(date),end=max(date)) %>% 
+  mutate(start=min(date),end=max(date)) %>% select(1,date,start,end,Hours) %>%
   mutate(total_days=end-start,
          total_days = as.numeric(total_days)) %>%
   select(date,HH,total_days) %>% distinct() %>% 
@@ -284,8 +310,10 @@ usage_days <-
 #total_days # percentage = percentage / total_days
 total_days2 <- 
   water01_SEASONs %>%
-  filter(!HH %in% c("A0110402001", "T300608006", "T210701004")) %>% 
-  filter(! Seasons %in%c("Monsoon 2015-2016", "Summer 2016-2017")) %>% 
+total_days2 <- 
+  water01 %>% mutate(date=as.Date(date)) %>%
+#  filter(!HH %in% c("A0110402001", "T300608006", "T210701004")) %>% 
+#  filter(! Seasons %in%c("Monsoon 2015-2016", "Summer 2016-2017")) %>% 
   group_by(HH) %>% 
   mutate(start=min(date),end=max(date)) %>% 
   mutate(total_days=end-start,

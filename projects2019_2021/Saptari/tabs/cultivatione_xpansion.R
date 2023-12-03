@@ -4,7 +4,7 @@ library(extrafont)
 library(sjPlot)
 
 
-# outliers HH ----
+# outliers HH ---- 
 total_land_baseline 
 # "A104507035","E0104705010", "E104705010", "A110402001","A0110402001"  HH pilot
   
@@ -103,14 +103,14 @@ total_su_irri_sapteri <- total_s_irri_sapteri %>%
 
 ## irrigated land(monitoring) RBS+Sapteri    ----
 total_mo_irri <- 
-  water01_SEASONs %>%
-  filter(HH != "T305602003" |Seasons != "Summer 2017-2018") %>%
+   water01_SEASONs %>%
+  filter(HH == "T305602003" |Seasons == "Summer 2017-2018") %>%
   filter(!crop %in% c("System testing","System Testing","Barren","Barren Land")) %>% 
   select(district,HH,Seasons,crop,`Total Area Cultivated`) %>%
-  filter(! Seasons %in%c("Monsoon 2015-2016", "Summer 2016-2017",
-                         "Monsoon 2019-2020","Winter 2019-2020",
-                         "Annual 2019-2020") )%>% distinct() %>%
+  filter(! Seasons %in%c("Monsoon 2015-2016", "Summer 2016-2017","Monsoon 2019-2020","Winter 2019-2020","Annual 2019-2020") )%>% 
+  distinct() %>%
   group_by(district,HH,Seasons) %>% 
+  
   summarise(irrigated_land_monitoring =sum(`Total Area Cultivated`)*0.0339) %>% 
   spread("Seasons","irrigated_land_monitoring") %>%
   replace(is.na(.), 0) %>% 

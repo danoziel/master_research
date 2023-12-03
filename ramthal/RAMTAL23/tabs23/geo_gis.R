@@ -1,26 +1,13 @@
 
 # ramthal_east: SpatialPolygonsDataFrame ----
 
-# in1_out0
-# layer
-# distance_km
-# around_boundary
-# south1_north0
 
 list_plots= # list plot_survey_1-10
   a_rmtl_srvy22 %>% 
   select(id,plot_1,plot_survey_1, 19,22, 29,32 ,39,42 ,49,52, 59,62, 69,72, 79,82,
          plot_9,plot_survey_9, plot_10, plot_survey_10)
 
-a_sample=
-  a_rmtl_srvy22 %>% 
-  select(id,mm4,mm5,village) %>% 
-  full_join(list_groups_rmtl)%>% # left_join(list_shape_code)
-  left_join(list_shape_code) %>% 
-  rename(id_srvy=id,layer_elevation =layer) %>% 
-  mutate(id_srvy=as.character(id_srvy),
-         shp_code=as.character(shp_code),
-         survey = as.character (survey))
+
 
 library(tidyverse)
 library(rgdal)
@@ -342,50 +329,6 @@ mw1c%>% summarise_at(c("mw1c_1","mw1c_2","mw1c_3","mw1c_4","mw1c_5",
 
 
 
-## ADDING BASELINE DATA ----
-library(haven)
-baseline_2016 <- read_dta("~/master_research/DATAs/ramthal_data/baseline_survey_2016/CMF_RAMTHAL_IRRIGATION_18 Aug 2016 - cleaned.dta")
-
-# A18 What is your caste?
-# A19 Which caste category does this fall under?
-# A13 According to what you indicated, your total HH income is Rs. [     ].
-c_i=
-  baseline_2016 %>% select(Id,A22 #caste
-                           ,A23, #caste category
-                           F13) # total HH income
-
-caste_incom=
-  c_i %>%
-  mutate(caste_cat=ifelse(A23=="1","GC",
-                          ifelse(A23=="2","Other BC",
-                                 ifelse(A23=="3","SC",
-                                        ifelse(A23=="4","ST",""))))
-  ) %>% 
-  filter(caste_cat !="ST" | F13 < 500000) %>%   
-  rename(id_srvy=Id, incom= F13) %>% 
-  mutate(id_srvy=as.character(id_srvy))
-  
-caste_incom_water_gis <- 
-  a_water_usage_key_var %>% 
-  left_join(list_shape_code) %>% 
-  rename(id_srvy=id,layer_elevation=layer) %>%
-  mutate(id_srvy=as.character(id_srvy),
-         shp_code=as.character(shp_code),
-         survey = as.character (survey)) %>% 
-  left_join(caste_incom)
-
-rmtl_gis_WU <-left_join(water_usage_key_var_gis, rmtl_gis_data, by = "shp_code", relationship = "many-to-many")
-gis_WU_map <- left_join(rmtl_gis_df,rmtl_gis_WU, relationship = "many-to-many")
-
-
-
-
-
-
-
-
-
-# ----
 
 # _gis tutorial____________-----
 
