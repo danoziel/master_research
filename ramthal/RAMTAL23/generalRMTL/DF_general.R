@@ -1,13 +1,3 @@
-library(dplyr)
-library(tidyverse)
-library(haven)
-
-# survey 2022 dataset ----
-Ramthal_Karnataka_Cleaned_Data <- read_dta("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/Ramthal_Karnataka_submissions/Ramthal_Karnataka_Cleaned_Data.dta")
-a_rmtl_srvy22 <- Ramthal_Karnataka_Cleaned_Data %>% rename(hh_id=id)
-rm(Ramthal_Karnataka_Cleaned_Data)
-
-# updating villages names and code
 # village_code ----
 village_code <- a_rmtl_srvy22 %>%
   mutate(village_code=ifelse(a5 %in% c("Amaravati", "amaravati",'Amaravathi',"AMARAVATHI"),"01",a5)) %>%
@@ -93,14 +83,9 @@ a_sample= list_groups_rmtl %>%
   full_join(list_villages)
 
 a_sample$farmers_hh=ifelse(a_sample$in1_out0 == 1, "inside_ramthal","outside_ramthal")  
-
-
-
-
-
-# ----
-
-
+a_sample$distance_up_to_1km=ifelse(a_sample$distance_km==1,1,0)
+a_sample$distance_up_to_1km=ifelse(is.na(a_sample$distance_km),0,a_sample$distance_up_to_1km)
+a_sample$distance_up_to_1.5km=ifelse(!is.na(a_sample$distance_km),1.5,0)
 
 
 

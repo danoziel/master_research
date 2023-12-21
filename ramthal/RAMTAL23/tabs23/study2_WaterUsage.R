@@ -1,8 +1,33 @@
 library(dplyr)
 library(tidyverse)
 library(haven)
-library(hrbrthemes)
-theme_ipsum()+
+library(hrbrthemes) # theme_ipsum()+
+
+# STUDY A: WATER USAGE ----
+
+# water usage sample ----
+wu_sample <- 
+  a_rmtl_srvy22 %>% select(hh_id,mm4,mm5) %>% 
+  left_join(a_sample) %>%   
+  mutate(water_usage=ifelse(mm5==0,"didnt_use_water","Use_water"))
+
+#######  PLOT  ###### ----
+
+# total_plots_2022 ----
+
+# df plots_num_acre_wu = 
+a_plots_size %>% 
+  filter(!plotStatus %in% c("1","6")) %>% 
+  group_by(hh_id) %>% 
+  summarise(total_num_plots=n(),total_acre=sum(acres,na.rm = T)) %>% 
+  left_join(wu_sample )
+
+#stat
+plots_num_acre_wu %>%  
+  group_by(water_usage ) %>%
+  summarise(total_num_plots =mean(total_num_plots),total_acre=mean(total_acre))
+
+
 
 
 

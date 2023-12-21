@@ -2,9 +2,24 @@ library(dplyr)
 library(haven)
 library(tidyr)
 
-#######  PLOT  ###### ----
-# a_plots DB ----
-plots=
+#    essantials----
+attr(L48$l48_prev_kha_1_1, "labels")
+
+flat_vector <- unlist(L48[,-1], use.names = FALSE)
+table(flat_vector, useNA = "always") 
+
+# remove columns only NA or empty
+select(where(~!all(.x=="")))
+select(where(~!all(is.na(.x))))
+
+
+#    survey 2022 dataset----
+Ramthal_Karnataka_Cleaned_Data <- read_dta("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/Ramthal_Karnataka_submissions/Ramthal_Karnataka_Cleaned_Data.dta")
+a_rmtl_srvy22 <- Ramthal_Karnataka_Cleaned_Data %>% rename(hh_id=id)
+rm(Ramthal_Karnataka_Cleaned_Data)
+
+#    plots_VARS----
+plots_VARS=
   a_rmtl_srvy22 [
     ,c(1,grep(
       "^plot_[1-9]|plot_survey|l_plot_status_|plot_size|^plot_village_[1-9]",names(a_rmtl_srvy22)),#prev plots
@@ -17,28 +32,15 @@ plots=
       grep("l25",names(a_rmtl_srvy22)), # When did you start cultivating this plot?                  
       grep("l28",names(a_rmtl_srvy22)), # Why was it left fallow?                  
       grep("l32",names(a_rmtl_srvy22)) # How did you come to own this land? NEW PLOT
-      )]
-
-plot_size_vers <- a_rmtl_srvy22[,c(grep("acre|guntas",names(a_rmtl_srvy22)) )]
-
-# Variables to check what they represent: ----
-# what the diff "plot_size_acre_1" AND "plot_acre_1"
-# 1  l46_y_18_acre_7
-# 2  plot_acre_guntas_for_round 
-# 3  plot_acre_guntas_div 
-# 4  plot_acre_guntas #   plot_acre_sum
-
-A=a_rmtl_srvy22 %>%
-  select(plot_size_acre_1,plot_size_acre_2,plot_size_acre_3,
-         plot_acre_sum,plot_acre_guntas_for_round,plot_acre_guntas_div,
-         plot_acre_guntas,
-         plot_acre_1,plot_acre_2,plot_acre_3,id)
+    )]
 
 
-#prev plots ----
+
+# a_plots_size [ plots_size|survey-hissa|plotStatus ] ----
+
+#prev plots 
 plotPrev_01=
-  a_rmtl_srvy22[,c(1,grep("^plot_[1-9]|plot_survey|l_plot_status_|plot_size|^plot_village_[1-9]",names(a_rmtl_srvy22)),
-             grep("kharif_pre_cultivated|rabi_pre_cultivated|KHA22_pre_cultivated",names(a_rmtl_srvy22))  )]
+  a_rmtl_srvy22[,c(1,grep("^plot_[1-9]|plot_survey|l_plot_status_|plot_size|^plot_village_[1-9]",names(a_rmtl_srvy22)) )]
 
 library(tidyr)
 plotPrev_01 <- as.data.frame(lapply(plotPrev_01, as.character), stringsAsFactors = FALSE)
@@ -50,9 +52,6 @@ plotPrev_02$observation <- sub("^plot_village_(\\d{1,2})","plotVillage_\\1", plo
 plotPrev_02$observation <- sub("^plot_survey_(\\d{1,2})","plotSrvy_\\1", plotPrev_02$observation) 
 plotPrev_02$observation <- sub("^plot_size_acre_(\\d{1,2})","acre_\\1", plotPrev_02$observation) 
 plotPrev_02$observation <- sub("^plot_size_guntas_(\\d{1,2})","guntas_\\1", plotPrev_02$observation) 
-plotPrev_02$observation <- sub("^kharif_pre_cultivated_(\\d{1,2})","kharifCult_\\1", plotPrev_02$observation) 
-plotPrev_02$observation <- sub("^rabi_pre_cultivated_(\\d{1,2})","rabiCult_\\1", plotPrev_02$observation) 
-plotPrev_02$observation <- sub("^KHA22_pre_cultivated_(\\d{1,2})","KHA22Cult_\\1", plotPrev_02$observation) 
 
 library(tidyr)
 plotPrev_03 <- plotPrev_02 %>% separate(observation, into = c("vars", "plotID"), sep = "_")
@@ -63,7 +62,7 @@ plotPrev_03$plotID <- sub("^(\\d{1,2})","plot_\\1",  plotPrev_03$plotID)
 
 #  column order
 col_order_plot <- c("hh_id","plotID","plotSrvy","plotSrvyHissa","acre","guntas",
-                   "plotStatus","plotVillage","kharifCult","rabiCult","KHA22Cult")
+                    "plotStatus","plotVillage")
 plotPrev_04 <- plotPrev_03[, col_order_plot]
 
 plotPrev_04[plotPrev_04=="NA"] <- NA
@@ -74,12 +73,10 @@ plotPrev_04 <-
 
 rm(plotPrev_01,plotPrev_02,plotPrev_03)
 
-#new plots ----
+#new plots 
 plotNew_01= 
   a_rmtl_srvy22[,c(1,grep("l31_hissa|l31_survey|l31_name",names(a_rmtl_srvy22)),# rm l30= count new plot
-             grep("l35",names(a_rmtl_srvy22)),
-             grep("kharif_new_cultivated|rabi_new_cultivated|KHA22_new_cultivated",names(a_rmtl_srvy22)) )]
-
+                   grep("l35",names(a_rmtl_srvy22)))]
 
 plotNew_01 <- as.data.frame(lapply(plotNew_01, as.character), stringsAsFactors = FALSE)
 plotNew_02 <- plotNew_01%>% pivot_longer(cols = -hh_id,names_to = c("observation"))
@@ -89,9 +86,6 @@ plotNew_02$observation <- sub("^l31_survey_(\\d{1,2})","plotSrvy_\\1", plotNew_0
 plotNew_02$observation <- sub("^l31_name_(\\d{1,2})","plotVillage_\\1", plotNew_02$observation) 
 plotNew_02$observation <- sub("^l35_acre_(\\d{1,2})","acre_\\1", plotNew_02$observation) 
 plotNew_02$observation <- sub("^l35_guntha_(\\d{1,2})","guntas_\\1", plotNew_02$observation) 
-plotNew_02$observation <- sub("^kharif_new_cultivated_(\\d{1,2})","kharifCult_\\1", plotNew_02$observation) 
-plotNew_02$observation <- sub("^rabi_new_cultivated_(\\d{1,2})","rabiCult_\\1", plotNew_02$observation) 
-plotNew_02$observation <- sub("^KHA22_new_cultivated_(\\d{1,2})","KHA22Cult_\\1", plotNew_02$observation) 
 
 plotNew_03 <- plotNew_02 %>% separate(observation, into = c("vars", "plotID"), sep = "_")
 plotNew_03 <-plotNew_03 %>% pivot_wider(names_from = vars , values_from = value)
@@ -111,15 +105,16 @@ plotNew_04 <- plotNew_04[, col_order_plot]
 
 rm(plotNew_01, plotNew_02,plotNew_03,plotNew_035)
 
-# plotPrev + plotNew = plots_size ----
+# plotPrev + plotNew = plots_size 
 
 plotPrevNew_04 <- rbind(plotPrev_04,plotNew_04)
 
-plotPrevNew_04$guntas[plotPrevNew_04$guntas <= 0] <- ""
-plotPrevNew_04$acre[plotPrevNew_04$acre <= 0] <- ""
+# plotPrevNew_04$guntas[plotPrevNew_04$guntas <= 0] <- ""
+# plotPrevNew_04$acre[plotPrevNew_04$acre <= 0] <- ""
 
 plotPrevNew_04$acre <- as.numeric(plotPrevNew_04$acre)
 plotPrevNew_04$guntas <- as.numeric(plotPrevNew_04$guntas)
+# plotPrevNew_04$guntas [plotPrevNew_04$guntas== -999] <- 0
 
 plots_size <- 
   plotPrevNew_04 %>%
@@ -128,55 +123,78 @@ plots_size <-
   select(-(c(acre,guntas,guntas_acre)))
 plots_size$acres[plots_size$acres == 0] <- NA
 
-
-# total_plots ----
-
-plotsN <- a_rmtl_srvy22[, c(1 ,grep("l_plot_status_", names(a_rmtl_srvy22)))]
-plotsN[plotsN==1 ] <- NA #remove 1 [Sold/disposed]
-plotsN[plotsN==6 ] <- NA #remove 6 [Refuse / Plot Not Exisit]
-plotsN$total_prev_plots <- rowSums(!is.na(plotsN[, -1]))
-
-L30 <- a_rmtl_srvy22 %>% select(hh_id,l30)
-
-total_plots1=
-  plotsN[,c(1,12)] %>%
-  left_join(L30) %>%
-  rename(new_plot=l30) %>% 
-  mutate(total_hh_plots=total_prev_plots +new_plot)
-
-total_plots2=
-  total_plots1 %>% 
-  left_join(a_sample)%>% 
-  mutate(HH_project= ifelse(in1_out0==1,"In","Out")) %>% 
-  mutate(HH_south_north= ifelse(south1_north0==1,"south","north"))
-rm(L30,plotsN)
+a_plots_size = plots_size
 
 
-# for study 2 ----
-total_plots2 %>% 
-  mutate(mm5=ifelse(is.na(mm5),"2.no system install",
-                    ifelse(mm5==0,"1.2 didnt use","1.1 use water"))) %>% 
-  group_by(mm5) %>% summarise(total_plots=mean(total_hh_plots,na.rm = TRUE) )
 
 
-total_plots_normalized=
-  total_plots[,c(1,4,6)] %>% filter(!is.na(total_hh_plots)) %>% 
-  group_by(mm5,total_hh_plots) %>%
-  count(total_hh_plots) %>%
-  group_by(total_hh_plots) %>%
-  mutate(Percent = n / sum(n) * 100)
 
-total_plots_normalized %>% 
-  mutate(mm5=ifelse(is.na(mm5),"2.no system install",
-                    ifelse(mm5==0,"1.2 didnt use","1.1 use water"))) %>% 
-    filter(total_hh_plots<9) %>% 
-  ggplot(aes(x = factor(total_hh_plots), y = Percent, fill = factor(mm5))) +
-  geom_bar(stat = "identity") +
-  labs(title = "Total HH plots", x = "total_hh_plots", y = " ") +
-  scale_fill_discrete(name = "mm5") +
-  scale_fill_manual(values=c("skyblue", "#E69F00","gray"))+  
-    theme_ipsum()+
-    scale_y_continuous(labels = scales::percent_format(scale = 1))
+
+
+
+
+# a_irri_rain_method [ irrigated|rainfed|method ] season-plot-crop ----
+
+# L48		How often was the crop irrigated manually? # 1=Always|2=Sometime|3=Never/Rain-fed 
+# L48a	What is the method of irrigation?
+  
+# Checking whether "other" contains values
+L48_other <- a_rmtl_srvy22 [,c(1,grep("l48",names(a_rmtl_srvy22)))] %>% select(contains("other"))
+flat_vector <- unlist(L48_other, use.names = FALSE)
+table(flat_vector, useNA = "always")
+rm(L48_other)
+
+#Removing YEARS and "other" columns.
+L48 <- a_rmtl_srvy22 %>% select(1, matches("l48"), -starts_with("l48_y"), -starts_with("l48a_y"), -contains("other"))
+
+# Checking if its same as L48
+# Lp_48 <- L48 %>% select(1, matches("l48_prev_"), matches("l48_new_"),matches("l48a_prev_"),matches("l48a_new_"))
+
+# labels
+attr(L48$l48_prev_kha_1_1, "labels")
+attr(L48$l48a_prev_kha_1_1, "labels")
+# L48		How often was the crop irrigated manually? # 1=Always|2=Sometime|3=Never/Rain-fed 
+# L48a	What is the method of irrigation?
+#       Flood     Furrows     Drip      Sprinkler   Manual     Hose 
+#       1         2           3         4           5          6 
+
+L48 <- a_rmtl_srvy22 %>% select(1, matches("l48"), -starts_with("l48_y"), -starts_with("l48a_y"), -contains("other"))
+L48 <- as.data.frame(lapply(L48, as.character), stringsAsFactors = FALSE)
+L48 <- L48 %>% pivot_longer(cols = -hh_id,names_to = "observation",  values_to = "values")
+
+L1_48 <- L48 %>% separate(observation, into = c("L48","prevnew", "season", "plotID","cropIrri"), sep = "_")
+
+L2_48 <- L1_48 %>% pivot_wider(names_from = L48, values_from = values) %>% 
+  rename(irri_freq = l48, irri_method = l48a)
+
+L2_48$plotID <- as.numeric(L2_48$plotID )
+L2_48$plotID <- ifelse(L2_48$prevnew=="new", L2_48$plotID+10,L2_48$plotID)
+L2_48$plotID <- sprintf("%02d", as.numeric(L2_48$plotID))
+
+L2_48$plot_crop <- paste0(L2_48$plotID, "_", L2_48$cropIrri)
+
+L2_48$plotID <- sub("^(\\d{1,2})","plot_\\1",  L2_48$plotID) 
+L2_48$cropIrri <- sub("^(\\d{1,2})","cropIrri_\\1",L2_48$cropIrri) 
+
+L3_48 <- L2_48 %>%
+  filter(!is.na(irri_rain_freq) | !is.na(irri_method))
+
+L3_48$irri_method_num <- L3_48$irri_method
+
+L3_48$irri_method[L3_48$irri_method==1] <- "flood"
+L3_48$irri_method[L3_48$irri_method==2] <- "furrows"
+L3_48$irri_method[L3_48$irri_method==3] <- "drip"
+L3_48$irri_method[L3_48$irri_method==4] <- "sprinkler"
+L3_48$irri_method[L3_48$irri_method %in% c(5,6) ] <- "hose"
+L3_48$irri_method[is.na(L3_48$irri_method)] <- "rain"
+
+L3_48$hh_id=as.numeric(L3_48$hh_id)
+
+a_irri_rain_method = L3_48
+
+rm( L48,L1_48,L2_48,L3_48)
+
+
 
 
 ##### REVENUE a_plots_revenue -----
@@ -185,7 +203,7 @@ total_plots_normalized %>%
 # l78_reven_prev_PLOT_CROP1/CROP2
 reve_crop_prev <- a_rmtl_srvy22[,c(1,grep("l78_reven_prev_",names(a_rmtl_srvy22)) )]
 
-#  reve_crop_prev ----
+#  reve_crop_prev 
 
 re01_pre <- reve_crop_prev %>% pivot_longer(cols = -hh_id,names_to = "observation",  values_to = "plotRevenue")
 
@@ -202,7 +220,7 @@ re02_pre$cropReve <- sub("^(\\d{1,2})","cropReve_\\1",re02_pre$cropReve)
 re03_pre <- re02_pre %>% filter(plotRevenue>0)
 re04_pre <- re03_pre # 1,513 HH
 
-#  reve_crop_new ----
+#  reve_crop_new 
 reve_crop_new <-  a_rmtl_srvy22[,c(1,grep("l78_reven_new_",names(a_rmtl_srvy22)) )]
 re01_new <- reve_crop_new%>% pivot_longer(cols = -hh_id,names_to = "observation",  values_to = "plotRevenue")
 
@@ -220,40 +238,17 @@ re03_new$plotID <- sub("^(\\d{1,2})","plot_\\1",re03_new$plotID)
 re03_new$cropReve <- sub("^(\\d{1,2})","cropReve_\\1",re03_new$cropReve)
 
 re04_new <- re03_new%>% filter(plotRevenue>0)
-#  a_plots_revenue ----
+
+
+#  a_plots_revenue 
 
 # bind [re04_pre + re04_new]
 a_plots_revenue <- rbind(re04_pre,re04_new)
 
-###### LABOR ----
-# L74 Labor ----
-# How much paid labor and family labor, in percentages, per season?
-L74 <- a_rmtl_srvy22 %>% select(id,starts_with("L74"))
+a_plots_revenue <- 
+  a_plots_revenue %>%
+  mutate(plot_crop = paste0(gsub("[^0-9]", "", plotID), "_", gsub("[^0-9]", "", cropReve)))
 
-# L76 Labor days ----
-# How many days did they put in a season, on average?
-# l76_prev_SEASON_hh_?_PLOT_MMBR
-L76 <- a_rmtl_srvy22 %>% select(id,starts_with("L76"))
-
-#kharif 2021 plot 1
-L76Kha2021_p1 <- L76 %>% select(id,starts_with("l76_prev_1_hh_1_1_"),starts_with("l76_prev_1_hh_2_1_"))
-
-#kharif 2021
-L76Kha2021 <- L76 %>% select(id,starts_with("l76_prev_1_hh_") )
-L76Kha2021$mean <- rowMeans(L76Kha2021[, -1], na.rm = TRUE)
-L76Kha2021 %>% summarise(Mean= mean(mean, na.rm = TRUE))
-
-#rabi 2021
-L76rab2021 <- L76 %>% select(id,starts_with("l76_prev_2_hh_") )
-L76rab2021$mean <- rowMeans(L76rab2021[, -1], na.rm = TRUE)
-L76rab2021 %>% summarise(Mean= mean(mean, na.rm = TRUE))
-
-#kharif 2022
-L76Kha2022 <- L76 %>% select(id,starts_with("l76_prev_3_hh_") )
-L76Kha2022$mean <- rowMeans(L76Kha2022[, -1], na.rm = TRUE)
-L76Kha2022 %>% summarise(Mean= mean(mean, na.rm = TRUE))
-
-names(L76)
 
 #######  CROP  ###### ----
 # L39a	Crop-Plot-Season 21-22 ----
@@ -261,13 +256,11 @@ names(L76)
 # Perennial/biseasonal crops will be listed in Kharif
 
 L39_prev <- a_rmtl_srvy22 [,c(1,grep("l39_prev_",names(a_rmtl_srvy22)))] 
-L39_new  <- a_rmtl_srvy22 [,c(1,grep("l39_new",names(a_rmtl_srvy22)))]
-L39_a <- full_join(L39_prev,L39_new)
 
 # L39_prev
 C1_pre=L39_prev[,c(1, grep("^l39_prev_\\d+_\\d+_\\d+$", names(L39_prev)))] # Eliminate Pattern like "l39_prev_3__888_6"  "l39_prev_3_other_6" "l39_prev_kha_7" 
 
-C2_pre <- C1_pre%>% pivot_longer(-id,names_to = "observation", values_to = "values")
+C2_pre <- C1_pre%>% pivot_longer(-hh_id,names_to = "observation", values_to = "values")
 C2_pre$observation <- sub("^l39_prev_1","kha",C2_pre$observation) 
 C2_pre$observation <- sub("^l39_prev_2","rabi",C2_pre$observation) 
 C2_pre$observation <- sub("^l39_prev_3","KHA22",C2_pre$observation) 
@@ -279,10 +272,16 @@ C3_pre$plotID <- sub("^(\\d{1,2})","plot_\\1",C3_pre$plotID)
 
 C4_pre <- C3_pre %>% filter(values>0)
 
+your_data <- C4_pre %>%
+  group_by(hh_id,season,plotID) %>%
+  mutate(row_number = row_number())
+
+
+
 # pre other
 
 Co1_pre=L39_prev[,c(1, grep("^l39_prev_\\d+_other", names(L39_prev)) )] # Eliminate Pattern like "l39_prev_3__888_6"  "l39_prev_3_other_6" "l39_prev_kha_7" 
-Co2_pre <- Co1_pre%>% pivot_longer(-id,names_to = "observation", values_to = "values")
+Co2_pre <- Co1_pre%>% pivot_longer(-hh_id,names_to = "observation", values_to = "values")
 Co2_pre$observation <- sub("^l39_prev_1","kha",Co2_pre$observation) 
 Co2_pre$observation <- sub("^l39_prev_2","rabi",Co2_pre$observation) 
 Co2_pre$observation <- sub("^l39_prev_3","KHA22",Co2_pre$observation) 
@@ -297,7 +296,7 @@ Co3_pre$plotID <- sub("^(\\d{1,2})","plot_\\1",Co3_pre$plotID)
 
 Co4_pre <- Co3_pre %>% 
   filter(crop != "") %>% mutate(values="1") %>% 
-  select(id,season,crop,plotID,values )
+  select(hh_id,season,crop,plotID,values )
 
 Co4_pre
 
@@ -305,9 +304,10 @@ Co4_pre
 
 
 # L39_new
+L39_new  <- a_rmtl_srvy22 [,c(1,grep("l39_new",names(a_rmtl_srvy22)))]
 C1_new=L39_new[,c(1, grep("^l39_new_\\d+_\\d+_\\d+$", names(L39_new)))] # Eliminate Pattern like "l39_prev_3__888_6"  "l39_prev_3_other_6" "l39_prev_kha_7" 
 
-C2_new <- C1_new%>% pivot_longer(-id,names_to = "observation", values_to = "values")
+C2_new <- C1_new%>% pivot_longer(-hh_id,names_to = "observation", values_to = "values")
 C2_new$observation <- sub("^l39_new_1","kha",C2_new$observation) 
 C2_new$observation <- sub("^l39_new_2","rabi",C2_new$observation) 
 C2_new$observation <- sub("^l39_new_3","KHA22",C2_new$observation) 
@@ -324,7 +324,7 @@ C4_new <- C4_new%>% filter(values>0)
 # new other
 
 Co1_new=L39_new[,c(1, grep("^l39_new_\\d+_other", names(L39_new)) )] # Eliminate Pattern like "l39_prev_3__888_6"  "l39_prev_3_other_6" "l39_prev_kha_7" 
-Co2_new <- Co1_new%>% pivot_longer(-id,names_to = "observation", values_to = "values")
+Co2_new <- Co1_new%>% pivot_longer(-hh_id,names_to = "observation", values_to = "values")
 Co2_new$observation <- sub("^l39_new_1","kha",Co2_new$observation) 
 Co2_new$observation <- sub("^l39_new_2","rabi",Co2_new$observation) 
 Co2_new$observation <- sub("^l39_new_3","KHA22",Co2_new$observation) 
@@ -339,7 +339,7 @@ Co4_new$plotID <- sub("^(\\d{1,2})","plot_\\1",Co4_new$plotID)
 
 Co4_new <- Co4_new %>% 
   filter(crop != "") %>% mutate(values="1") %>% 
-  select(id,season,crop,plotID,values )
+  select(hh_id,season,crop,plotID,values )
 
 
 
@@ -362,13 +362,20 @@ list_crop02=
   list_crop %>% 
   select(crop_code,crop_name,common_n_family) %>% 
   mutate(crop_code=as.character(crop_code))
-  
-crop_plot02 <- 
+
+# a_plots_crop
+a_plots_crop <- 
   crop_plot %>% 
   rename(crop_code=crop) %>% 
-  left_join(list_crop02)
-  
-df_crop=crop_plot02
+  left_join(list_crop02) %>% 
+  select(-values)
+
+a_plots_crop <- a_plots_crop %>%
+  group_by(hh_id,season,plotID) %>%
+  mutate(crop_number = row_number())
+
+a_plots_crop <- a_plots_crop %>%
+  mutate(plot_crop = paste0(gsub("[^0-9]", "", plotID), "_", gsub("[^0-9]", "", crop_number)))
 
 
 
@@ -398,7 +405,7 @@ l3999$plot <- sub("^l39_new_\\d+_\\d+_(\\d)","plot_1\\1", l3999$plot) #new plots
 l3999$l39_crop <- sub("^l39_(new_|prev_)\\d+_(\\d+)_.+", "\\2", l3999$crop)
 l3999$l39_crop <-ifelse(l3999$n_HH != 1,l3999$n_HH,l3999$l39_crop)
 l3999$l39_crop[l3999$l39_crop == "Ajjawain"] <- "Ajwain"
-  
+
 # l3999$season <- sub(".*_1_\\d+_\\d+$", "kha", l3999$crop)
 l3999$season <- sub("^l39_(new_|prev_)1_.*", "kha", l3999$crop)
 l3999$season <- sub("^l39_(new_|prev_)2_.*", "rab", l3999$season)
@@ -408,7 +415,7 @@ l3999$season <- sub("^l39_(new_|prev_)3_.*", "KHA22",l3999$season)
 HH_num_per_crop_2021 <-  l3999 %>%rename(HH_id=id) %>% mutate(HH_id=as.character(HH_id) ) %>%  inner_join(a_sample)
 
 
-# list crops 2021 L39_2021 -----
+# CROP LIST crops 2021 L39_2021 -----
 
 L39_2021 <- 
   l3999 %>% select(id, season ,l39_crop ) %>% 
@@ -426,7 +433,7 @@ L39_2021$crop_yr[L39_2021$crop_yr =="mulberry leaves"] <-92
 L39_2021$crop_yr[L39_2021$crop_yr =="Neem tree"] <-93
 L39_2021$crop_yr[L39_2021$crop_yr =="palm tree"] <-94
 L39_2021$crop_yr[L39_2021$crop_yr =="Sandal and Neem trees"] <-95
-	
+
 
 # L39b	Crop-Year	2018 2019 2020 ----
 # L39b	Crop-Year	What crops were planted in [ year ]?
@@ -457,7 +464,7 @@ L39b_y_20A <-
   mutate(crop=ifelse(crop=="l39b_y_20__888","l39b_y_20_Ajwain",crop))
 L39b_y_20A$crop <- sub("^l39b_y_20_", "l39b_", L39b_y_20A$crop)
 
-# full_join lists crops_freq_2018_2021 ----
+# full_join lists crops_freq_2018_2021 
 
 # L39b_y_18_19_20
 L39b_y_18_19_20 <- 
@@ -465,7 +472,7 @@ L39b_y_18_19_20 <-
   mutate(col_to_rm_zero=n_HH_2018+n_HH_2019+n_HH_2020) %>% 
   filter(col_to_rm_zero>0) %>% 
   mutate(crop_yr=ifelse(crop=="l39b_Ajwain","l39b_99",crop )) 
-  
+
 L39b_y_18_19_20$crop_yr <- sub("^l39b_", "", L39b_y_18_19_20$crop_yr)
 L39b_y_18_19_20 <- select(L39b_y_18_19_20, crop_yr, n_HH_2018, n_HH_2019, n_HH_2020)
 
@@ -513,6 +520,86 @@ L80 <- L80 %>%
 
 
 
-                   
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+###### LABOR ----
+# L74 Labor 
+# How much paid labor and family labor, in percentages, per season?
+L74 <- a_rmtl_srvy22 %>% select(id,starts_with("L74"))
+
+# L76 Labor days 
+# How many days did they put in a season, on average?
+# l76_prev_SEASON_hh_?_PLOT_MMBR
+L76 <- a_rmtl_srvy22 %>% select(id,starts_with("L76"))
+
+#kharif 2021 plot 1
+L76Kha2021_p1 <- L76 %>% select(id,starts_with("l76_prev_1_hh_1_1_"),starts_with("l76_prev_1_hh_2_1_"))
+
+#kharif 2021
+L76Kha2021 <- L76 %>% select(id,starts_with("l76_prev_1_hh_") )
+L76Kha2021$mean <- rowMeans(L76Kha2021[, -1], na.rm = TRUE)
+L76Kha2021 %>% summarise(Mean= mean(mean, na.rm = TRUE))
+
+#rabi 2021
+L76rab2021 <- L76 %>% select(id,starts_with("l76_prev_2_hh_") )
+L76rab2021$mean <- rowMeans(L76rab2021[, -1], na.rm = TRUE)
+L76rab2021 %>% summarise(Mean= mean(mean, na.rm = TRUE))
+
+#kharif 2022
+L76Kha2022 <- L76 %>% select(id,starts_with("l76_prev_3_hh_") )
+L76Kha2022$mean <- rowMeans(L76Kha2022[, -1], na.rm = TRUE)
+L76Kha2022 %>% summarise(Mean= mean(mean, na.rm = TRUE))
+
+names(L76)
+
+
+
+
+
+
+
+
+
+
+#    pre_cultivated PC ----
+PC= a_rmtl_srvy22[,c(1,grep("kharif_pre_cultivated|rabi_pre_cultivated|KHA22_pre_cultivated",names(a_rmtl_srvy22))  )]
+pc_01 <- as.data.frame(lapply(PC, as.character), stringsAsFactors = FALSE)
+pc_02 <- pc_01%>% pivot_longer(cols = -hh_id,names_to = c("observation"))
+
+pc_02$observation <- sub("^kharif_pre_cultivated_(\\d{1,2})","kharifCult_\\1", pc_02$observation) 
+pc_02$observation <- sub("^rabi_pre_cultivated_(\\d{1,2})","rabiCult_\\1", pc_02$observation) 
+pc_02$observation <- sub("^KHA22_pre_cultivated_(\\d{1,2})","KHA22Cult_\\1", pc_02$observation) 
+
+pc_03<- pc_02 %>% separate(observation, into = c("vars", "plotID"), sep = "_")
+pc_03$plotID <- sprintf("%02d", as.numeric(pc_03$plotID))
+pc_03$plotID <- sub("^(\\d{1,2})","plot_\\1",  pc_03$plotID) 
+
+PCN_01=  # new_cultivated
+  a_rmtl_srvy22[,c(1,grep("l31_hissa|l31_survey|l31_name",names(a_rmtl_srvy22)),# rm l30= count new plot
+                   grep("l35",names(a_rmtl_srvy22)),
+                   grep("kharif_new_cultivated|rabi_new_cultivated|KHA22_new_cultivated",names(a_rmtl_srvy22)) )]
+
+
+# write.csv----
 write.csv(a_plots_size, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/a_plots_size.csv", row.names=FALSE)
