@@ -1,9 +1,9 @@
 # IMPORT csv dta files ----
 
-write.csv(Master_HH_N, file ="C:/Users/Dan/Documents/master_research/DATAs/data_master/data_saptari/Master_HH_N.csv", row.names=FALSE)
+write.csv(L7_source_irri, file ="C:/Users/Dan/Documents/master_research/DATAs/data_master/data_saptari/Master_HH_N.csv", row.names=FALSE)
 
 
-write.csv(a_sample, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/a_sample.csv", row.names=FALSE)
+write.csv(L7_source_irri, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/L7_source_irri.csv", row.names=FALSE)
 
 library(foreign)
 write.dta(pump_type.csv, "C:/Users/Dan/Documents/master_research/DATAs/data_master/data_saptari/pump_type.dta")
@@ -41,7 +41,8 @@ file_path <- sprintf("https://drive.google.com/uc?export=download&id=%s", file_i
 baseline_rmtl_2016 <- read_dta(file_path)
 
 
-
+library(rempsyc)
+stats_num=d_1 %>% group_by(HH_project) %>% get_summary_stats(total_plots, type = "mean_sd")
 
 
 # Save the data in different vector ----

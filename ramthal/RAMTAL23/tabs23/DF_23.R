@@ -1,6 +1,7 @@
 library(dplyr)
 library(haven)
 library(tidyr)
+library("stringr") #"str_replace"
 
 #    essantials----
 attr(L48$l48_prev_kha_1_1, "labels")
@@ -11,6 +12,52 @@ table(flat_vector, useNA = "always")
 # remove columns only NA or empty
 select(where(~!all(.x=="")))
 select(where(~!all(is.na(.x))))
+
+# Irrigation source L7_source_irri ( from L 'cultivation') ----
+#   L7 rank irrigation source
+# What irrigation source are you dependent on? (Rank according to the degree of importance)
+# 
+attr(a_rmtl_srvy22$l7_rank_3, "labels")
+# value    label
+# 2        Tank/ farm pond
+# 3        Open well
+# 4        Borewell
+# 5        Government water supply source (other than canal)
+# 6        Rainfed
+# -888	   Other (specify) == canal[7]
+
+L7_source_irri1 <- 
+  a_rmtl_srvy22 %>%select(hh_id,starts_with("l7_"))%>%  
+  mutate(l7_rank_1 = as.numeric (l7_rank_1),l7_rank_2 = as.numeric(l7_rank_2),l7_rank_3 = as.numeric(l7_rank_3)
+  ) %>%
+  mutate(l7_rank_1=ifelse(l7_rank_1=="-888", 7 ,l7_rank_1),
+         l7_rank_2=ifelse(l7_rank_2=="-888",7,l7_rank_2),
+         l7_rank_3=ifelse(l7_rank_3=="-888",7,l7_rank_3)
+  ) %>% select(-l7_other)
+
+L7_source_irri1[L7_source_irri1==6] <- 0
+L7_source_irri1[is.na(L7_source_irri1)] <- 0
+
+
+L7_source_irri2 <- L7_source_irri1 %>%
+  mutate(irri_source=
+           ifelse(l7_rank_1 ==5 | l7_rank_2 == 5 |l7_rank_3==5 , 5,
+                  ifelse(l7_rank_1+l7_rank_2+l7_rank_3== 0 , 0,
+                         ifelse(l7_rank_1>0 , l7_rank_1 ,
+                                l7_rank_2)) )) 
+
+a_source_irri <- L7_source_irri2 %>% select(hh_id,l7_rank_1,irri_source) %>% mutate(irri_source_num=irri_source)
+  
+a_source_irri$irri_source[a_source_irri$irri_source== 2] <- "tank/farm pond"
+a_source_irri$irri_source[a_source_irri$irri_source== 3] <- "open_well"
+a_source_irri$irri_source[a_source_irri$irri_source== 4] <- "borewell"
+a_source_irri$irri_source[a_source_irri$irri_source== 0] <- "rain"
+a_source_irri$irri_source[a_source_irri$irri_source== 7] <- "canal"
+a_source_irri$irri_source[a_source_irri$irri_source== 5] <- "gov_supply"
+
+
+
+
 
 
 #    survey 2022 dataset----

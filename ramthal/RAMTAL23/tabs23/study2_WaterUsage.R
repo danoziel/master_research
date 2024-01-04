@@ -35,14 +35,14 @@ plots_num_acre_wu %>%
 #   L7 rank irrigation source
 # What irrigation source are you dependent on? (Rank according to the degree of importance)
 # 
+attr(a_rmtl_srvy22$l7_rank_3, "labels")
 # value    label
 # 2        Tank/ farm pond
 # 3        Open well
 # 4        Borewell
 # 5        Government water supply source (other than canal)
 # 6        Rainfed
-# 7        canal
-# -888	   Other (specify)
+# -888	   Other (specify) == canal[7]
 
 L7 <- 
   a_rmtl_srvy22 %>%select(hh_id,starts_with("l7_"))%>%  
