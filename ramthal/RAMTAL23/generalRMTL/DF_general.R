@@ -1,3 +1,76 @@
+
+baseline_RMTL[1:20,4679:4695]
+baseline_RMTL[1:20,4732:4739]
+which(colnames(baseline_RMTL) == "in_out_intersect")
+
+baseline_RMTL %>% select("hh_id","in1_out0","in_out_intersect","inner_plots","layer","distance_km","around_boundary","south1_north0")
+mid2018_RMTL[ ,c("id","in1_out0","layer","distance_km","around_boundary","south1_north0")]
+
+
+HH_2016_baseline =baseline_RMTL %>% select(hh_id,in1_out0,in_out_intersect) %>% 
+  mutate(sample_2016=in_out_intersect )
+HH_2016_baseline$sample_2016[is.na(HH_2016_baseline$sample_2016)] <- 10
+# 10= HH who are not 0 or 1 or 2 
+HH_2016_baseline %>% count(in1_out0)
+HH_2016_baseline %>% count(sample_2016)
+HH_2016_baseline %>% count(in_out_intersect)
+
+HH_2018 = mid2018_RMTL %>% select (id,in1_out0) %>% mutate( sample_2018=in1_out0) %>% rename(hh_id=id)
+HH_2018 %>% count(sample_2018)
+full_join(HH_2016_baseline[,c(1,4)],HH_2018[,c(1,3)]) %>% filter(sample_2016 ==10 )
+  #NAs/10 in 2016 are same  NAs in 2018
+HH_2018$sample_2018[is.na(HH_2018$sample_2018)] <- 10
+
+HH1618 %>% count(sample_2016)
+HH1618 %>% count(sample_2018)
+
+
+HH_2022=a_rmtl_srvy22 %>% select(hh_id,mm2_1) %>% left_join(HH_2018[,c(1,3)]) %>% 
+  mutate(sample_2022= ifelse(sample_2018 %in% c(0,1) ,sample_2018, mm2_1 ) ) %>% 
+  select("hh_id", "sample_2022")
+
+HH_2022=a_rmtl_srvy22 %>% select(hh_id,mm2_1) %>% left_join(HH_2018[,c(1,3)]) %>% 
+  mutate(sample_2022= ifelse(sample_2018 %in% c(0,1) ,sample_2018, mm2_1 ) ) %>% 
+  select("hh_id", "sample_2022")
+
+HH_2022 %>% count(sample_2018)
+HH_2022 %>% count(sample_2016)
+HH_2022 %>% count(sample_2022)
+
+
+sample_2016_2028_2022= #
+  full_join(HH_2016_baseline[,c(1,4)],HH_2018[,c(1,3)]) %>% 
+  full_join(HH_2022)
+sample_2016_2028_2022 %>% count(sample_2016)
+sample_2016_2028_2022 %>% count(sample_2018)# NAs are HH who didnt surveyed in 2018
+sample_2016_2028_2022 %>% count(sample_2022)#  NAs are HH who didnt surveyed in 2020
+
+
+
+#| 🟡BASELINE 2016 
+rmtl_baseline2016 = baseline_RMTL
+rmtl_baseline2016 = rmtl_baseline2016 %>% mutate(farmers_hh= in1_out0)
+rmtl_baseline2016$farmers_hh[rmtl_baseline2016$farmers_hh==1] <- "inside_ramthal"
+rmtl_baseline2016$farmers_hh[rmtl_baseline2016$farmers_hh==0] <- "outside_ramthal" 
+
+
+#| 🟠MIDELINE 2018
+rmtl_midline2018 = mid2018_RMTL %>% mutate(farmers_hh= in1_out0)
+rmtl_midline2018 = rmtl_midline2018 %>% mutate(farmers_hh= in1_out0)
+rmtl_midline2018$farmers_hh[rmtl_midline2018$farmers_hh==1] <- "inside_ramthal"
+rmtl_midline2018$farmers_hh[rmtl_midline2018$farmers_hh==0] <- "outside_ramthal" 
+
+
+  mutate(farmers_hh= ifelse(in1_out0==1, "inside_ramthal" ,"outside_ramthal" )) %>% 
+  
+
+#| 🟣MIDELINE 2022
+rmtl_srvy22 = a_rmtl_srvy22 %>% left_join(HH_2022) %>% 
+  mutate(farmers_hh= ifelse(sample_2022==1, "inside_ramthal" ,"outside_ramthal" ))
+  
+
+
+
 # village_code ----
 village_code <- a_rmtl_srvy22 %>%
   mutate(village_code=ifelse(a5 %in% c("Amaravati", "amaravati",'Amaravathi',"AMARAVATHI"),"01",a5)) %>%

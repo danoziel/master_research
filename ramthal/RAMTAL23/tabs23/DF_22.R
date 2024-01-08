@@ -1,7 +1,22 @@
+#| THIS R SCRIPT [DF_22.R] is data-frames/sets/bases of "2022 midline survey"
+#| 🟣MIDELINE 2022  | rmtl_srvy22 #= a_rmtl_srvy22 
+
+
+#| df16.R # scrip of data-frames/sets/bases of "2016 baseline survey"
+#🟡BASELINE 2016| rmtl_baseline2016 #= baseline_RMTL
+
+#| df18.R # scrip of data-frames/sets/bases of "2018 midline survey"
+#🟠MIDELINE 2018| rmtl_midline2018 #= mid2018_RMTL
+
 library(dplyr)
 library(haven)
 library(tidyr)
 library("stringr") #"str_replace"
+
+library(rstatix) # ttest "add_significance"
+library(rempsyc) # ttest # nice_table
+library(kableExtra )
+
 
 #    essantials----
 attr(L48$l48_prev_kha_1_1, "labels")
@@ -13,7 +28,7 @@ table(flat_vector, useNA = "always")
 select(where(~!all(.x=="")))
 select(where(~!all(is.na(.x))))
 
-# Irrigation source L7_source_irri ( from L 'cultivation') ----
+# Irrigation source a_source_irri ( from L 'cultivation') ----
 #   L7 rank irrigation source
 # What irrigation source are you dependent on? (Rank according to the degree of importance)
 # 
@@ -27,13 +42,13 @@ attr(a_rmtl_srvy22$l7_rank_3, "labels")
 # -888	   Other (specify) == canal[7]
 
 L7_source_irri1 <- 
-  a_rmtl_srvy22 %>%select(hh_id,starts_with("l7_"))%>%  
+  rmtl_srvy22 %>%select(farmers_hh, hh_id,starts_with("l7_"))%>%  
   mutate(l7_rank_1 = as.numeric (l7_rank_1),l7_rank_2 = as.numeric(l7_rank_2),l7_rank_3 = as.numeric(l7_rank_3)
   ) %>%
   mutate(l7_rank_1=ifelse(l7_rank_1=="-888", 7 ,l7_rank_1),
          l7_rank_2=ifelse(l7_rank_2=="-888",7,l7_rank_2),
-         l7_rank_3=ifelse(l7_rank_3=="-888",7,l7_rank_3)
-  ) %>% select(-l7_other)
+         l7_rank_3=ifelse(l7_rank_3=="-888",7,l7_rank_3)) %>%
+  select(-l7_other)
 
 L7_source_irri1[L7_source_irri1==6] <- 0
 L7_source_irri1[is.na(L7_source_irri1)] <- 0
@@ -46,7 +61,7 @@ L7_source_irri2 <- L7_source_irri1 %>%
                          ifelse(l7_rank_1>0 , l7_rank_1 ,
                                 l7_rank_2)) )) 
 
-a_source_irri <- L7_source_irri2 %>% select(hh_id,l7_rank_1,irri_source) %>% mutate(irri_source_num=irri_source)
+a_source_irri <- L7_source_irri2 %>% select(farmers_hh,hh_id,l7_rank_1,irri_source) %>% mutate(irri_source_num=irri_source)
   
 a_source_irri$irri_source[a_source_irri$irri_source== 2] <- "tank/farm pond"
 a_source_irri$irri_source[a_source_irri$irri_source== 3] <- "open_well"
@@ -189,7 +204,7 @@ a_plots_size = plots_size
 L48_other <- a_rmtl_srvy22 [,c(1,grep("l48",names(a_rmtl_srvy22)))] %>% select(contains("other"))
 flat_vector <- unlist(L48_other, use.names = FALSE)
 table(flat_vector, useNA = "always")
-rm(L48_other)
+rm(L48_other) 
 
 #Removing YEARS and "other" columns.
 L48 <- a_rmtl_srvy22 %>% select(1, matches("l48"), -starts_with("l48_y"), -starts_with("l48a_y"), -contains("other"))
@@ -205,7 +220,7 @@ attr(L48$l48a_prev_kha_1_1, "labels")
 #       Flood     Furrows     Drip      Sprinkler   Manual     Hose 
 #       1         2           3         4           5          6 
 
-L48 <- a_rmtl_srvy22 %>% select(1, matches("l48"), -starts_with("l48_y"), -starts_with("l48a_y"), -contains("other"))
+L48 <- rmtl_srvy22 %>% select(1, matches("l48"), -starts_with("l48_y"), -starts_with("l48a_y"), -contains("other"))
 L48 <- as.data.frame(lapply(L48, as.character), stringsAsFactors = FALSE)
 L48 <- L48 %>% pivot_longer(cols = -hh_id,names_to = "observation",  values_to = "values")
 
@@ -237,10 +252,12 @@ L3_48$irri_method[is.na(L3_48$irri_method)] <- "rain"
 
 L3_48$hh_id=as.numeric(L3_48$hh_id)
 
-a_irri_rain_method = L3_48
+hh_2022 <-  rmtl_srvy22 %>% select(hh_id,farmers_hh)
+
+a_irri_rain_method = L3_48  %>% left_join(hh_2022)
+
 
 rm( L48,L1_48,L2_48,L3_48)
-
 
 
 

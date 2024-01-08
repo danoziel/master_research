@@ -1,3 +1,14 @@
+#| THIS R SCRIPT [df16.R] is data-frames/sets/bases of "2016 baseline survey"
+#| 🟡BASELINE 2016  | rmtl_baseline2016 #= baseline_RMTL
+
+
+#| df18.R # scrip of data-frames/sets/bases of "2018 midline survey"
+#🟠MIDELINE 2018| rmtl_midline2018 #= mid2018_RMTL
+
+#| DF_22.R # scrip of data-frames/sets/bases of "2022 midline survey"
+#🟣MIDELINE 2022| rmtl_srvy22 #= a_rmtl_srvy22 
+
+
 # vars_02 caste income 2016----
 # A18 What is your caste?
 # A19 Which caste category does this fall under?
@@ -87,7 +98,42 @@ baseline_RMTL=
 
 #### LAND d D CULTIVATION ####
 
-land_bl == d # bl=base line  100019
+# irrigation method [bl16_irri_methods]  ----
+
+# D21	What is the method of irrigation?
+# 1	Flood
+# 2	Furrows
+# 3	Drip
+# 4	Sprinkler
+# 5	Manual
+# 6	Hose
+# -888	Other, specify
+
+D21 <- rmtl_baseline2016 %>% 
+  select(farmers_hh,hh_id, starts_with("D21"), -c("D21_12","D21_0","D21_os_0" ))%>% mutate(irri_method_num=D21_1 )
+D21$irri_method_num[D21$D21_os_1== "BOREWEL"] <- 2
+
+D21=D21 %>% mutate(irri_method_num=ifelse( is.na(irri_method_num),D21_2,irri_method_num ))
+D21=D21 %>% mutate(irri_method_num=ifelse( is.na(irri_method_num),D21_3,irri_method_num ))
+D21=D21 %>% mutate(irri_method_num=ifelse( is.na(irri_method_num),D21_4,irri_method_num ))
+D21=D21 %>% mutate(irri_method_num=ifelse( is.na(irri_method_num),D21_5,irri_method_num ))
+D21=D21 %>% mutate(irri_method_num=ifelse( is.na(irri_method_num),D21_6,irri_method_num ))
+D21=D21 %>% mutate(irri_method_num=ifelse( is.na(irri_method_num),D21_7,irri_method_num ))
+D21=D21 %>% mutate(irri_method_num=ifelse( is.na(irri_method_num),D21_10,irri_method_num ))
+ # all "drip" record in "irri_method_num" 
+
+D21_1 <- D21 %>% mutate( irri_method_num =ifelse( irri_method_num %in% c(1:5 ),irri_method_num,0) ) %>% 
+  mutate(irri_method =irri_method_num)
+
+D21_1$irri_method[D21_1$irri_method==1] <- "flood"
+D21_1$irri_method[D21_1$irri_method==2] <- "furrows"
+D21_1$irri_method[D21_1$irri_method==3] <- "drip"
+D21_1$irri_method[D21_1$irri_method==4] <- "sprinkler"
+D21_1$irri_method[D21_1$irri_method %in% c(5,6) ] <- "hose"
+D21_1$irri_method[D21_1$irri_method==0] <- "rain"
+
+bl16_irri_methods <- D21_1 %>% select( "farmers_hh","hh_id", "irri_method_num", "irri_method" )
+
 
 # total_acres  total_plots -  ---
 # D4	Survey/hissa number
@@ -228,22 +274,17 @@ d12_prc %>% group_by(irrigation_water3) %>%
   mutate(graphPrc=prc/sum(prc))
 
 
-#D13	source of irrigation ----
-#D13	What was the principal source of irrigation for this plot over the last 5 years?
-# 1	Canal
-# 2	Tank
-# 3	Open well
-# 4	River / Pond / Lake
-# 5	Bore well
-# -888	Other, specify
+#D13	source of irrigation bl_source_irrigate----
+#| D13	"What was the principal source of irrigation for this plot over the last 5 years?"
+#1 Canal  #2	Tank  #3	Open well  #4	River/Pond/Lake  #5	Bore well  # -888	Other, specify
 
-bl_source_irrigate = baseline_RMTL [,c(1,grep("^D13",names(baseline_RMTL) ))] 
-bl_source_irrigate[is.na(bl_source_irrigate)] <- 0
-bl_source_irrigate[bl_source_irrigate==-666] <- 10
-bl_source_irrigate=bl_source_irrigate %>% filter(D13_0 != 10 ,D13_2!= 10,D13_4!= 10)
-bl_source_irrigate[bl_source_irrigate==-888] <- 5
+bl_source = rmtl_baseline2016 %>% select(hh_id,starts_with("D13"))  
+bl_source[is.na(bl_source)] <- 0
+bl_source[bl_source==-666] <- 10
+bl_source=bl_source %>% filter(D13_0 != 10 ,D13_2!= 10,D13_4!= 10)
+bl_source[bl_source==-888] <- 5
 
-bl_source_irrigate1 =bl_source_irrigate %>% 
+bl_source_irrigate1 =bl_source %>% 
   mutate(irri_source_bl= ifelse(D13_0>0,D13_0,D13_1)) %>% 
   mutate(irri_source_bl= ifelse(irri_source_bl>0,irri_source_bl,D13_2)) %>% 
   mutate(irri_source_bl= ifelse(irri_source_bl>0,irri_source_bl,D13_3)) %>% 
@@ -251,12 +292,12 @@ bl_source_irrigate1 =bl_source_irrigate %>%
   mutate(irri_source_bl= ifelse(irri_source_bl>0,irri_source_bl,D13_5)) %>% 
   mutate(irri_source_bl= ifelse(irri_source_bl>0,irri_source_bl,D13_6))
 
-bl_source_irrigate2 =
+hh_bl=rmtl_baseline2016 %>% select(hh_id, farmers_hh)
+bl_source_irrigate =
   bl_source_irrigate1 %>% select(hh_id ,irri_source_bl) %>%
-  right_join(a_sample[,1:2]) %>% 
-  filter(! is.na(irri_source_bl))
+  left_join(hh_bl) 
 
-bl_source_irrigate2 %>% group_by(farmers_hh ,irri_source_bl) %>% 
+bl_source_irrigate %>% group_by(farmers_hh ,irri_source_bl) %>% 
   count() %>% 
   group_by(farmers_hh) %>% mutate(n/sum(n))
 
@@ -291,6 +332,7 @@ a2=
 a12=full_join(a1,a2)
 
 
-
+bs = baseline_RMTL %>%  
+  select(south_north_inner, sampledafter200517 ,Srno, SI, survey, si_no, surveyround, south1_north0 ,hh_id, inner_plots, in1_out0, in_out_intersect)
 
 
