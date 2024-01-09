@@ -204,13 +204,16 @@ ml18_irri_methods$irri_method[ml18_irri_methods$irri_method==0] <- "rain"
 
 #🟩  IRRI land acre [HH-season] ----
 
+which(colnames(rmtl_midline2018) == "d3_1_hissa_nu_3")
+
 d100= 
   rmtl_midline2018 %>% select(farmers_hh,id,
                               d3, # currently own?
                               d4,   # own in April 2016?
                               d5 ,  # since April 2016
-                              d6  #currently lease?
-  )
+                              d6,  #currently lease?
+                              906:909,1994:1997,3003:3006,
+  ) %>% rename(curr_own=d3, own_b4_2016=d4, own_after_2016=d5, cur_lease=d6)
 
 #  currently OWNED
 d3_ <-  # Survey/hissa number

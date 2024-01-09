@@ -11,11 +11,13 @@
 #|🟦 Infrastructure [mm4]
 #|🟦 WATER USAGE [mm5]
 
-#|⬛  ⬛  ⬛   ⬛  ⬛  ⬛  ⬛    ----
-
 library(dplyr)
 library(tidyr) 
 library(haven)
+
+#|⬛  ⬛  ⬛   ⬛  ⬛  ⬛  ⬛    ----
+
+
 
 library(rstatix) # ttest "add_significance"
 library(rempsyc) # ttest # nice_table
@@ -626,6 +628,8 @@ irri_acre_plotID <- #  [HH-season-plot] # md # irrigation_drip_plot
   mutate(acre_irrigate=ifelse(plot_irrigated ==1,acres,0 )) %>% 
   mutate(acre_drip=ifelse(hh_6methods =="drip", acres,0) )
 
+bl_irri_plot_3s
+
 #⬛ DF cultivated seasons ----
 
 #🟣 ----
@@ -646,7 +650,6 @@ drip_acre_season %>% group_by(season,farmers_hh) %>% summarise(mean(acre_drip))
 
 
 #❓  BASELINE ----
-bl_irri_land %>% group_by(farmers_hh) %>% summarise(mean(acre_irri))
 
 #❓ MIDELINE 2018 ----
 

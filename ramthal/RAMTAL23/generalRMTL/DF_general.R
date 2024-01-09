@@ -1,7 +1,7 @@
 
 baseline_RMTL[1:20,4679:4695]
 baseline_RMTL[1:20,4732:4739]
-which(colnames(baseline_RMTL) == "in_out_intersect")
+which(colnames(rmtl_baseline2016) == "D4_3")
 
 baseline_RMTL %>% select("hh_id","in1_out0","in_out_intersect","inner_plots","layer","distance_km","around_boundary","south1_north0")
 mid2018_RMTL[ ,c("id","in1_out0","layer","distance_km","around_boundary","south1_north0")]
