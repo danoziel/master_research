@@ -17,9 +17,11 @@ agriEnd_RBS=agriEnd_RBS %>% mutate(survey="endline")
 names(agriBase_RBS)
 agri <- rbind(agriBase_sap,agriEnd_sap,agriBase_RBS,agriEnd_RBS) %>% 
   rename(HH=household_questionnaire_id)
-hh_prc$HH[hh_prc$HH=="E0104705010"] <- "E104705010"
 
-agri= right_join(agri,hh_prc)%>% filter(type_of_crop!="") %>%
+#hh_prc$HH[hh_prc$HH=="E0104705010"] <- "E104705010"  
+hh_usage_percent 
+
+agri= right_join(agri,hh_usage_percent)%>% filter(type_of_crop!="") %>%
   mutate(crop="")
 AGR=agri[,c(1:3,21)]
 agri$crop[agri$name_of_crop %in% c("PADDY","paddy")] <- "Paddy"

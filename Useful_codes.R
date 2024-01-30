@@ -275,7 +275,7 @@ leaflet() %>%
       "<kharif_2020_rice>Farmer ID: </kharif_2020_rice>", kharif_2020_rice$farmer_id, "<br>"
     ))
 
-
+# table for regrassin ----
 ## tab_model for two models ----
 tab_model(model11,model13,digits=3,p.style="stars", show.se = TRUE,string.ci = "Conf. Int (95%)",
           dv.labels = c("Saptari", "Rautahat Bara Sarlahi"))
@@ -283,6 +283,14 @@ tab_model(model11,model13,digits=3,p.style="stars", show.se = TRUE,string.ci = "
 # Barplot with error bars----
 # Standard deviation, Standard error or Confidence Interval ----
 https://www.r-graph-gallery.com/4-barplot-with-error-bar.html
+# GGPLOT ----
+# scatterplot ----
+yield22_acre %>% filter(season=="kharif_2021") %>% 
+  ggplot(aes(x=kg_per_acre, y=kg_season)) + 
+  geom_point()+
+  scale_x_continuous(limits=c(0, 500)) +
+  scale_y_continuous( limits=c(0, 4450))
+
 
 
 # ----nasapower--------------------------------------------

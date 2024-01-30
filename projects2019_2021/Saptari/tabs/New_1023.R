@@ -1,5 +1,5 @@
 library(sjPlot)
-
+library(dplyr)
 # back to data 10/2023 
 
 
@@ -355,18 +355,21 @@ ggplot(milsGAP, aes(x =gap, y =  prc   ))+
 # Demography #  DF characters ----
 
 # age_sex
+library(haven)
 DM11<- read_dta("~/Nepal Data/Saptari/Baseline 73-74 (Saptari)/Demography_Baseline(2017).dta")
 DM12 <- read_dta("~/Nepal Data/REWSSPC/Baseline/Demography_Baseline(2018).dta")
 age_sexSAP=DM11 %>% filter(relation_with_headhh ==1) %>% select(household_questionnaire_id ,age,sex,district  )
 age_sexRBS=DM12 %>% filter(relation_with_headhh ==1) %>% select(household_questionnaire_id ,age,sex,district  )
 age_sex= rbind(age_sexSAP ,age_sexRBS) %>%
   rename(HH=household_questionnaire_id,age_hh_head=age, sex_hh_head=sex) %>% mutate(survey="baseline")
+rm(DM11,DM12,age_sexSAP,age_sexRBS )
 
 # DM2 caste livestock
 DM21 <- read_dta("~/Nepal Data/Saptari/Baseline 73-74 (Saptari)/Demography_2_Baseline(2017).dta")
 DM23 <- read_dta("~/Nepal Data/REWSSPC/Baseline/Demography_2_Baseline(2018).dta")
 DM2=rbind(DM21,DM23)%>%
   rename(HH=household_questionnaire_id) %>% mutate(survey="baseline",caste=NA) 
+rm(DM21,DM23)
 
 DM2$caste[DM2$which_is_the_caste_of_you_househ ==1] <- 3
 DM2$caste[DM2$which_is_the_caste_of_you_househ ==2] <- 1
@@ -392,7 +395,7 @@ recRBS <- read_dta("~/Nepal Data/REWSSPC/Baseline/Household questionnaire_rec_Ba
 rec=rbind(recSAP,recRBS)%>%  
   select(household_questionnaire_id,last_education_of_hh_head )%>%
   rename(HH=household_questionnaire_id, hh_head_edu=last_education_of_hh_head) %>% mutate(survey="baseline")
-
+rm(recSAP,recRBS)
 
 
 # age_sex # DM2:caste,livestock # rec:education_of_hh_head
@@ -401,16 +404,30 @@ demography <-
   left_join(hh_usage_percent,age_sex) %>% 
   left_join(DM2) %>% 
   left_join(rec)
+demography$intensity_high1_low0
+rm(age_sex,DM2,rec)
+model1 <- lm(usage_percent ~ age_hh_head, data = demography)
+model2 <- lm(usage_percent ~ hh_head_edu, data = demography)
+model3 <- lm(usage_percent ~ caste, data = demography)
 
-model <- lm(usage_percent ~ age_hh_head+hh_head_edu+caste, data = demography)
-summary(model)
-tab_model(model,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",
-          dv.labels = c("usage_percent"))
+model1 <- lm(intensity_high1_low0  ~ age_hh_head, data = demography)
+model2 <- lm(intensity_high1_low0  ~ hh_head_edu, data = demography)
+model3 <- lm(intensity_high1_low0  ~ caste, data = demography)
 
-model <- lm(intensity_high1_low0 ~ age_hh_head+hh_head_edu+caste, data = demography)
-summary(model)
-tab_model(model,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",
-          dv.labels = c("intensity_high1_low0"))
+summary(model1)
+
+library(jtools)
+summ(model1)
+
+tab_model(model1,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",
+          pred.labels = c("Constant", "Household head's age"),dv.labels = c("Usage percent"))
+
+tab_model(model2,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",
+          pred.labels = c("Constant", "Household head's education level"),dv.labels = c("Usage percent"))
+
+tab_model(model3,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",
+          pred.labels = c("Constant", "Household caste"),dv.labels = c("Usage percent"))
+
 
 
 
@@ -418,9 +435,11 @@ tab_model(model,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int
 
 # agri DF build in TAB Agriculture_arrange.R 
 agri_crops= agri %>% 
-  select(HH,percentage,name_of_crop,season_of_crop,crop,year,district,survey)
+  select(HH,usage_percent ,name_of_crop,season_of_crop,crop,year,district,survey)
 
  # Fish Farming
+
+aquaculture <- read_dta("~/master_research/DATAs/data_master/data_saptari/aquaculture.dta")
 aquaculture %>% filter(TC==1) %>% group_by(district,year) %>% count()
 
 aqua=
@@ -688,11 +707,28 @@ crops_land_size_Seasons <-
   group_by(HH,Seasons,crop_cat) %>% 
   summarise(TotalAreaIrri=sum(TotalAreaIrrigated))
 
+
 # crop irrigated area = usage_high_low
 crops_land_size_Seasons %>%   
   group_by(HH,crop_cat) %>% summarise(AreaIrri=max(TotalAreaIrri)) %>% 
   inner_join(hh_usage_percent[,c(1,5)]) %>% 
-  group_by(usage_high_low,crop_cat) %>% summarise(AreaIrri =mean(AreaIrri ),n=n(),prc=n/26)
+  group_by(usage_high_low,crop_cat) %>% summarise(AreaIrri =mean(AreaIrri ),n=n()) %>% 
+  mutate(prt= ifelse(usage_high_low=="high_usage", n/23,n/25 )) %>% 
+  filter(!crop_cat %in% c("Sugarcane","Oilseeds", "Maize" ))
+
+
+# WITH 0s
+# crop irrigated area = usage_high_low <- 
+crops_land_size_Seasons %>%   
+  group_by(HH,crop_cat) %>% summarise(AreaIrri=max(TotalAreaIrri)) %>% 
+  pivot_wider(names_from = crop_cat,values_from = AreaIrri) %>%   
+  pivot_longer(!HH, names_to = "crop_cat", values_to = "AreaIrri") %>% 
+  mutate(AreaIrri= ifelse(is.na(AreaIrri),0,AreaIrri)) %>% 
+  filter(!crop_cat %in% c("Sugarcane","Oilseeds", "Maize" )) %>% 
+  inner_join(hh_usage_percent[,c(1,5)]) %>% 
+  group_by(usage_high_low,crop_cat) %>% summarise(AreaIrri =mean(AreaIrri ))
+
+
 
 # crops_land_size_per_hh irrigated by SIP
 crops_land_size_per_hh <- 
@@ -773,6 +809,145 @@ dairy %>%group_by(date,crop_cat) %>%
 
 
 
+# TABLE TO PAPER -----
+# crop irrigated area = usage_high_low
+crops_land_size_Seasons %>%   
+  group_by(HH,crop_cat) %>% summarise(AreaIrri=max(TotalAreaIrri)) %>% 
+  inner_join(hh_usage_percent[,c(1,5)]) %>% 
+  group_by(usage_high_low,crop_cat) %>% summarise(AreaIrri =mean(AreaIrri ),n=n()) %>% 
+  mutate(prt= ifelse(usage_high_low=="high_usage", n/23,n/25 )) %>% 
+  filter(!crop_cat %in% c("Sugarcane","Oilseeds", "Maize" ))
+
+# WITH 0s
+# crop irrigated area = usage_high_low <- 
+crops_land_size_Seasons %>%   
+  group_by(HH,crop_cat) %>% summarise(AreaIrri=max(TotalAreaIrri)) %>% 
+  pivot_wider(names_from = crop_cat,values_from = AreaIrri) %>%   
+  pivot_longer(!HH, names_to = "crop_cat", values_to = "AreaIrri") %>% 
+  mutate(AreaIrri= ifelse(is.na(AreaIrri),0,AreaIrri)) %>% 
+  filter(!crop_cat %in% c("Sugarcane","Oilseeds", "Maize" )) %>% 
+  inner_join(hh_usage_percent[,c(1,5)]) %>% 
+  group_by(usage_high_low,crop_cat) %>% summarise(AreaIrri =mean(AreaIrri ))
+
+### SURVEYS CP croping pattern###
+
+####### Field crop # agri_crops: 45 HH
+
+# agri DF build in TAB Agriculture_arrange.R 
+surveyCP_field= 
+  agri %>%
+  select(HH,cult_area_under_crop ,season_of_crop ,name_of_crop,crop,survey) %>% 
+  group_by(survey,HH,season_of_crop,crop) %>% summarise(crop_area=sum(cult_area_under_crop) ) %>% 
+  group_by(survey,HH,crop) %>% summarise(crop_area=max(crop_area) )
+  
+####### Fish Farming # aqua: 22 HH
+
+aquaculture <- read_dta("~/master_research/DATAs/data_master/data_saptari/aquaculture.dta")
+
+Aq1= aquaculture %>% filter(year==2017,TreatmentControl=="Treatment",district=="Saptari") %>% select(2,5) %>% mutate(survey="baseline" )
+Aq2= aquaculture %>% filter(year==2018,TreatmentControl=="Treatment",district %in% c("1","2","3")) %>% select(2,5)%>% mutate(survey="baseline" )
+
+Aq1end= aquaculture %>% filter(year==2019,TreatmentControl=="Treatment",district=="SAPTARI") %>% select(2,5)%>% mutate(survey="endline" )
+Aq2end= aquaculture %>% filter(year==2019,TreatmentControl=="Treatment",district %in% c("1","2","3")) %>% select(2,5)%>% mutate(survey="endline" )
+
+surveyCP_fish <-
+  rbind(Aq1,Aq2,Aq1end,Aq2end) %>% 
+  mutate(crop_area= ifelse(total_area_of_pond<121,total_area_of_pond,-888)) %>% 
+  rename(HH=household_questionnaire_id ) %>% select(-total_area_of_pond) %>% 
+  mutate(crop="Fish_Farming") %>% select(survey,HH,crop,crop_area )
+
+
+######### total_sample_baseline <- 
+Aq=rbind(Aq1,Aq2)%>%  
+  mutate(pond_area=total_area_of_pond *0.0339) %>% 
+  select(household_questionnaire_id ,pond_area) %>% 
+  rename(HH=household_questionnaire_id)
+
+agri %>%   filter(survey=="baseline") %>% 
+  select(HH,cult_area_under_crop ,season_of_crop ,name_of_crop,crop) %>% 
+  mutate(crop_area=cult_area_under_crop*0.0339) %>% 
+  group_by(HH,season_of_crop) %>% summarise(crop_area=sum(crop_area) ) %>% 
+  left_join(Aq) %>% 
+  mutate(pond_area=ifelse(is.na(pond_area),0,pond_area  ) ) %>% 
+  group_by(season_of_crop) %>% summarise(crop_area=mean(crop_area) ) %>% 
+  
+#  mutate(ha_area=crop_area+pond_area) %>% 
+
+  group_by(season_of_crop) %>% summarise(ha_area=mean(ha_area) ) %>% 
+  mutate(total_crop_area=ifelse(season_of_crop !="Annual",ha_area+0.827,NA ))
+
+
+  
+# DAIRY
+crops_land_size_Seasons %>%   
+   filter(!Seasons %in% c("Summer 2016-2017","Annual 2019-2020","Monsoon 2019-2020","Summer 2019-2020","Winter 2019-2020"  ) ) %>% 
+   mutate(Season= ifelse(Seasons %in% c("Monsoon 2017-2018","Monsoon 2018-2019"),"Monsoon",
+                         ifelse(Seasons %in% c("Summer 2017-2018","Summer 2018-2019"),"Summer",
+                                ifelse(Seasons %in% c("Winter 2017-2018","Winter 2018-2019"),"Winter" ,"Annual" ) ))) %>% 
+   group_by(HH,Season) %>% summarise(AreaIrri=sum(TotalAreaIrri)) %>% 
+#  inner_join(hh_usage_percent[,c(1,5)]) %>% 
+#  group_by(usage_high_low,Seasons) %>%
+   group_by(Season) %>%
+  summarise(AreaIrri =mean(AreaIrri ),n=n()) 
+
+
+stat=
+  rbind(surveyCP_field,surveyCP_fish)%>% 
+  mutate(crop_area=ifelse(crop_area>0,crop_area*0.0339,crop_area)) %>% 
+  pivot_wider(names_from = crop,values_from = crop_area) %>%   # A tibble: 98 × 7
+  pivot_longer(-c(survey,HH), names_to = "crop_cat", values_to = "area_irri") %>%    # A tibble: 490 × 4
+  mutate(area_irri=ifelse(is.na(area_irri),0, ifelse(area_irri==-888,NA,area_irri ) )) %>%
+  filter(survey=="baseline")
+  
+st=stat %>% filter(area_irri!=0) %>%group_by(HH) %>%  summarise(area_irri=mean(area_irri)) %>% 
+  group_by(mean(area_irri))
+
+num=stat %>% filter(area_irri!=0) %>% group_by(crop_cat) %>% count() %>% mutate(prt=  n/51 ) %>% arrange(desc(n))
+size=stat %>% filter(area_irri!=0) %>% group_by(crop_cat) %>% summarise(area_irri=mean(area_irri))
+# stat %>% group_by(crop_cat) %>% summarise(area_irri=mean(area_irri,na.rm = T)) 
+
+inner_join(num,size) %>% kable() %>% kable_minimal()
+
+
+####### Field crop + Fish Farming + hh_usage_percent[,c(1,5)]
+
+surveyCP=
+  rbind(surveyCP_field,surveyCP_fish)%>% 
+  mutate(crop_area=ifelse(crop_area>0,crop_area*0.0339,crop_area)) %>% 
+  filter( crop %in% c( "Paddy", "Wheat","Vegetables","Pulses","Fish_Farming" )) %>% # A tibble: 303 × 4
+  pivot_wider(names_from = crop,values_from = crop_area) %>%   # A tibble: 98 × 7
+  pivot_longer(-c(survey,HH), names_to = "crop_cat", values_to = "area_irri") %>%    # A tibble: 490 × 4
+  mutate(area_irri=ifelse(is.na(area_irri),0, ifelse(area_irri==-888,NA,area_irri ) )) %>% 
+  inner_join(hh_usage_percent[,c(1,5)] )
+
+# total sample baseline
+surveyCP %>%filter(area_irri!=0,survey=="baseline") %>%  
+  group_by(survey,crop_cat) %>% count() %>% 
+  mutate(prt= ifelse(usage_high_low=="high_usage", n/22,n/25 ))
+
+# HH total
+surveyCP %>%select(survey,HH,usage_high_low) %>%distinct() %>%
+  group_by(survey,usage_high_low) %>% count()
+
+#prt baseline
+surveyCP %>%filter(area_irri!=0,survey=="baseline") %>%  
+  group_by(survey,crop_cat,usage_high_low) %>% count() %>% 
+  mutate(prt= ifelse(usage_high_low=="high_usage", n/22,n/25 ))
+  
+# size baseline
+surveyCP %>%filter(survey=="baseline") %>%  
+  group_by(survey,crop_cat,usage_high_low) %>%
+  summarise(mean_area_irri=mean(area_irri,na.rm = T))
+
+#prt
+  surveyCP %>%filter(area_irri!=0,survey=="endline") %>%  
+  group_by(survey,crop_cat,usage_high_low) %>% count() %>% 
+  mutate(prt= ifelse(usage_high_low=="high_usage", n/22,n/23 ))
+
+# size
+surveyCP %>%filter(survey=="endline") %>%  
+  group_by(survey,crop_cat,usage_high_low) %>%
+  summarise(mean(area_irri,na.rm = T))
 
 
 

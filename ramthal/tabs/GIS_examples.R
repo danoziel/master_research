@@ -1,4 +1,11 @@
-"C:/Users/Dan/Documents/master_research/DATAs/Ramthal Data to Dan/Project Map/ramthal border.shp"
+"C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/villages/Ramthal_East.shp"
+
+\
+
+
+
+
+
 # Instruction ----
 
 https://www.youtube.com/watch?v=h29g21z0a68

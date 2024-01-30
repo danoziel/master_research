@@ -1,4 +1,11 @@
+library(dplyr)
+library(haven)
+library(tidyr)
+library("stringr") #"str_replace"
 
+attr(rmtl_baseline2016$D24_1_Crop_1_0, "labels")
+which(colnames(rmtl_baseline2016) == "D4_3")
+# DF ----
 baseline_RMTL[1:20,4679:4695]
 baseline_RMTL[1:20,4732:4739]
 which(colnames(rmtl_baseline2016) == "D4_3")
@@ -68,6 +75,33 @@ rmtl_midline2018$farmers_hh[rmtl_midline2018$farmers_hh==0] <- "outside_ramthal"
 rmtl_srvy22 = a_rmtl_srvy22 %>% left_join(HH_2022) %>% 
   mutate(farmers_hh= ifelse(sample_2022==1, "inside_ramthal" ,"outside_ramthal" ))
   
+# plot ----
+bl6_plotAcre=full_join(bl_plot_SrvyHis ,bl6_plotAcre)
+
+P1a=rmtl_baseline2016 %>% select(hh_id,D2,D3,D61)%>%mutate_at(2:3,round,2) %>% 
+  rename(Q_acre16=D2,ttl_p16=D3 ,Leased_land16=D61)
+P1=bl6_plotAcre %>% group_by(hh_id) %>% summarise(sum_acre16=sum(plot_acre,na.rm = T)) %>% left_join(P1a)
+#
+P2= ml18_plots_size %>% group_by(hh_id) %>% summarise(sum_acre18=sum(acres,na.rm = T),ttl_p18=n())
+#
+P3=a_plots_size %>% group_by(hh_id) %>% summarise(sum_acre22=sum(acres,na.rm = T),ttl_p22=n())
+
+P_a= left_join (P1[,1:2], P2[,1:2] ) %>% left_join(P3[,1:2])
+  
+P_= 
+  left_join(P1,P2) %>% left_join(P3) %>%
+  mutate(gap_acr= abs((sum_acre16+sum_acre18)/2-sum_acre22),gap_plt=(ttl_p22+ttl_p18)/2-ttl_p16) %>% 
+  mutate_at(10:11,round,2) %>% 
+  mutate(el=ifelse(gap_acr>0 & gap_plt>0,1,0)) %>% mutate( prcnt10=sum_acre16*0.1 ) %>%  
+  filter(!is.na(gap_acr)) %>% filter(gap_acr > .15, el==0) %>% 
+  mutate(el=ifelse(prcnt10 > gap_acr ,1 ,0)) %>% 
+  filter(el==0)
+
+
+bl6_plotAcre  %>% filter(hh_id==100019)
+ml18_plots_size %>% filter(hh_id==100019)
+a_plots_size %>% filter(hh_id==100019)
+
 
 
 

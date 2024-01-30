@@ -24,11 +24,11 @@ library("stringr") #"str_replace"
 # C5	What is their relationship to the head of household?
 # C6	Are they literate?
 # C7	What is their educational level?
-C5=baseline_RMTL[,c(1,grep("^C5_[1-9]",names(baseline_RMTL)))]  
+C5=rmtl_baseline2016[,c(1,grep("^C5_[1-9]",names(rmtl_baseline2016)))]  
 C5[C5>1] <- NA
 C5 %>% select(where(~!all(is.na(.x))))
 
-edu1=baseline_RMTL[,c(1,grep("^C5_[1-9]|^C7_[1-9]",names(baseline_RMTL)))] %>% select(-ends_with("bin"))%>% mutate(edu_head_hh=NA ) 
+edu1=rmtl_baseline2016[,c(1,grep("^C5_[1-9]|^C7_[1-9]",names(rmtl_baseline2016)))] %>% select(-ends_with("bin"))%>% mutate(edu_head_hh=NA ) 
 
 edu1$edu_head_hh <- ifelse(edu1$C5_1 == 1, edu1$C7_1, edu1$edu_head_hh)
 edu1$edu_head_hh <- ifelse(edu1$C5_2 == 1, edu1$C7_2, edu1$edu_head_hh)
@@ -40,12 +40,11 @@ edu1a <-
 
 
 vars_02=
-  baseline_2016 %>% rename(hh_id=Id)%>% 
+  rmtl_baseline2016 %>% 
   select(hh_id,A22, #caste
          A23, #caste category
          F13,# total HH income
          B9) %>% # In the last 5 years, has the household received any assistance
-  right_join(a_sample) %>%
   rename(income_2016= F13) 
 
 # 1	General Category |2 Other Backward Caste |3 Scheduled Caste |4 Scheduled Tribe
@@ -89,8 +88,7 @@ tab_model(lmm5, collapse.ci = TRUE, show.se = TRUE)
 
 
 ####### CULTIVATION  ############             ####
-
-# plot info            
+# plot info  bl_plot_dt  ----
 
 bl_plot_dt <-
   bl_plot_SrvyHis %>%                 # [D4] Survey/hissa number  : 3,459 × 4
@@ -98,14 +96,24 @@ bl_plot_dt <-
   left_join( bl21_irri_methods ) %>%  # [D21] plot irri method 5y : 191 × 4
   left_join( bl13_source_irrigate)    # [D13] source              : 194 × 3
 
-bl_plotSeason_dt <-
-  bl_plot_SrvyHis[,1:2] %>% # [,hh_id:plot_num]  3,459
-  left_join(bl28_irri_plot_season) %>%  # [D28]	SEASON crop irrigated # A tibble: 6,332 × 5
-  
+bl_plot_dt$irri_method[is.na(bl_plot_dt$irri_method )] <- 0
+bl_plot_dt$irri_source_5y[is.na(bl_plot_dt$irri_source_5y)] <- 0
 
+# season-plot info       -----
+bl_season_plot_irri <-
+  bl28_irri_plot_season %>%            # [D28]	SEASON crop irrigated : 6,332 × 5
+  left_join( bl21_irri_methods ) %>%   # [D21] plot irri method 5y : 191 × 4
+  left_join( bl13_source_irrigate) %>% # [D13] source    5y       : 194 × 3
+  left_join( bl6_plotAcre )            # [D6] Area acres/gunta       : 3,455 × 4
+bl_season_plot_irri$irri_method_5y[is.na(bl_season_plot_irri$irri_method_5y )] <- 0
+bl_season_plot_irri$irri_source_5y[is.na(bl_season_plot_irri$irri_source_5y)] <- 0
+
+
+    bl_crop_plot_3s   # A tibble: 7,268 × 5
+
+--------------------------------------------------------------------------------
   
-  
-#       D2 Total Area (acres) ----
+#       D2 Total Area (acres)                            ----
 
 # D2	How many acres (guntas) of land does your household currently own?
 land_bl <- baseline_RMTL%>% 
@@ -159,7 +167,7 @@ D4_$plot_num[D4_$plot_num=="D4_10"] <- "plot_10"
 bl_plot_SrvyHis <- full_join(D4_,D4_h)
 bl_plot_SrvyHis$hissa_bl[is.na(bl_plot_SrvyHis$hissa_bl)] <- ""
 
-#       D5 Village in which survey plot is located     ----
+#       D5 Village in which survey plot is located       ----
 D5_land <- baseline_RMTL %>% select(hh_id, starts_with("D5_"))
 
 
@@ -167,7 +175,7 @@ D5_land <- baseline_RMTL %>% select(hh_id, starts_with("D5_"))
 
 
 
-#       D63 Leased land                                ----
+#       D63 Leased land                                   ----
 #The questions in the CULT module were not asked about "Leased land"
 d6_own_land <- rmtl_baseline2016 %>% select(hh_id, starts_with("D6_"))
 d63_Leased_land_2016 <- rmtl_baseline2016 %>% select(hh_id,matches ("D63_"),matches ("D11"),-ends_with("_0")) # %>% filter(!is.na(D63_acer_1  ))
@@ -178,10 +186,10 @@ bl_d6 <- rmtl_baseline2016 %>% select(farmers_hh, hh_id,D6_1:D6_10) %>%
 bl_d6$plot_num <- str_replace(bl_d6$plot_num, "D6_(\\d)$", "plot_0\\1")
 bl_d6$plot_num <- str_replace(bl_d6$plot_num, "^D6_", "plot_")
 bl6_plotAcre <- filter(bl_d6,!is.na(plot_acre))
+rm(bl_d6)
 
 
-
-#       D12 plot irri last 5 years                      ----
+#       D12 plot irri last 5 years                        ----
 # Has this plot been irrigated at least once during the last 5 years? 
 
 bl_d12 = rmtl_baseline2016  [,c(1,grep("^D12",names(rmtl_baseline2016 ) ))] %>% 
@@ -203,15 +211,16 @@ D21_method$D21_2[D21_method$D21_os_2== "BOREWELL"] <- 2
 
 D21_method <- D21_method %>% select(-c(D21_os_1 ,D21_os_2 ) ) %>% 
   pivot_longer(-c(farmers_hh,hh_id), 
-               names_to = "plot_num", values_to = "irri_method") %>%
-  filter(irri_method>0 )
+               names_to = "plot_num", values_to = "irri_method_5y") %>%
+  filter(irri_method_5y>0 )
 D21_method$plot_num <- str_replace(D21_method$plot_num, "D21_(\\d)$", "plot_0\\1")
 
 bl21_irri_methods = D21_method
+rm(D21_method )
 
 # [D28]	Was the crop irrigated? | Crop-Plot-SEASON  ||  bl28_irri_plot_season   ----
 
-D28_1 <- # 2015-16 RABI
+D28_1 <- # 2015-16 RABI  
   rmtl_baseline2016 %>% select(farmers_hh, hh_id, starts_with("D28_1") ) %>% 
   select(farmers_hh: D28_1_irrigated_1_10)  %>% 
   pivot_longer(-c(farmers_hh,hh_id), names_to = "plot_num", values_to = "irri_plot") %>% filter(!is.na(irri_plot))
@@ -235,66 +244,78 @@ D28_3 <- # 2014-15 RABI
   select(farmers_hh: D28_3_irrigated_1_10)  %>% 
   pivot_longer(-c(farmers_hh,hh_id), names_to = "plot_num", values_to = "irri_plot") %>% filter(!is.na(irri_plot))
 D28_3$plot_num <- str_replace(D28_3$plot_num, "D28_3_irrigated_\\d_(\\d)$", "plot_0\\1")
+D28_3$plot_num[D28_3$plot_num=="D28_3_irrigated_1_10"] <- "plot_10"
 D28_3=D28_3 %>% 
   group_by(farmers_hh,hh_id,plot_num) %>% summarise(irri_plot=sum(irri_plot)) %>% 
   mutate(irri_plot=ifelse( irri_plot>0,1,0 )) %>% distinct() %>% mutate(season="rabi_2014_15")
 
-bl28_irri_plot_season <- rbind(D28_1,D28_2,D28_3)
+bl28_irri_plot_season <- rbind(D28_1,D28_2,D28_3) %>% rename(irri_plot_3s =irri_plot )
+
+rm(D28_1,D28_2,D28_3)
 
 
 
-
-
-# [D13] source  ||  bl_source_irrigate                                          ----
+# [D13] source  ||  bl13_source_irrigate                                          ----
 # "What was the principal source of irrigation for this plot over the last 5 years?"
 #1 Canal  #2	Tank  #3	Open well  #4	River/Pond/Lake  #5	Bore well  # -888	Other, specify
 
 D13 <-  
-  rmtl_baseline2016 %>% select(hh_id,starts_with("D13"),-c( D13_12,D13_0) )
+  rmtl_baseline2016 %>% select(farmers_hh, hh_id,starts_with("D13"),-c( D13_12,D13_0) )
 D13$D13_1[D13$D13_os_1 == "BOREWELL"] <- 5
 D13$D13_2[D13$D13_os_2 == "BOREWELL"] <- 5
 D13 <-D13 %>% select(-c(D13_os_1,D13_os_2 ) )%>% 
-  pivot_longer(-hh_id, names_to = "plot_num", values_to = "irri_source_5y")
+  pivot_longer(-c(farmers_hh,hh_id), names_to = "plot_num", values_to = "irri_source_5y")
 D13$plot_num <- str_replace(D13$plot_num, "D13_(\\d)$", "plot_0\\1")
 D13$plot_num[D13$plot_num == "D13_10"] <- "plot_10" 
 
 bl13_source_irrigate <- D13 %>% filter(irri_source_5y>0)
+rm(D13 )
 
-# [D24] crops planted
+# [D24] crops planted  || bl_crop_plot_3s                                        ----
 # What crops are planted on this plot? Mark all that apply (Perennial crops will be listed in 2 seasons)
 
-D24 <- 
+d24 <- 
   rmtl_baseline2016 %>% 
   select(farmers_hh,hh_id,                         
          starts_with("D4_"),                 # srvy+hissa 
          starts_with("D24_"),                # crop       
-         starts_with("D27_"))   %>%          # plot size
-  select(1:8,39,41,43,45,47,55 )
+         starts_with("D27_"),     # plot size
+         -contains("os"),
+         -ends_with( c("11","12","13","14","15","16","17","_0" )))
 
-x=rmtl_baseline2016 %>% 
-  select(hh_id,
-         D27_1_Crop_1_1 ,D27_1_Crop_1_2, D27_1_Crop_1_3 ,D27_1_Crop_1_4, D27_1_Crop_1_5,
-         D27_1_Crop_1_6, D27_1_Crop_1_7, D27_1_Crop_1_8 ,D27_1_Crop_1_9, D27_1_Crop_1_10 ,
-         
-         D27_1_Crop_2_1 ,D27_1_Crop_2_2, D27_1_Crop_2_3 ,D27_1_Crop_2_4, D27_1_Crop_2_5,
-         D27_1_Crop_2_6, D27_1_Crop_2_7, D27_1_Crop_2_8 ,D27_1_Crop_2_9, D27_1_Crop_2_10 ,
+D24 <- 
+  rmtl_baseline2016 %>% 
+  select(hh_id,starts_with( "D24_") )%>% 
+  select(-contains("os"),
+         -ends_with( c("11","12","13","14","15","16","17","_0" ))) %>% 
+  pivot_longer(-hh_id, names_to = "plot_num", values_to = "crop_bl") %>% 
+  filter(!is.na(crop_bl))
 
-         D27_2_Crop_1_1 ,D27_2_Crop_1_2, D27_2_Crop_1_3 ,D27_2_Crop_1_4, D27_2_Crop_1_5,
-         D27_2_Crop_1_6, D27_2_Crop_1_7, D27_2_Crop_2_1 ,D27_2_Crop_2_2, D27_2_Crop_2_3 ,
+D24$season <- sub("^(D24_1)_.*", "rabi_2015_16", D24$plot_num)
+D24$season <- sub("^(D24_2)_.*", "kharif_2015", D24$season)
+D24$season <- sub("^(D24_3)_.*", "rabi_2014_15", D24$season)
 
-         D27_3_Crop_1_1 ,D27_3_Crop_1_2, D27_3_Crop_1_3 ,D27_3_Crop_1_4, D27_3_Crop_1_5,
-         D27_3_Crop_1_6, D27_3_Crop_1_7, D27_3_Crop_1_8 ,D27_3_Crop_1_9, D27_3_Crop_1_10 ,
-         )
+D24$crop_num <- sub("^.*_(Crop_\\d+)_.*", "\\1", D24$plot_num)
 
-x[x==-444] <- 0
-x[x==-666] <- 0
-x[x==-999] <- 0
-x[x==-888] <- 888       
-x[x==-777] <- 0       
+D24$plot_num <- str_replace(D24$plot_num, "^.*_(\\d)$", "plot_0\\1")
+D24$plot_num <- str_replace(D24$plot_num, "^.*_10$", "plot_10")
 
-x1=x %>% mutate(af = rowSums(.[names(.)[2:41]], na.rm = T))
-x2=x1[,42]
+D24$plot_num[D24$plot_num == "D24_10"] <- "plot_10" 
 
+D24[,1] %>% distinct() # A tibble: 1,729 × 1
+
+D24$crop_bl[D24$crop_bl == -444] <- 0
+D24$crop_bl[D24$crop_bl == -666] <- 0
+D24$crop_bl[D24$crop_bl == -777] <- 0
+D24$crop_bl[D24$crop_bl == -999] <- 0
+D24=D24 %>% filter(crop_bl != 0)
+
+D24[,1] %>% distinct() # A tibble: 1,723 × 1 
+
+bl_crop_plot_3s= 
+  D24 %>%rename(crop_code =crop_bl) %>%  
+  left_join(list_crop)
+  
 
 
 

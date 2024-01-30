@@ -12,66 +12,68 @@
 #|🟦 WATER USAGE [mm5]
 
 library(dplyr)
-library(tidyr) 
 library(haven)
+library(tidyr)
+library("stringr") #"str_replace"
+
 
 #|⬛  ⬛  ⬛   ⬛  ⬛  ⬛  ⬛    ----
-
-
 
 library(rstatix) # ttest "add_significance"
 library(rempsyc) # ttest # nice_table
 library(kableExtra )
 library(tidyverse)
 
+#|🟥🟧🟨🟩🟦🟪⬛⬜🟫 
+#|🟦🟩  ⿡⿢⿣📊🧮 
 
-#|⬛⬛⬛⬛⬛⬛⬛⬛ vars to test⬛⬛⬛⬛⬛⬛⬛
-
-
-### Crop-Year	
-# What crops were planted in [ 2018 2019 2020 ]?
-
-### Season-Plot
-# Labor
-
-### Season Level
-# INPUTS
-
-### season-crop
-# CROP SELLING
-# SEEDS
 
 
 #|⬛⬛⬛⬛⬛⬛⬛⬛ essentials⬛⬛⬛⬛⬛⬛⬛
 
+
+
+select(where(~!all(is.na(.x)))) 
+
+############################ t test ###
+
+t_L48a <- hh_irr_season %>% group_by(season) %>%
+  t_test(hh_irri ~ farmers_hh , detailed = T) %>% 
+  rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
+  select(season,Ramthal,Outside_Ramthal,n1,n2,estimate,conf.low,conf.high,t,df,p) 
+
+nice_table(t_L48a,
+           title = c("Table 48a | Fraction of hh who use irrigation, by season"),
+           note = c("[L48a] What is the method of irrigation?","🟩" ))
+
+
+############################ sub ###
+# from D24_1_Crop_4_1    to D24_1 
+D24$season <- sub("^(D24_[1-3])_.*", "\\1", D24$plot_num)
+ 
+
+############################ full_seasons
 full_seasons <- 
   rmtl_srvy22 %>% select(farmers_hh,hh_id)%>% mutate(kha=1,rab=1,KHA22=1) %>% 
   pivot_longer(!c(farmers_hh,hh_id) , names_to = "season", values_to = "count") %>% 
   select(farmers_hh,hh_id,season)
 
 
+############################ df
 data.frame(
   df = c("rmtl_baseline2016", "rmtl_midline2018", "rmtl_srvy22"),
   o = c("in1_out0","hh_2022",""),
   farmers_hh = c("farmers_hh", "inside_ramthal","outside_ramthal")
 ) %>% kable() %>% kable_material()
 
+library(kableExtra)
+df <- data.frame(df = c("a_irri_rain_method", "", "")
+                 ,hh = c(1578, 1609, 1612),
+                 X3_season = c(4734, 4827, 4836))
+kable(df, format = "html") %>%kable_styling()
+rm(df)
 
-# ᗷᗩSE 2016
-# ᗰIᗪ 2018
-# ᗰIᗪ22
-
-# Base𝟭𝟲
-# Mid𝟭𝟴
-# MID𝟮𝟮
-
-# 𝗕𝗮𝘀 2016
-# 𝗠𝗶𝗱 2018
-# 𝗠𝗶𝗱 22
-
-#|🟥🟧🟨🟩🟦🟪⬛⬜🟫 
-#|🟦🟩  ⿡⿢⿣📊🧮 
-
+############################ overlap
 who1: overlap  ----
   #| Used  source [Gov_supply]
 
@@ -82,17 +84,12 @@ add_significance(cutpoints = c(0,1e-04,0.001,0.01,0.05,1),symbols = c("****","**
 add_significance(cutpoints = c(0,0.12,1),symbols = c("*","ns"))
 
 
-library(kableExtra)
-df <- data.frame(df = c("a_irri_rain_method", "", ""),hh = c(1578, 1609, 1612),X3_season = c(4734, 4827, 4836))
-kable(df, format = "html") %>%kable_styling()
-rm(df)
-
 scale_fill_manual(values=c(  "#E69F00","skyblue")) +
   theme_minimal()+  theme(text = element_text(family = "serif"))
 theme(text = element_text(family = "serif", size = 16),axis.title = element_text(size = 18),axis.text = element_text(size = 14))
 theme_sjplot() #library(sjPlot)
 theme_nice() #library(jtools) 
-select(where(~!all(is.na(.x)))) 
+
 
 
 #|⬛⬛⬛⬛⬛⬛⬛⬛ colors⬛⬛⬛⬛⬛⬛⬛
@@ -109,7 +106,7 @@ select(where(~!all(is.na(.x))))
 
 "Winter" : "dodgerblue4"
 "Monsoon" :"dimgrey"
-"Summer" : "darkolivegreen4"
+"Summer" : "darkolivegreen4" 
 
 
 #|⬛⬛⬛⬛⬛⬛⬛⬛ Mapping plots⬛⬛⬛⬛⬛⬛⬛
@@ -161,14 +158,42 @@ nice_table(table_wi)
 
 
 #🟩   IRRI:  HH freq | methods [HH wise]                             ----
-
-
-### DFs 🟡🟠🟣            ----
-
-#🟣  DF MID22 ----
-# How many households irrigate? 
 #|🟩 [L48a] #What is the method of irrigation? 
 
+#🟣  DF MID22 ----
+
+# Percentage of households practicing irrigation
+
+# Kharif_2021 / rabi_2021_22 / Kharif_2022
+hh_irr_season <- 
+  a_irri_rain_method %>% # A tibble: 6,740 × 11
+  group_by(hh_id,season )  %>%
+  mutate(hh_6methods  =  # make it  ONE irri method for ONE hh/season 
+           ifelse("drip" %in% irri_method , "drip", 
+                  ifelse(any(irri_method  == "furrows"), "furrows",
+                         ifelse(any(irri_method  == "flood"), "flood",
+                                ifelse(any(irri_method  == "sprinkler"), "sprinkler",
+                                       ifelse(any(irri_method  == "hose"), "hose",
+                                              "rain"))))) ) %>% ungroup() %>% 
+  select(hh_id,farmers_hh,season,hh_6methods ) %>% distinct() %>% 
+  mutate(hh_irri=ifelse(hh_6methods=="rain",0,1),
+         hh_drip=ifelse(hh_6methods=="drip",1,0)) 
+
+hh_irr_season %>% 
+  group_by(season,farmers_hh) %>% count(hh_irri) %>% 
+  group_by(season,farmers_hh) %>% mutate( n/sum(n)) %>% mutate_at(5,round,2)
+
+t_L48a <- hh_irr_season %>% group_by(season) %>%
+  t_test(hh_irri ~ farmers_hh , detailed = T) %>% 
+  rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
+  select(season,Ramthal,Outside_Ramthal,n1,n2,estimate,conf.low,conf.high,t,df,p) 
+
+nice_table(t_L48a,
+           title = c("Table 48a | Fraction of hh who use irrigation, by season"),
+           note = c("[L48a] What is the method of irrigation?","🟩" ))
+
+
+--------------------------------------------------------------------------------
 hh_irrigation <- 
   a_irri_rain_method %>% 
   select( hh_id ,irri_method) %>% distinct() %>% 
@@ -185,9 +210,17 @@ hh_irrigation <-
   mutate(hh_irrigation=ifelse(hh_drip=="rain","rain","irrigation")) %>% 
   left_join(hh_2022 )
 
+#⬛ rain/irrigation ----
 
+#🟣 MID22 rain/irrigation
+hh_irrigation %>% count(farmers_hh,hh_irrigation) %>% group_by(farmers_hh) %>%  mutate(n/sum(n))
 
+mt01 <-
+  hh_irrigation %>% mutate(hh_irrigate_2021=ifelse(hh_6methods =="rain",0,1)) %>%
+  t_test(hh_irrigate_2021 ~ farmers_hh , detailed = T)
+mt01
 
+-------------------------------
 
 
 
@@ -201,6 +234,10 @@ bl_hh_irrigate = rmtl_baseline2016 %>%  select(in1_out0,hh_id,starts_with("D12")
   mutate(total_irriPlot = rowSums (.[names(.)[3:12]], na.rm = T)) %>%
   rename( hh_irrigate_BL= D12_) %>% 
   select(in1_out0,hh_id,hh_irrigate_BL )
+
+
+
+
 
 #🟠  DF MIDELINE 2018
 # "ml18_irri_methods" IN "mid2018.R"
@@ -219,12 +256,12 @@ d29 <- d29 %>% mutate(d_ = rowSums(.[names(.)[3:11]], na.rm = T))%>%
 
 #⬛ rain/irrigation ----
 
-#🟣 MID22 rain/irrigation
-hh_irrigation %>% count(farmers_hh,hh_irrigation) %>% group_by(farmers_hh) %>%  mutate(n/sum(n)) 
-
-mt01 <- 
-  hh_irrigation %>% mutate(hh_irrigate_2021=ifelse(hh_6methods =="rain",0,1)) %>% 
-  t_test(hh_irrigate_2021 ~ farmers_hh , detailed = T)
+# #🟣 MID22 rain/irrigation
+# hh_irrigation %>% count(farmers_hh,hh_irrigation) %>% group_by(farmers_hh) %>%  mutate(n/sum(n)) 
+# 
+# mt01 <- 
+#   hh_irrigation %>% mutate(hh_irrigate_2021=ifelse(hh_6methods =="rain",0,1)) %>% 
+#   t_test(hh_irrigate_2021 ~ farmers_hh , detailed = T)
 
 #🟡  BASELINE rain/irrigation
 bl_hh_irrigate %>% count(in1_out0,hh_irrigate_BL) %>% group_by(in1_out0) %>%  mutate(n/sum(n)) 
@@ -251,10 +288,9 @@ ml18_29 <-
   mutate(farmers_hh= ifelse(in1_out0==1, "inside_ramthal" ,"outside_ramthal" )) %>% 
   t_test(last_2years ~ farmers_hh , detailed = T)
 
-######## table_2H
+######## table_2H ----
 table_2H=bind_rows(mt_bl01,ml18_29,ml18_15a,mt01) %>% 
   rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
-  # rename(In_rmtl=estimate1,Out_rmtl=estimate2,t=statistic) %>% 
   select(.y.,Ramthal,Outside_Ramthal,n1,n2,estimate,conf.low,conf.high,t,df,p) 
 
 table_2H$.y.[table_2H$.y.== "bl_last_5years"] <- "2011-2016"
@@ -271,7 +307,6 @@ nice_table(table_2H,
                     "Midline 2018: Has this plot been irrigated at least once in the past year? [d13a,d15a]",
                     "Midline 2018: Has this plot been irrigated at least once during the last 2 years? [d29]",
                     "Midline 2022: What is the method of irrigation? [L48a]" ))
-
 
 
 #⬛ hh_6methods     -----
@@ -399,13 +434,13 @@ nice_table(table_22H,
 # bl_source_irrigate2 in df16.R
 #1	Canal #2	Tank #3 Open well #4	River/Pond/Lake # 5	Bore well
 
-bl_source_irrigate %>% group_by(farmers_hh ,irri_source_bl) %>% 
+bl13_source_irrigate %>% group_by(farmers_hh ,irri_source_5y) %>% 
   count() %>% 
   group_by(farmers_hh) %>% mutate(n/sum(n)) # %>% mutate_at(4,round,3)
 
-bl16_source <-bl_source_irrigate %>% 
-  mutate(sources_Not_rain =ifelse(irri_source_bl =="0",0,1)) %>% 
-  mutate(Borewell =ifelse(irri_source_bl =="5",1,0))
+bl16_source <-bl13_source_irrigate %>% 
+  mutate(sources_Not_rain =ifelse(irri_source_5y =="0",0,1)) %>% 
+  mutate(Borewell =ifelse(irri_source_5y =="5",1,0))
 
 sr10 <- bl16_source %>%t_test(sources_Not_rain ~ farmers_hh , detailed = T)
 sr11 <- bl16_source %>%t_test(Borewell ~ farmers_hh , detailed = T)
@@ -607,9 +642,51 @@ a_rmtl_srvy22 %>% select(hh_id, mm5,starts_with("mw1c"))
   
   
 
-#🟩  irrigated land acre [HH-season] ----
+#🟩   own/cultivated land acre [HH-plot-season] ----
+#🟡 bl_irri_acre_plot       ----
+# DF bl_season_plot_irri in "df16.R" 
 
-#🟣 ----
+bl_irri_acre_plot <-  # df is plot wise
+  bl_season_plot_irri  %>% # [6,332]   hh_id [1,703]
+  mutate(hh_6methods =  
+           ifelse(irri_method_5y == 3, "drip",
+                  ifelse(irri_method_5y  == 2, "furrows",
+                         ifelse(irri_method_5y  == 1, "flood",
+                                ifelse(irri_method_5y  == 4, "sprinkler",
+                                       ifelse(irri_method_5y %in% c(5,6), "hose",
+                                              "rain"))))) ) %>%
+  rename(plot_irrigated= irri_plot_3s ) %>% 
+  mutate(acre_irrigate=ifelse(plot_irrigated == 1, plot_acre, 0)) %>% 
+  mutate(acre_drip=ifelse(hh_6methods =="drip", plot_acre ,0) )
+
+# seasonal cultivated land
+bl_irri_acre_plot %>%  
+  filter(!is.na(farmers_hh) ) %>% 
+  group_by(season, farmers_hh) %>% 
+  summarise(plot_acre =mean(plot_acre,na.rm = T ),n())
+
+#### ttest
+ir3 <-bl_irri_acre_plot %>% group_by(season) %>% t_test(plot_acre ~ farmers_hh , detailed = T)
+
+#🟠                                 ----
+
+
+
+ml18_plot <- 
+  ml18_irri_acre_plot %>%
+  filter(!is.na(farmers_hh) ) %>% 
+  group_by(season,hh_id , farmers_hh) %>% 
+  summarise(plot_acre =sum(acres ,na.rm = T )) 
+
+
+#### ttest
+ir3 <-ml18_plot %>% group_by(season) %>% t_test(plot_acre  ~ farmers_hh , detailed = T)
+
+
+
+#🟣 irri_acre_plotID                         ----
+hh_2022=rmtl_srvy22 %>% select( hh_id,farmers_hh)
+
 irri_acre_plotID <- #  [HH-season-plot] # md # irrigation_drip_plot 
   a_irri_rain_method %>% # [1,578 hh_id] # [6,740 rows]
   select( hh_id ,season ,plotID ,irri_method) %>% distinct() %>%  # [6,242]
@@ -628,17 +705,66 @@ irri_acre_plotID <- #  [HH-season-plot] # md # irrigation_drip_plot
   mutate(acre_irrigate=ifelse(plot_irrigated ==1,acres,0 )) %>% 
   mutate(acre_drip=ifelse(hh_6methods =="drip", acres,0) )
 
-bl_irri_plot_3s
+irri_acre_plotID %>%  group_by(season, farmers_hh) %>% summarise(acres=mean(acres))
+
+#### ttest
+cr44 <-irri_acre_plotID %>% group_by(season) %>% t_test(acres ~ farmers_hh , detailed = T)
+cr44$season <- c("Kharif_2022","kharif_2021","rabi_2021_22" )
+nice_table(cr44)
+
+
+
+#🟩  irrigated land acre [HH-season] ----
 
 #⬛ DF cultivated seasons ----
 
-#🟣 ----
+#  🟣 irri_acre_season    ----
 irri_acre_season <- #  irrigation = acres | rain = 0
   irri_acre_plotID %>% 
   group_by(farmers_hh,hh_id,season) %>% summarise(acre_irrigate =sum(acre_irrigate ))
 
 irri_acre_season %>% group_by(season,farmers_hh) %>% summarise(mean(acre_irrigate))
+
+
+#  🟡  bl_irri_acre           ----
+bl_irri_acre <- 
+  bl_irri_acre_plot %>% 
+  group_by(farmers_hh,hh_id, season ) %>% 
+  summarise(acre_irrigate=sum(plot_acre,na.rm = T))
+
+bl_irri_acre %>%  group_by(season, farmers_hh) %>% summarise(acre_irrigate=mean(acre_irrigate,na.rm = T))
+
+#### ttest
+ir3 <-bl_irri_acre %>% group_by(season) %>% t_test(acre_irrigate ~ farmers_hh , detailed = T)
+
+table_ir=ir3 %>% 
+  rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
+  select(.y. ,season,Ramthal,Outside_Ramthal,n1,n2,estimate,conf.low,conf.high,t,df,p) 
+nice_table(table_ir)
+
+
+
+#  🟠     NOT DONE                            ----
+
+# DF [ml18_irri_acre_plot] in "df18.R" 
+
+ml18_IRRI_acre_plotId <- #  [HH-season-plot] # md # irrigation_drip_plot 
+  ml18_irri_acre_plot %>% # [ hh_id] # [ # A tibble: 4,519 × 7]
+#  select(farmers_hh, hh_id,season, irri_method) %>% distinct()
+  group_by(farmers_hh, hh_id, season,irri_method)  %>%
+    summarise(acres =sum(acres,na.rm = T )) %>% 
+  mutate(acre_irrigated=ifelse(irri_method  == "rain", 0 , acres)) %>% 
+  mutate(acre_drip=ifelse(irri_method =="drip", acres  ,0) ) %>% 
+  filter(acres!=0 )
   
+  
+ml18_IRRI_acre_plotId %>%  group_by(season, farmers_hh) %>% summarise(acre_irrigated=mean(acre_irrigated))
+
+#### ttest
+ir3 <-bl_irri_acre %>% group_by(season) %>% t_test(acre_irrigated ~ farmers_hh , detailed = T)
+
+
+
 #⬛ DF drip irrigation ----
 
 #🟣 ----
@@ -648,10 +774,16 @@ drip_acre_season <-  # drip = acres | irrigation = 0 | rain = 0
   
 drip_acre_season %>% group_by(season,farmers_hh) %>% summarise(mean(acre_drip))
 
+# 🟡 ----
 
-#❓  BASELINE ----
+bl_irri_acre %>%  group_by(season, farmers_hh) %>% summarise(acre_drip=mean(acre_drip))
 
-#❓ MIDELINE 2018 ----
+bl_irri_acre %>%filter(acre_drip != 0) %>%   group_by(season, farmers_hh) %>% summarise(acre_drip=mean(acre_drip),n())
+bl_irri_acre %>%filter(acre_drip == 0) %>%   group_by(season, farmers_hh) %>% summarise(n())
+
+
+ir4 <-bl_irri_acre %>% group_by(season) %>% t_test(acre_drip ~ farmers_hh , detailed = T)
+
 
 ########### ttest
 
@@ -1056,114 +1188,6 @@ tab_model(model, show.se = TRUE)
 
 
 # ------------------------
-# INCOME ಆದಾಯ                                           ----
-                ## DF vars_income    ----
-
-
-
-vars_f01 <- a_rmtl_srvy22 %>% select(hh_id,starts_with("f")) 
-names(vars_f01)
-names(vars_f01) <- c( "hh_id",
-                    "Migrating_household_income_hh",
-                    "Migrating_household_income_amt",
-                    "Remittance_hh","Remittance_amt",
-                    "revenue12_amt",
-                    "lease_land_hh","lease_land_amt",
-                    "Own_livestock_hh","Own_livestock_net_profit",
-                    "non_agri_business_hh","non_agri_business_net_profit",
-                    "Salaried_job_hh","Salaried_job_amt",
-                    "Casual_work_hh","Casual_work_amt",
-                    "Gov_pension_scheme_hh","Gov_pension_scheme_amt",
-                    "Rent_property_hh","Rent_property_amt",
-                    "Other_activities_hh","Other_activities_amt",
-                    "income_2021","sum_income12months" 
-                   )
-vars_f02=vars_f01
-
-                ## vars_f02        ----
-# vars_f02 = INCOME section aggregate 0's NA's
-vars_f02$Migrating_household_income_amt=ifelse(vars_f02$Migrating_household_income_amt<1999,NA,vars_f02$Migrating_household_income_amt)
-vars_f02$Migrating_household_income_amt=ifelse(vars_f02$Migrating_household_income_hh==0,0,vars_f02$Migrating_household_income_amt)
-
-vars_f02$Remittance_amt=ifelse(vars_f02$Remittance_amt<1999,NA,vars_f02$Remittance_amt)
-vars_f02$Remittance_amt=ifelse(vars_f02$Remittance_hh==0,0,vars_f02$Remittance_amt)
-
-vars_f02$lease_land_amt=ifelse(is.na(vars_f02$lease_land_amt),0,vars_f02$lease_land_amt)
-
-# יש הרבה בעלי לייבסטוק שלא עשו פרופיט ולכן 0 נשאר 0 ולא אנ-איי 
-vars_f02$Own_livestock_net_profit=ifelse(vars_f02$Own_livestock_net_profit<0,NA,vars_f02$Own_livestock_net_profit)
-vars_f02$Own_livestock_net_profit=ifelse(is.na(vars_f02$Own_livestock_net_profit),0,vars_f02$Own_livestock_net_profit)
-
-vars_f02$non_agri_business_net_profit=ifelse(is.na(vars_f02$non_agri_business_net_profit),0,vars_f02$non_agri_business_net_profit)
-
-vars_f02$Salaried_job_amt=ifelse(vars_f02$Salaried_job_amt<=0,NA,vars_f02$Salaried_job_amt)
-vars_f02$Salaried_job_amt=ifelse(vars_f02$Salaried_job_hh==0,0,vars_f02$Salaried_job_amt)
-
-vars_f02$Casual_work_amt=ifelse(vars_f02$Casual_work_amt<=0,NA,vars_f02$Casual_work_amt)
-vars_f02$Casual_work_amt=ifelse(vars_f02$Casual_work_hh==0,0,vars_f02$Casual_work_amt)
-
-vars_f02$Gov_pension_scheme_amt=ifelse(is.na(vars_f02$Gov_pension_scheme_amt),0,vars_f02$Gov_pension_scheme_amt)
-
-# יש הרבה בעלי רנטפרופרטי ללא סכום 
-vars_f02$Rent_property_amt=ifelse(vars_f02$Rent_property_amt<=0,NA,vars_f02$Rent_property_amt)
-vars_f02$Rent_property_amt=ifelse(vars_f02$Rent_property_hh==0,0,vars_f02$Rent_property_amt)
-
-vars_f02$Other_activities_amt=ifelse(is.na(vars_f02$Other_activities_amt),0,vars_f02$Other_activities_amt)
-
-vars_f02$sum_income12months=ifelse(vars_f02$sum_income12months<9999,NA,vars_f02$sum_income12months)
-
-vars_f02$income_2021=ifelse(vars_f02$income_2021==0,NA,vars_f02$income_2021)
-
-                ## vars_f03        ----
-vars_f03 = 
-  vars_f02 %>% 
-  mutate(income_2022=Migrating_household_income_amt+Remittance_amt+
-           lease_land_amt+Own_livestock_net_profit+non_agri_business_net_profit+
-           Salaried_job_amt+Casual_work_amt+Gov_pension_scheme_amt+
-           Rent_property_amt+Other_activities_amt) %>% 
-  mutate(num_income_sources_2022=Migrating_household_income_hh+
-           Remittance_hh+lease_land_hh+ #Own_livestock_hh+
-           non_agri_business_hh+Salaried_job_hh+Casual_work_hh+Gov_pension_scheme_hh+
-           Rent_property_hh+Other_activities_hh)
-rm(vars_f01,vars_f02)
-
-
-                # income_2021    ----
-# F13	What is the annual household income in 2021? (Rs.)
-#F12	Total income NOT A QUESTION Software will sum F1-F11
-
-vars_income_2022 %>% group_by(farmers_hh) %>% summarise(income_2022=mean(income_2022,na.rm = T))
-
-vars_income %>% group_by(farmers_hh) %>% summarize( mean(Salaried_job_hh == 1))
-# ASSET ಆಸ್ತಿ                                                     ----
-
-vars_asset = vars_e02 %>% full_join(a_sample)
-
-           ## DF vars_asset ----
-           ## vars_e01 ----
-vars_e01 <- a_rmtl_srvy22 %>% select(hh_id,starts_with("e")) 
-
-# LIVESTOCK # [E6Cows E7Bullock E9Goats&sheep]
-vars_e01$e8=ifelse(vars_e01$e8>9,NA,vars_e01$e8) # E8 Buffaloes
-
-# FARM EQUIPMENT # [E10Tractor E11Plough E12Thresher E13Seed drill] ## REMOVE [E14 JCB]
-
-# VEHICLES # [E15Cycles E16Motorcycles] ## REMOVE [E17	Cars]
-
-# HH ITEMS # [E18Fridge] ## REMOVE [E19	Television]
-vars_e01$e21=ifelse(vars_e01$e21<0,NA,vars_e01$e21) # E21	Silver (in grams)
-vars_e01$e21=ifelse(vars_e01$e21==1000,NA,vars_e01$e21)
-
-
-           ## vars_e02 ----
-
-vars_e02 = vars_e01 %>% select(-c(e14,e17,e19))
-
-vars_e02$sum_assets <- rowSums(vars_e02[, -1], na.rm = TRUE) > 0
-vars_e02$sum_livestock <- rowSums(vars_e02[,2:5])
-vars_e02$sum_farm_equipments <- rowSums(vars_e02[,6:9])
-
-
 # WATER                                                     ----
 
 # infrastructure | use water | WUA member
@@ -1297,25 +1321,4 @@ plotNew %>% full_join(a_sample) %>% group_by(farmers_hh) %>%
 
          ## revenue_per_acre_SEASON ----
 
-size_acre <- a_plots_size %>% select(hh_id,plotID,acres) %>% filter(!is.na(acres))
-
-# revenue_per_acre_SEASON =
-  a_plots_revenue %>% filter(plotRevenue>999) %>% 
-  group_by(season,hh_id,plotID) %>% 
-  summarise(seasonRevenue=sum(plotRevenue)) %>% 
-  left_join(size_acre) %>% 
-  group_by(season,hh_id) %>% 
-  summarise(revenue=sum(seasonRevenue),totalAcre =sum(acres )) %>% 
-  mutate(revenue_per_acre_season=revenue/totalAcre) %>% 
-  left_join(a_sample)
-
-revenue_per_acre_SEASON %>% group_by(season,farmers_hh ) %>% summarise(revenue_per_acre_season=mean(revenue_per_acre_season))
-
-# Labor                       ## ----
-# INPUTS                      ## ----
-# CROP SELLING                ## ----
-### season-crop
-
-# SEEDS                       ## -----
-### season-crop
 

@@ -49,6 +49,7 @@ tr_01[,c(1,grep("^weap",names(tr_01)))] %>%
   select(weaptype1_txt,weaptype2_txt,a) %>% count(a)
 
 
+
 # tr_02 <- tr_01 ----
 
 tr_02 <- tr_01 %>% 
@@ -82,8 +83,6 @@ tr_02$weapon <-ifelse(
 tr_02$weapon <- ifelse(
   grepl("Stone|Bricks|Rocks|rock", tr_02$weapdetail, ignore.case = TRUE) &
     tr_02$weaptype1_txt == "Melee","stone",tr_02$weapon)
-
-
 
 tr_02$weapon[tr_02$weaptype1_txt=="Firearms"] <- "firearms"
 

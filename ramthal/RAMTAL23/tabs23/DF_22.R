@@ -102,7 +102,7 @@ plots_VARS=
 
 #prev plots 
 plotPrev_01=
-  a_rmtl_srvy22[,c(1,grep("^plot_[1-9]|plot_survey|l_plot_status_|plot_size|^plot_village_[1-9]",names(a_rmtl_srvy22)) )]
+  rmtl_srvy22[,c(1,grep("^plot_[1-9]|plot_survey|l_plot_status_|plot_size|^plot_village_[1-9]",names(rmtl_srvy22)) )]
 
 library(tidyr)
 plotPrev_01 <- as.data.frame(lapply(plotPrev_01, as.character), stringsAsFactors = FALSE)
@@ -207,7 +207,7 @@ table(flat_vector, useNA = "always")
 rm(L48_other) 
 
 #Removing YEARS and "other" columns.
-L48 <- a_rmtl_srvy22 %>% select(1, matches("l48"), -starts_with("l48_y"), -starts_with("l48a_y"), -contains("other"))
+L48 <- rmtl_srvy22 %>% select(1, matches("l48"), -starts_with("l48_y"), -starts_with("l48a_y"), -contains("other"))
 
 # Checking if its same as L48
 # Lp_48 <- L48 %>% select(1, matches("l48_prev_"), matches("l48_new_"),matches("l48a_prev_"),matches("l48a_new_"))
@@ -238,26 +238,123 @@ L2_48$plot_crop <- paste0(L2_48$plotID, "_", L2_48$cropIrri)
 L2_48$plotID <- sub("^(\\d{1,2})","plot_\\1",  L2_48$plotID) 
 L2_48$cropIrri <- sub("^(\\d{1,2})","cropIrri_\\1",L2_48$cropIrri) 
 
-L3_48 <- L2_48 %>%
-  filter(!is.na(irri_rain_freq) | !is.na(irri_method))
-
-L3_48$irri_method_num <- L3_48$irri_method
-
-L3_48$irri_method[L3_48$irri_method==1] <- "flood"
-L3_48$irri_method[L3_48$irri_method==2] <- "furrows"
-L3_48$irri_method[L3_48$irri_method==3] <- "drip"
-L3_48$irri_method[L3_48$irri_method==4] <- "sprinkler"
-L3_48$irri_method[L3_48$irri_method %in% c(5,6) ] <- "hose"
-L3_48$irri_method[is.na(L3_48$irri_method)] <- "rain"
-
-L3_48$hh_id=as.numeric(L3_48$hh_id)
-
+# 10012024 ml48
+ml48=L2_48 %>% mutate(irri_method= ifelse(irri_freq ==3,0,irri_method  ) ) %>% 
+  filter( !is.na(irri_method))
+ml48$irri_method_num <- ml48$irri_method
+ml48$irri_method[ml48$irri_method==1] <- "flood" 
+ml48$irri_method[ml48$irri_method==2] <- "furrows"
+ml48$irri_method[ml48$irri_method==3] <- "drip"
+ml48$irri_method[ml48$irri_method==4] <- "sprinkler"
+ml48$irri_method[ml48$irri_method %in% c(5,6) ] <- "hose"
+ml48$irri_method[ml48$irri_method==0] <- "rain"
+ml48$hh_id=as.numeric(ml48$hh_id)
 hh_2022 <-  rmtl_srvy22 %>% select(hh_id,farmers_hh)
-
-a_irri_rain_method = L3_48  %>% left_join(hh_2022)
-
+a_irri_rain_method = ml48  %>% left_join(hh_2022)
+a_irri_rain_method$season[a_irri_rain_method$season== "KHA22"] <- "kharif_2022"
+a_irri_rain_method$season[a_irri_rain_method$season== "kha"] <- "kharif_2021"
+a_irri_rain_method$season[a_irri_rain_method$season== "rab"] <- "rabi_2021_22"
 
 rm( L48,L1_48,L2_48,L3_48)
+
+
+# YIELD		 a_total_yield        ----					
+# L49	 What was the total yield [int]	# [Season-Crop]	
+
+attr(rmtl_srvy22$l49_prev_kha_unit_1_1 , "labels") 
+##  1=Kilograms  ##       2=Bags     ##  3=Quintal  ##  4=Ton   ## 
+##      1 Kg     ##  l49_XX_XX_bag_  ##    100Kg    ##  1000Kg  ##
+
+names(L49plot)
+L49 <- 
+  rmtl_srvy22 %>% select(farmers_hh,hh_id,starts_with("l49_" )) %>% 
+  pivot_longer(cols = -c(farmers_hh ,hh_id),names_to = c("observation"))
+L49A <- L49 %>% separate(observation, into = c("L" ,"pn","season", "unitbag", "plot", "crop"), sep = "_")
+
+L49b=L49A %>% 
+  mutate(plotID=ifelse(is.na(crop) ,unitbag, plot), 
+         Unitbag=ifelse(is.na(crop) , NA ,unitbag ), 
+         crop_number=ifelse(is.na(crop) , plot ,crop )) %>% 
+  select(-c(L,plot,unitbag,crop))
+
+L49c <- L49b %>%mutate(plotID=as.numeric(plotID), plotID=ifelse(pn=="new",plotID+10,plotID)  )
+L49c$plotID <- sprintf("%02d", L49c$plotID)
+L49c$plotID <- sub("^(\\d{1,2})","plot_\\1",  L49c$plotID) 
+L49c$crop_number <- sub("^(\\d{1,2})","crop\\1",  L49c$crop_number) 
+
+L49c$season[L49c$season=="rab"] <- "rabi_2021_22"
+L49c$season[L49c$season=="kha"] <- "kharif_2021"
+L49c$season[L49c$season=="KHA22"] <- "kharif_2022"
+
+L49c$Unitbag[is.na(L49c$Unitbag)] <- "total_yield"
+
+L49d <- L49c %>% pivot_wider(names_from = Unitbag, values_from = value)
+
+a_total_yield <- 
+  L49d %>% mutate(kg_crop = 
+                    ifelse(unit == 3,total_yield*100,
+                           ifelse(unit == 4,total_yield*1000,
+                                  ifelse(unit == 2,total_yield*bag,
+                                         total_yield))) ) %>% 
+  filter(!is.na(total_yield)) %>% 
+  select(farmers_hh,hh_id,season,plotID,crop_number,kg_crop)
+
+# YIELD Sold Kept Lost             ----					
+# How much of the yield was [%]	# [percentage at Season-Crop]
+# [L52] Sold # [L53] Kept for HH consumption # [L54] Lost in post-harves
+
+names(L54)
+
+# [L52] Sold
+L52= rmtl_srvy22 %>% select(hh_id, farmers_hh, starts_with("L52"), -starts_with("l52_stored") ) %>% 
+  pivot_longer(cols = -c(farmers_hh ,hh_id),names_to = c("observation"))
+L52A <- L52 %>% separate(observation, into = c("L" ,"pn","season", "plot", "crop"), sep = "_") %>% 
+  filter(!is.na(value) )
+L52b <- L52A %>% rename(prt_sold=value) %>% select(-L)
+
+# [L52] _stored
+L52_stored = rmtl_srvy22 %>% select(hh_id, farmers_hh, starts_with("l52_stored")) %>% 
+  pivot_longer(cols = -c(farmers_hh ,hh_id),names_to = c("observation"))
+L52A_stored <- L52_stored %>% separate(observation, into = c("L","stored","pn","season", "plot", "crop"), sep = "_") %>% 
+  filter(!is.na(value) )
+L52b_stored <- L52A_stored %>% rename(prt_stored=value) %>% select(-stored)%>% select(-L)
+
+# [L53] Kept
+L53= rmtl_srvy22 %>% select(hh_id, farmers_hh, starts_with("L53")) %>% 
+  pivot_longer(cols = -c(farmers_hh ,hh_id),names_to = c("observation"))
+L53A <- L53 %>% separate(observation, into = c("L" ,"pn","season", "plot", "crop"), sep = "_") %>% 
+  filter(!is.na(value) )
+L53b <- L53A %>% rename(prt_consum=value) %>% select(-L)
+
+# [L54] Lost
+L54= rmtl_srvy22 %>% select(hh_id, farmers_hh, starts_with("L54")) %>% 
+  pivot_longer(cols = -c(farmers_hh ,hh_id),names_to = c("observation"))
+L54A <- L54 %>% separate(observation, into = c("L" ,"pn","season", "plot", "crop"), sep = "_") %>% 
+  filter(!is.na(value) )
+L54b <- L54A %>% rename(prt_lost=value ) %>% select(-L)
+
+yield_prt = full_join(L52b,L52b_stored) %>% 
+  full_join(L53b) %>% 
+  full_join(L54b) %>%
+  mutate(plotID=as.numeric(plot), 
+         plotID=ifelse(pn=="new",plotID+10,plotID)  )
+
+yield_prt$plotID <- sprintf("%02d", yield_prt$plotID)
+yield_prt$plotID <- sub("^(\\d{1,2})","plot_\\1",  yield_prt$plotID) 
+yield_prt$crop_number <- sub("^(\\d{1,2})","crop\\1",  yield_prt$crop) 
+
+yield_prt$season[yield_prt$season=="rab"] <- "rabi_2021_22"
+yield_prt$season[yield_prt$season=="kha"] <- "kharif_2021"
+yield_prt$season[yield_prt$season=="KHA22"] <- "kharif_2022"
+
+yield_prt <- yield_prt %>% 
+  select(hh_id, farmers_hh, season, plotID, crop_number, prt_sold, prt_stored, prt_consum, prt_lost)
+
+
+
+
+
+
 
 
 
@@ -314,7 +411,7 @@ a_plots_revenue <-
   mutate(plot_crop = paste0(gsub("[^0-9]", "", plotID), "_", gsub("[^0-9]", "", cropReve)))
 
 
-#######  CROP  ###### ----
+#######  CROP a_plots_crop ###### ----
 # L39a	Crop-Plot-Season 21-22 ----
 # L39a	Crop-Plot-Season	kharif 2022 # Rabi 2021/2022 # Kharif 2021
 # Perennial/biseasonal crops will be listed in Kharif
@@ -428,19 +525,24 @@ list_crop02=
   mutate(crop_code=as.character(crop_code))
 
 # a_plots_crop
+# a_plots_crop <- 
+#   crop_plot %>% 
+#   rename(crop_code=crop) %>% 
+#   left_join(list_crop02) %>% 
+#   select(-values)
+# 
+# a_plots_crop <- a_plots_crop %>%
+#   group_by(hh_id,season,plotID) %>%
+#   mutate(crop_number = row_number())
+# 
+# a_plots_crop <- a_plots_crop %>%
+#   mutate(plot_crop = paste0(gsub("[^0-9]", "", plotID), "_", gsub("[^0-9]", "", crop_number)))
+
 a_plots_crop <- 
-  crop_plot %>% 
-  rename(crop_code=crop) %>% 
-  left_join(list_crop02) %>% 
-  select(-values)
-
-a_plots_crop <- a_plots_crop %>%
-  group_by(hh_id,season,plotID) %>%
-  mutate(crop_number = row_number())
-
-a_plots_crop <- a_plots_crop %>%
-  mutate(plot_crop = paste0(gsub("[^0-9]", "", plotID), "_", gsub("[^0-9]", "", crop_number)))
-
+  a_plots_crop %>% select( 
+    hh_id, season, crop_code, plotID, crop_number,plot_crop
+    ) %>% mutate(crop_code=as.numeric(crop_code) ) %>% 
+  left_join(list_crop[,1:7])
 
 
 

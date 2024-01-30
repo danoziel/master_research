@@ -8,6 +8,14 @@
 #| DF_22.R # scrip of data-frames/sets/bases of "2022 midline survey"
 #🟣MIDELINE 2022| rmtl_srvy22 #= a_rmtl_srvy22 
 
+library(dplyr)
+library(haven)
+library(tidyr)
+library("stringr") #"str_replace"
+
+#| 2017-18 Rabi
+#| 2017 KHARIF
+#| 2018 SUMMER
 
 # MIDATA----
 
@@ -50,8 +58,30 @@ YR_Ramthal_Data_Entry_2_stata13 <- read_dta("~/master_research/DATAs/ramthal_dat
 rmtl_midline2018 = YR_Ramthal_Data_Entry_2_stata13
 rm(YR_Ramthal_Data_Entry_2_stata13)
 # rmtl_midline2018 ----
+# CROP ml18_crop_plot_3s ----
+d41 <- rmtl_midline2018 %>% select(farmers_hh,hh_id, starts_with("d41"))
+names(d41)
+d41_s1 <- rmtl_midline2018 %>% select(farmers_hh,hh_id, starts_with("d41_s1"))
+d41_s2 <- rmtl_midline2018 %>% select(farmers_hh,hh_id, starts_with("d41_s2"))
+d41_s3 <- rmtl_midline2018 %>% select(farmers_hh,hh_id, starts_with("d41_s3"))
 
-a_sample=a_sample %>% rename(id=hh_id)
+d41 <- rmtl_midline2018 %>% select(farmers_hh,hh_id, starts_with("d41")) %>% 
+  pivot_longer(-c(farmers_hh, hh_id), names_to = "plotId", values_to = "crop_ml18") %>% 
+  filter(!is.na(crop_ml18))
+
+d41$season <- sub("^(d41_s1)_.*", "rabi_2017_18", d41$plotId)
+d41$season <- sub("^(d41_s2)_.*", "kharif_2017", d41$season)
+d41$season <- sub("^(d41_s3)_.*", "summer_2018", d41$season)
+
+d41$crop_num <- sub("^.*_(c\\d+)_.*", "\\1", d41$plotId)
+
+d41$plotId <- str_replace(d41$plotId, "^.*_(\\d)$", "plot_0\\1")
+d41$plotId <- str_replace(d41$plotId, "^.*_10$", "plot_10")
+
+d41[,2] %>% distinct() # A tibble: 1,603 × 1
+
+ml18_crop_plot_3s= d41
+
 
 #🟩  IRRI  HH FREQ | d29 d13A D13_ [HH wise]                             ----
 
@@ -90,9 +120,9 @@ D13_ %>% count(in1_out0,D13a) %>%group_by(in1_out0) %>%  mutate(n/sum(n))
 #| D14_A	"What sources? (Mark all)"
 #1 Canal  #2	Tank  #3	Open well  #4	River(/Pond/Lake)  #5	Bore well  # -888	Other, specify
 
-d14A <- rmtl_midline2018 %>% select(id, starts_with("d14_a_"))
+d14A <- rmtl_midline2018 %>% select(hh_id , starts_with("d14_a_"))
 
-d14a <- rmtl_midline2018 %>% select(farmers_hh,id, starts_with("d14_a_"), -c("d14_a_1_cb","d14_a_2_cb","d14_a_3_cb" )) %>% mutate(irri1=100)
+d14a <- rmtl_midline2018 %>% select(farmers_hh,hh_id , starts_with("d14_a_"), -c("d14_a_1_cb","d14_a_2_cb","d14_a_3_cb" )) %>% mutate(irri1=100)
 d14a$d14_a_1[d14a$d14_a_1=="3,5"] <-"5"
 d14a <- d14a %>% mutate(irri1= ifelse(d14_a_1 %in% c("1", "2", "3","4","5" ),d14_a_1, d14_a_os_1))
 
@@ -140,13 +170,13 @@ ml18_source_irrigate$irri_source[ml18_source_irrigate$irri_source_num=="5" ] <- 
 
 
 
-
+ml18_source_irrigate %>% group_by( )
 
 #🟩  IRRI METHODS | d15A |ml18_irri_methods  [HH wise]    ----
 # D15_A	What methods?   DF: ml18_irri_methods
 "d15_a_:  1 Flood | 2 Furrows | 3 Drip | 4 Sprinkler | 5 Manual | 6 Hose | -888 Other (specify)"
 
-d15A <- rmtl_midline2018 %>% select(in1_out0,id, starts_with("d15_a_")) %>% mutate(irri=100)
+d15A <- rmtl_midline2018 %>% select(farmers_hh,hh_id, starts_with("d15_a_")) %>% mutate(irri=100)
 d15A=d15A[,c(1:4,25,5:24)] %>% mutate(irri=ifelse( d15_a_1>0,d15_a_1,NA ))
 
 d15A$irri[d15A$d15_a_os_1 == "DRIP IRRIGATION"] <- 3
@@ -182,11 +212,11 @@ d15A$irri[d15A$d15_a_6 == "3" ] <- 3
 
 d15A$irri[is.na(d15A$irri) ] <- 0
 
-ml18_irri_methods = d15A %>% select(in1_out0, id, irri,farmers_hh) %>% 
+ml18_irri_methods = d15A %>% select(farmers_hh, hh_id, irri) %>% 
   mutate(irri_method =irri)
 
-ml18_irri_methods %>% count(in1_out0 , irri) %>% 
-  group_by(in1_out0) %>% mutate(grp=n/sum(n)) %>% mutate_at(4,round,3)
+ml18_irri_methods %>% count(farmers_hh , irri) %>% 
+  group_by(farmers_hh) %>% mutate(grp=n/sum(n)) %>% mutate_at(4,round,3)
 
 ml18_irri_methods = ml18_irri_methods %>% 
   mutate(irri_method =irri)
@@ -202,7 +232,7 @@ ml18_irri_methods$irri_method[ml18_irri_methods$irri_method==0] <- "rain"
 
 
 
-#🟩  IRRI land acre [HH-season] ----
+#🟩  IRRI land acre || ml18_plots_size [plot-season] ----
 
 which(colnames(rmtl_midline2018) == "d3_1_hissa_nu_3")
 
@@ -215,21 +245,57 @@ d100=
                               906:909,1994:1997,3003:3006,
   ) %>% rename(curr_own=d3, own_b4_2016=d4, own_after_2016=d5, cur_lease=d6)
 
-#  currently OWNED
-d3_ <-  # Survey/hissa number
+# Survey/hissa number
+d3_ <-  #  currently OWNED
   rmtl_midline2018 %>% select(farmers_hh,id, starts_with("d3_" ))
-d15 <- # Area of plot
-  rmtl_midline2018 %>% select(farmers_hh,id, starts_with("d15_acre_" ),starts_with("d15_guntas_"))
-
-# currently LEASED IN
-d23 <-  # Survey/hissa number
+d23 <- # currently LEASED IN
   rmtl_midline2018 %>% select(farmers_hh,id, starts_with("d23" ))
-d25 <- # Area of plot
-  rmtl_midline2018 %>% select(farmers_hh,id, starts_with("d25" ))
+############ ml18_plots_size ----
+# Area of plot
+ #  currently OWNED
+d15 <-rmtl_midline2018 %>% select(farmers_hh,hh_id, starts_with("d15_acre_" ),starts_with("d15_guntas_"))
+# d25 <-rmtl_midline2018 %>% select(farmers_hh,id, starts_with("d25" )) # currently LEASED IN
+
+library(tidyr)
+d15 <- d15 %>% pivot_longer(cols = -c(farmers_hh,hh_id),names_to = c("observation"))
+
+d15 <-rmtl_midline2018 %>% 
+  select(farmers_hh,hh_id, starts_with("d15_acre_" ),starts_with("d15_guntas_"),
+         -ends_with("cb"))
+d15 <- d15 %>% pivot_longer(cols = -c(farmers_hh,hh_id),names_to = c("observation"))
+
+d15$observation <- str_replace(d15$observation, "d15_acre_(\\d)$", "acre_0\\1")
+d15$observation[d15$observation=="d15_acre_10"] <- "acre_10"
+d15$observation <- str_replace(d15$observation, "d15_guntas_(\\d)$", "guntas_0\\1")
+d15$observation[d15$observation=="d15_guntas_10"] <- "guntas_10"
+
+d15_03 <- d15 %>% separate(observation, into = c("vars", "plotId"), sep = "_")
+d15_03 <-d15_03 %>% pivot_wider(names_from = vars , values_from = value)
+
+d15_03$plotId   <- sprintf("%02d", as.numeric(d15_03$plotId  ))
+d15_03$plotId   <- sub("^(\\d{1,2})","plot_\\1",  d15_03$plotId  ) 
+
+ml18_plots_size <- # [hh_id]: 1,670 
+  d15_03 %>%
+  mutate(guntas_acre=guntas*0.025) %>% 
+  mutate(acres = coalesce(guntas_acre, 0) + coalesce(acre, 0)) %>% 
+  select(-(c(acre,guntas,guntas_acre))) %>% 
+  filter(acres>0 )
+# MULTI DT [ml18_plots_size] [ml18_irri_methods] [ml18_crop_plot_3s] ----
+# ml18_irri_acre_plot ----
+# DF [ml18_plots_size] [ml18_irri_methods] in "df18.R" 
+ml18_irri_acre_plot <- 
+  ml18_crop_plot_3s %>%          # A tibble: 5,198 × 6 # [hh_id]: 1,603
+  left_join(ml18_plots_size) %>% # A tibble: 4,009 × 6 # [hh_id]: 1,670
+  left_join(ml18_irri_methods)   # A tibble: 1,702 × 4
+
+rm(ml18_plots_size,ml18_irri_methods )
 
 
+# D13_A	Has this plot been irrigated at least once in the past year?
 d <- rmtl_midline2018 %>% select(farmers_hh,id, starts_with("D13_A" ))
 
+# 16	For new plots: How did you come to own this land?
 d <- rmtl_midline2018 %>% select(farmers_hh,id, starts_with("d16" ))
 
 
