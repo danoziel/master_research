@@ -199,7 +199,7 @@ bl_d12$plot_num <- str_replace(bl_d12$plot_num, "D12_(\\d)$", "plot_0\\1")
 bl_d12$plot_num <- str_replace(bl_d12$plot_num, "^D12_", "plot_")
 bl_d12 <- filter(bl_d12,!is.na(irri_plot_5y))
 
-# [D21] plot irri method last 5 years  ||  bl21_irri_methods                    ----
+# [D21] plot irri method last 5 years  ||  bl16_irri_methods                    ----
 
 # D21	What is the method of irrigation?
 #     #1 Flood #2 Furrows #3	Drip #4	Sprinkler #5 Manual  #6	Hose # -888	Other, specify
@@ -210,12 +210,10 @@ D21_method$D21_1[D21_method$D21_os_1== "BOREWEL"] <- 2
 D21_method$D21_2[D21_method$D21_os_2== "BOREWELL"] <- 2
 
 D21_method <- D21_method %>% select(-c(D21_os_1 ,D21_os_2 ) ) %>% 
-  pivot_longer(-c(farmers_hh,hh_id), 
-               names_to = "plot_num", values_to = "irri_method_5y") %>%
-  filter(irri_method_5y>0 )
+  pivot_longer(-c(farmers_hh,hh_id), names_to = "plot_num", values_to = "irri_method_5y") %>%filter(irri_method_5y>0 )
 D21_method$plot_num <- str_replace(D21_method$plot_num, "D21_(\\d)$", "plot_0\\1")
 
-bl21_irri_methods = D21_method
+bl16_irri_methods = D21_method
 rm(D21_method )
 
 # [D28]	Was the crop irrigated? | Crop-Plot-SEASON  ||  bl28_irri_plot_season   ----

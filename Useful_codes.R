@@ -3,7 +3,7 @@
 write.csv(L7_source_irri, file ="C:/Users/Dan/Documents/master_research/DATAs/data_master/data_saptari/Master_HH_N.csv", row.names=FALSE)
 
 
-write.csv(L7_source_irri, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/L7_source_irri.csv", row.names=FALSE)
+write.csv(cp_prob, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/crop_pattern_16_18_22.csv", row.names=FALSE)
 
 library(foreign)
 write.dta(pump_type.csv, "C:/Users/Dan/Documents/master_research/DATAs/data_master/data_saptari/pump_type.dta")

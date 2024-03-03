@@ -330,6 +330,83 @@ t_L49b <- t02%>%
   select(season,Ramthal,Outside_Ramthal,n1,n2,estimate,conf.low,conf.high,t,df,p) 
 nice_table(t_L49b,title = c("Table L49b | Crop yield<583"))
 
+# INPUTS                           ----
+# costs of  [__].   Season wise
+# L70 irrigation equipment  #  L71 Mechanization  #  L72 Fuel  #  L73 Labor
+
+costesA <- rmtl_srvy22 %>% select(farmers_hh, hh_id, contains ("l70"),contains ("l71"),contains ("l72"),contains ("l73"))
+
+costesB <- costesA %>% pivot_longer(cols = -c(farmers_hh, hh_id),names_to = c("observation"))
+costesB$value[costesB$value ==-999 ] <- NA
+costesB$observation <- sub("^l70","irriEquipment", costesB$observation) 
+costesB$observation <- sub("^l71","mechanization", costesB$observation) 
+costesB$observation <- sub("^l72","fuel", costesB$observation) 
+costesB$observation <- sub("^l73","labor", costesB$observation) 
+
+library(tidyr)
+# seasons
+costesC <- costesB %>% separate(observation, into = c("inputs", "season"), sep = "_") %>% rename(inputs_Rs=value)
+
+inputs_acre_sns22 <- a_plots_crop %>% select(hh_id,season,plotID) %>% distinct() %>% left_join(a_plots_size,by=c("hh_id","plotID")) %>% group_by(hh_id,season) %>% summarise(sum_acre=sum(acres,na.rm = T)) %>% mutate(season=ifelse(season=="rabi","rab",season)) %>% left_join(costesC,by=c("hh_id","season")) %>% mutate(inputs_per_acre=inputs_Rs/sum_acre ) %>% mutate_at(7,round)
+inputs_acre_sns22$season[inputs_acre_sns22$season=="rab"] <- "rabi_2021_22"
+inputs_acre_sns22$season[inputs_acre_sns22$season=="kha"] <- "kharif_2021"
+inputs_acre_sns22$season[inputs_acre_sns22$season=="KHA22"] <- "kharif_2022"
+
+# year 2021-2022
+costesD <- costes_seasons_22 %>% filter(season != "KHA22") %>%group_by(farmers_hh,hh_id, inputs) %>%  summarise(inputs_Rs=sum(inputs_Rs,na.rm = T)) %>% ungroup() 
+
+inputs_acre_yr22 <-a_plots_crop %>% select(hh_id,season,plotID) %>% distinct() %>% filter(season!="KHA22") %>% left_join(a_plots_size,by=c("hh_id","plotID")) %>% group_by(hh_id) %>% summarise(sum_acre=sum(acres,na.rm = T)) %>% left_join(costesD) %>%mutate(inputs_per_acre=inputs_Rs/sum_acre ) %>% mutate_at(6,round)
+
+rm(costesB, costesA)
+
+
+# t test
+t1 <-
+  inputs_acre_sns22 %>% group_by(inputs,season) %>% t_test(inputs_per_acre  ~ farmers_hh , detailed = T) %>% 
+  rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
+  select(season,inputs,Ramthal,Outside_Ramthal,n1,n2,estimate,conf.low,conf.high,t,df,p) 
+
+t2 <-
+  inputs_acre_yr22%>% group_by(inputs) %>% t_test(inputs_per_acre  ~ farmers_hh , detailed = T) %>% 
+  rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
+  select(inputs,Ramthal,Outside_Ramthal,n1,n2,estimate,conf.low,conf.high,t,df,p) %>% 
+  mutate(season="year 2021-22") %>% select(season,everything())
+
+L7123 <- rbind(t2,t1)
+nice_table(L7123,title = c("Table L7123 | Inputs", "Cost of equipment, mechanization, fuel and labor in 2021-2022"),
+           note = c("[L70-L73] costs of ____","🟩" ))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # SEEDS                                                        ----
 # season-crop
 
@@ -410,10 +487,6 @@ nice_table(t_L58,title = c("Table L58 | Improved seeds","% Households using impr
            note = c("[L58] Is it normal or improved seeds?","🟩" ))
 
 
-
-
-
-
 # ASSET ಆಸ್ತಿ                                                     ----
 assets22 # yesno_assets & total_assets # [1,612 hh, in946/out666] 
 
@@ -453,15 +526,11 @@ t05 <- assets22 %>% t_test(own_farm_equipments ~ farmers_hh , detailed = T)
 t06 <- assets22 %>% t_test(total_farm_equipments ~ farmers_hh , detailed = T) 
 
 
-
 t_E <- rbind(t01,t03,t05,t02,t04,t06) %>% 
   rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
   select(.y. ,Ramthal,Outside_Ramthal,n1,n2,estimate,conf.low,conf.high,t,df,p) 
 nice_table(t_E,title = c("Table E | Assats ಆಸ್","% Households own assats/ total assat household own" ),
            note = c("[E6-E21] How many of this item does the household currently own? (0 if none)","🟨" ))
-
-
-
 
 
 # INCOME ಆದಾಯ                                           ----
@@ -758,6 +827,13 @@ summary_df <- as.data.frame(do.call(rbind, summary_stats))
 # Share of farmers used irrigation
 
 # Operational expenses (Rs./Acre cultivated)
+
+
+
+
+
+
+
 
 
 

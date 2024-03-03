@@ -5,6 +5,123 @@ library("stringr") #"str_replace"
 
 attr(rmtl_baseline2016$D24_1_Crop_1_0, "labels")
 which(colnames(rmtl_baseline2016) == "D4_3")
+
+# index_shpfile ----
+
+library(sf)
+map_file <- read_sf("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/villages","Ramthal_East")
+bd_data0  <- read_sf("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/villages/Ramthal_East.shp")
+
+shp_rmtl <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/villages/Ramthal_East.shp")
+
+#check the imports worked
+head(shp_rmtl)
+class(shp_rmtl)
+attr(shp_rmtl, "sf_column")
+
+
+(shp_rmtl_geom <- st_geometry(shp_rmtl)) # class = "sfc_POLYGON" "sfc" IS IT FORTIFY????????
+shp_rmtl_geom[[1]]
+
+######### fixing -999 
+list_shape_code %>% filter(survey==-999)
+
+bl_plot_SrvyHis %>% filter(hh_id==100030)
+a_plots_size %>% filter(hh_id==100030)
+
+# Check if there is a matching id polygon?
+shp_rmtl %>% filter(id==160302)
+list_shape_code %>% filter(id==160302)
+
+# No polygon - rm 100030 !
+
+list_shape_code2 # [hh_id=1702 | id=1,499 ]
+
+###
+n1 <- list_shape_code2 %>% group_by(id) %>% mutate(n=n())%>% filter(n==1)
+   # 1,365 HH  |  1,365 id polygon 
+n1A= list_shape_code2 %>% left_join(n1[,c(1,8)]) %>% filter(is.na(n) )
+   #  336 HH | 133 id polygon 
+
+# Now, select one HH for each id polygon from n1A
+# Priority A: 258HH that irrigate 
+priorityA <- a_irri_rain_method %>% mutate(irri=as.numeric(irri_method_num)) %>% group_by(hh_id)  %>% summarise( irri=sum(irri,na.rm = T)) %>% filter(irri>0)
+n2  <- n1A %>% inner_join(priorityA) %>% group_by(id) %>% sample_n(1) 
+     # 35 HH | 35 id polygon 
+n2A <- n1A %>% left_join(n2[,c(5,9)] ) %>% filter(is.na(irri) ) 
+     # 223HH | 98 id polygon
+
+# Priority B: HH that use water, HH infrastructure
+priorityB <- rmtl_srvy22 %>% select(hh_id,mm5)%>% filter(!is.na(mm5))
+n3  <- n2A %>% inner_join(priorityB) %>% group_by(id) %>% sample_n(1)  
+     # 52HH | 52 id polygon
+n3A <- n2A %>% left_join(n3[,c(5,10)] ) %>% filter(is.na(mm5) ) 
+      # 105HH | 46 id polygon
+
+# Priority c: random
+# Group by id and randomly select one hh_id for each group
+n4 <- n3A %>% group_by(id) %>% sample_n(1)
+#      46HH | 46 id polygon
+
+n_1 = n1%>% select (hh_id,a6,bl_d4_0 ,survey,id)
+n_2 = n2%>% select (hh_id,a6,bl_d4_0 ,survey,id)
+n_3 = n3%>% select (hh_id,a6,bl_d4_0 ,survey,id)
+n_4 = n4%>% select (hh_id,a6,bl_d4_0 ,survey,id)
+
+index_shp <- 
+  rbind(n_1, n_2, n_3, n_4) 
+
+######### fixing NAs
+library(tidyr)
+# index_shp NAs 
+index_shp_NAs <- rbind(n_1, n_2, n_3, n_4) %>% filter(is.na(survey))
+                 # 52HH | 52 id polygon
+
+shp_NA <- 
+  index_shp_NAs[,1] %>% left_join(a_plots_size[,c(1,3)]) %>% 
+  separate(plotSrvy, into = c("srvy", "hiss"), sep = "-") %>% 
+  separate(srvy, into = c("srvy", "hiss"), sep = "/")%>% 
+  group_by(hh_id) %>% mutate(n=n())
+shp_NA$srvy <- gsub("[^0-9]", "", shp_NA$srvy)
+shp_NA$srvy <- ifelse( shp_NA$hh_id==101759, "13",shp_NA$srvy ) 
+shp_NA$srvy <- ifelse( shp_NA$hh_id==108984, "21",shp_NA$srvy ) 
+
+shp_NA1 <-  shp_NA %>% group_by(hh_id) %>% slice(1) %>% filter(srvy>0)
+
+# 3 types of hh in shp_NA1 :
+# A. hh whose polygon is not in shp_rmtl
+# B. hh whose polygon is in shp_rmtl and has a hh in index_shp
+# C. hh whose polygon is in shp_rmtl but DOES NOT contain a hh  index_shp
+### A and B to rm, C to save and add to index_shp
+
+# generating id polygon
+xc=index_shp %>% right_join(shp_NA1)
+xc$srvy <- as.numeric(xc$srvy)
+xc$id <- xc$id+xc$srvy
+xc
+
+Ids_shp_rmtl = shp_rmtl %>% as.data.frame() %>% select(id) %>% distinct()
+new_ids <- 
+  Ids_shp_rmtl %>% inner_join(xc) %>%  # rm A
+  select(hh_id,id) %>%rename(HH=hh_id) %>%
+  left_join(index_shp) %>% #if [hh_id = NA] means its id is "taken" therefore it should be rm
+  filter(is.na(hh_id)) %>%   # rm B
+  select(HH,id) %>% rename(hh_id=HH,fixed_id=id)
+
+#### Adding new id's to the index
+
+index_shpfile <- 
+  index_shp %>% left_join(new_ids) %>% 
+  mutate(id=ifelse(is.na(fixed_id),id,fixed_id))%>% 
+  select(hh_id,a6, bl_d4_0, survey,id)
+
+
+
+
+
+
+
+
 # DF ----
 baseline_RMTL[1:20,4679:4695]
 baseline_RMTL[1:20,4732:4739]
@@ -163,6 +280,11 @@ list_villages$village_code <- sprintf("%02d", list_villages$village_code)
 YR_Ramthal_Data_Entry_2_stata13 <- read_dta("~/master_research/DATAs/ramthal_data/Ramthal Midline/YR_Ramthal_Data_Entry_2_stata13.dta")
 list_groups_rmtl = YR_Ramthal_Data_Entry_2_stata13[ ,c("id","in1_out0","layer","distance_km","around_boundary","south1_north0")]
 rm(YR_Ramthal_Data_Entry_2_stata13) #heavy file- better to remove it
+
+ # hh_2022 ----
+hh_2022= rmtl_srvy22 %>%  select(hh_id,farmers_hh)
+  
+irrigation_HH
 
 #GIS shape_code 
 list_shape_code <- read.csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/shape_code.csv")

@@ -44,6 +44,7 @@ a_plots_geo%>%
 
 ### map A group vars ----
 rmtl_gis_df2 <-left_join(a_plots_geo, rmtl_gis@data, by = "shp_code", relationship = "many-to-many")
+
 rmtl_mapA <- left_join(rmtl_gis_df,rmtl_gis_df2, relationship = "many-to-many")
 rm(ramthal_east)
 # ggplot map

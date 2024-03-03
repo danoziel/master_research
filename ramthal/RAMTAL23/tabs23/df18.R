@@ -35,9 +35,8 @@ Irrigation_Midline_Clean_20180613<- read_dta("~/master_research/DATAs/ramthal_da
 Irrigation_Cultivation2018 <- read_dta("~/master_research/DATAs/ramthal_data/Ramthal Midline/Irrigation_Cultivation Section_Long Form_20180622.dta")
 # [1200 HH] 3122 1904
 
-
 YR_Ramthal_Data_Entry <- read_dta("~/master_research/DATAs/ramthal_data/Ramthal Midline/YR_Ramthal_Data_Entry.dta")
-# A tibble: 1,811 × 279    # 8/5/2018
+# A tibble: 1,811 × 279    # 8/5/2018 basline vars from a b c moudols
 
 YR_Ramthal_Data_Entry_2_Copy<- read_dta("~/master_research/DATAs/ramthal_data/Ramthal Midline/YR_Ramthal_Data_Entry_2 - Copy.dta")
 # A tibble: 737 × 8,039    # 7/6/2018
@@ -85,15 +84,12 @@ ml18_crop_plot_3s= d41
 
 #🟩  IRRI  HH FREQ | d29 d13A D13_ [HH wise]                             ----
 
-######### last 2 years 
+######### last 2 years ---  REMOVED ---
 #| [D29]  # Has this plot been irrigated at least once during the last 2 years?
-
-d29 <- rmtl_midline2018 %>% select(in1_out0,id, starts_with("d29"),-c("d29_share","d29_lease","d29_number"))
+d29 <- rmtl_midline2018 %>% select(in1_out0,hh_id, starts_with("d29"),-c("d29_share","d29_lease","d29_number"))
 d29[d29==2] <- 0
 d29[is.na(d29)] <- 0
-d29 <- d29 %>% mutate(d_ = rowSums(.[names(.)[3:11]], na.rm = T))%>%
-  mutate(D29=ifelse(d_>0,1,0 ))
-
+d29 <- d29 %>% mutate(d_ = rowSums(.[names(.)[3:11]], na.rm = T))%>%mutate(D29=ifelse(d_>0,1,0 ))
 d29 %>% count(in1_out0,D29) %>%group_by(in1_out0) %>%  mutate(n/sum(n))  
 
 
@@ -247,7 +243,7 @@ d100=
 
 # Survey/hissa number
 d3_ <-  #  currently OWNED
-  rmtl_midline2018 %>% select(farmers_hh,id, starts_with("d3_" ))
+  rmtl_midline2018 %>% select(farmers_hh,hh_id, starts_with("d3_" ))
 d23 <- # currently LEASED IN
   rmtl_midline2018 %>% select(farmers_hh,id, starts_with("d23" ))
 ############ ml18_plots_size ----

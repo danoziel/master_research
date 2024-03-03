@@ -7,9 +7,24 @@ library(hrbrthemes) # theme_ipsum()+
 
 # water usage sample ----
 wu_sample <- 
-  a_rmtl_srvy22 %>% select(hh_id,mm4,mm5) %>% 
-  left_join(a_sample) %>%   
+  rmtl_srvy22 %>% select(farmers_hh,hh_id,mm4,mm5) %>% 
+  left_join(a_source_irri) %>%   
+  left_join(irrigation_HH) %>%   
+  left_join(hh_2022) %>%   
   mutate(water_usage=ifelse(mm5==0,"didnt_use_water","Use_water"))
+
+# prt of hh who irrigate + under gov supply source
+wu_sample%>% filter(hh_cult_2022==1) %>% 
+  mutate(irri_and_gov=ifelse(irri_source== "gov_supply" & hh_irrigated==1,1,0)) %>% 
+  count(farmers_hh,irri_and_gov) %>% 
+  mutate(prt_ir=ifelse(farmers_hh=="inside_ramthal",n/929,n/649))
+
+wu_sample%>% filter(hh_cult_2022==1) %>% 
+  mutate(drip_and_gov=ifelse(irri_source== "gov_supply" & hh_drip==1,1,0)) %>% 
+  count(farmers_hh,drip_and_gov) %>% 
+  mutate(prt_drip=ifelse(farmers_hh=="inside_ramthal",n/929,n/649))
+
+
 
 #######  PLOT  ###### ----
 
@@ -195,6 +210,7 @@ mm9_in_50 %>% count(water_usage,mm9) %>% group_by(water_usage) %>%mutate(pct=n/s
   ggplot(aes(x=mm9, y=pct, fill=water_usage)) +
   geom_bar(stat="identity", position=position_dodge())+
 
+  
 mm9_in_20 %>% count(water_usage,mm9) %>% 
   group_by(water_usage) %>%mutate(pct=n/sum(n)) %>% 
   group_by(mm9) %>% 
@@ -206,6 +222,39 @@ mm9_in_20 %>% count(water_usage,mm9) %>%
   labs(title = "Usage water / Location on the pipeline",x ="No. farmers before you", y = "% of farmers")+
 # labs(subtitle = "Sample:Infrastructure installed", caption = "n=667")+ #Infrastructure
   labs(subtitle = "Sample:Ramthal farmers 2016",  caption = "n=538")  #Ramthal
+
+
+-------------
+# 20/02/2024 ----
+-------------
+library(extrafont)
+font_import()
+
+frmrs_b4u=  
+  rmtl_srvy22 %>%
+  select(farmers_hh, hh_id,mm9,mm10) %>% mutate(mm10=as.numeric(mm10)) %>% 
+  left_join(wu_sample)
+
+frmrs_b4u_fig=
+  frmrs_b4u %>% filter(mm9>=0) %>% # rm -999
+  count(hh_irrigated,mm9) %>% 
+  group_by(hh_irrigated) %>%mutate(pct=n/sum(n)) %>% 
+  group_by(mm9) %>% mutate(sum_pct=sum(pct)) %>% mutate(percent=pct/sum_pct) %>% 
+  mutate(hh_irrigated=ifelse(hh_irrigated==1,"Irrigation","0irrigation"))
+
+frmrs_b4u_fig %>%
+  mutate_at(6,round,2) %>% mutate(percent=percent*100) %>% 
+  ggplot(aes(x = mm9, y = percent, fill = hh_irrigated)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("#b4b4b4ff", "#03bfffff")) +
+  labs(title = "", x = "No. farmers before you", y = "Share of farmers (%)") + 
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Format y-axis as percentage
+  scale_x_continuous(breaks = seq(0, 14, by = 3)) +  # Set x-axis range up to 20 and display all integer values
+  theme_minimal() +
+  theme(text = element_text(family = "Serif"),  # Set font to Serif
+        legend.position = "bottom") 
+
+
 
 # scatter plot: location/pct====
 mm9_ii_50 %>%
@@ -353,16 +402,17 @@ sjPlot::tab_xtab(var.row = b4u_irriRain_in$mm5  , var.col =b4u_irriRain_in$irri.
 # July 23 VISIT farmers_interviews_july23----
 
 library(readxl)
-farmers_july23 <- 
+visit_july23 <- 
   read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/field visit july 2023/List of farmers for interviews.xlsx", 
              sheet = "interviws")
 
-names(farmers_july23)
+names(visit_july23)
 
-farmers_july23 <- 
-  farmers_july23 %>% 
+farmers_july23 <-   
+  visit_july23 %>% 
+  rename (farmer_mentioned_ValveProximity = `תזת הקירבה לשיבר`)
   filter(!UID == "out of list") %>% 
-  mutate(id = as.numeric (UID)) %>% 
+  mutate(hh_id = as.numeric (UID)) %>% 
   left_join(frmrs_b4u) 
 
 farmers_july23$mm10[farmers_july23$mm10  == 1] <- "1 never happened"
@@ -371,9 +421,22 @@ farmers_july23$mm10[farmers_july23$mm10  == 3] <- "3 several times a season"
 # Replacing 4 with 5 from the survey, to create a logical value scale
 farmers_july23$mm10[farmers_july23$mm10  == 4] <- "5 constant basis"
 farmers_july23$mm10[farmers_july23$mm10  == 5] <- "4 Some seasons"
+
+--------------------------------------------------------------------------------
+# 20/02/2024 ----
+names(farmers_july23)
+
+fj=
+  farmers_july23 %>% 
+  select(farmers_hh,hh_id, farmer_mentioned_ValveProximity,10 ,useYN,mm9,mm10 ,irri_source ,hh_6methods,water_usage) %>% 
+  mutate(mm9=ifelse(mm9==-999,10,mm9)) %>% 
+  filter(farmer_mentioned_ValveProximity==1)
+
+--------------------------------------------------------------------------------
+
+
 farmers_july23_01 <- farmers_july23%>% select(id, infrastructureYN,mm10,mm9,useYN,mm5)
   
-
 add0 <- data.frame( water_usage= c("use","never_use","use","never_use","never_use"),
             mm9= c(3,4,9,10,18),
             n= c(0,0,0,0,0))

@@ -17,9 +17,13 @@ library(rstatix) # ttest "add_significance"
 library(rempsyc) # ttest # nice_table
 library(kableExtra )
 
+cult_hh <- a_plots_crop[,1] %>% distinct() %>% mutate(hh_cult_2022=1)
+hh_2022 <- rmtl_srvy22 %>% select(hh_id,farmers_hh ) %>% 
+  left_join(cult_hh)
+hh_2022$hh_cult_2022[is.na(hh_2022$hh_cult_2022)] <- 0
 
 #    essantials----
-attr(L48$l48_prev_kha_1_1, "labels")
+attr(rmtl_srvy22$m59a, "labels")
 
 flat_vector <- unlist(L48[,-1], use.names = FALSE)
 table(flat_vector, useNA = "always") 
@@ -47,31 +51,32 @@ L7_source_irri1 <-
   ) %>%
   mutate(l7_rank_1=ifelse(l7_rank_1=="-888", 7 ,l7_rank_1),
          l7_rank_2=ifelse(l7_rank_2=="-888",7,l7_rank_2),
-         l7_rank_3=ifelse(l7_rank_3=="-888",7,l7_rank_3)) %>%
-  select(-l7_other)
+         l7_rank_3=ifelse(l7_rank_3=="-888",7,l7_rank_3)) %>%select(-l7_other)
 
-L7_source_irri1[L7_source_irri1==6] <- 0
-L7_source_irri1[is.na(L7_source_irri1)] <- 0
+a_source_irri2 <- L7_source_irri1
+a_source_irri2[a_source_irri2==6] <- 0
+a_source_irri2[is.na(a_source_irri2)] <- 0
 
 
-L7_source_irri2 <- L7_source_irri1 %>%
+a_source_irri3<- a_source_irri2 %>%
   mutate(irri_source=
            ifelse(l7_rank_1 ==5 | l7_rank_2 == 5 |l7_rank_3==5 , 5,
                   ifelse(l7_rank_1+l7_rank_2+l7_rank_3== 0 , 0,
                          ifelse(l7_rank_1>0 , l7_rank_1 ,
-                                l7_rank_2)) )) 
+                                l7_rank_2)) )) %>% 
+  mutate(irri_source_num=irri_source) %>% 
+  select(farmers_hh,hh_id,irri_source,irri_source_num)
 
-a_source_irri <- L7_source_irri2 %>% select(farmers_hh,hh_id,l7_rank_1,irri_source) %>% mutate(irri_source_num=irri_source)
-  
-a_source_irri$irri_source[a_source_irri$irri_source== 2] <- "tank/farm pond"
+a_source_irri <- inner_join(L7_source_irri1,a_source_irri3 )
+
+a_source_irri$irri_source[a_source_irri$irri_source== 2] <- "tank_pond"
 a_source_irri$irri_source[a_source_irri$irri_source== 3] <- "open_well"
 a_source_irri$irri_source[a_source_irri$irri_source== 4] <- "borewell"
 a_source_irri$irri_source[a_source_irri$irri_source== 0] <- "rain"
 a_source_irri$irri_source[a_source_irri$irri_source== 7] <- "canal"
 a_source_irri$irri_source[a_source_irri$irri_source== 5] <- "gov_supply"
 
-
-
+rm(L7_source_irri1,a_source_irri2,a_source_irri3)
 
 
 

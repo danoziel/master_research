@@ -1,7 +1,7 @@
 
 # village_code ----
 
-village_code <- Ramthal_Karnataka_Cleaned %>%
+villagesCode <- rmtl_srvy22 %>%
   mutate(village_code=ifelse(a5 %in% c("Amaravati", "amaravati",'Amaravathi',"AMARAVATHI"),"01",a5)) %>%
   mutate(village_code=ifelse(a5 %in% c("Bekamaladinni","bekamaladinni" ,"Bekamaldinni","BEKAMALADINNI"),"02",village_code)) %>% 
   mutate(village_code=ifelse(a5 %in% c("Binjawadgi" ,"binjawadagi","Binjawadagi","BINJAWADAGI"),"03",village_code)) %>% 
@@ -44,8 +44,7 @@ village_code <- Ramthal_Karnataka_Cleaned %>%
   mutate(village_code=ifelse(a5 %in% c("Nidasanur","nidasanur","Nidasanoor"),"41",village_code)) %>%
   mutate(village_code=ifelse(a5 %in% c("Tumba","thumba","Thumba"),"42",village_code)) %>%
   mutate(village_code=ifelse(a5 %in% c("ILKAL","Ilakal","Ilkak","Ilkal","Ilkal mahantesh  cinema theater","ilkal"),"500Ilkal",village_code)) %>%
-  mutate(village_code=ifelse(a5 %in% c("-888--Other Specify / Other Specify","Dadabal","Islaampur","Other Specify","Palathi","Palthi", "St chinnapura","Taariwaal"),"500Others",village_code)) %>%
-  count(village_code)
+  mutate(village_code=ifelse(a5 %in% c("-888--Other Specify / Other Specify","Dadabal","Islaampur","Other Specify","Palathi","Palthi", "St chinnapura","Taariwaal"),"500Others",village_code))
 # ----
 
 villages_list$village_code <- sprintf("%02d", villages_list$village_code)
