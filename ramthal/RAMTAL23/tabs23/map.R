@@ -63,12 +63,27 @@ shapfile_rmtl_2022 %>%
   scale_fill_distiller(palette = "Greys")
 scale_fill_distiller(palette = "YlOrBr")
 
-
 # for the villages names  
 shapfile_rmtl_2022 %>% ggplot()+ geom_sf(aes(fill = layer))+ theme(legend.position = "bottom")
 
+# ZONE ----
 
 
+zone_village_survey <- # A tibble: 1,700
+  jain_rabbi_2019 %>% 
+  select(zone,block ,village,survey_number) %>% distinct() %>%
+  mutate(survey_number=as.numeric(survey_number)) 
+
+zone_survey <- zone_village_survey %>% select(zone,block, survey_number) %>% distinct()%>% drop_na()
+  
+index4zone <- 
+  shp_index22 %>% 
+  right_join(list_shape_code) %>% # A tibble: 1,702
+  rename(survey_number=survey) %>% 
+  inner_join(zone_survey) %>% 
+
+list_shape_code
+  
 # project/ non project ----
 
 shapfile_rmtl_2022 %>% mutate(farmers_hh=ifelse(is.na(farmers_hh),"not_sampled",farmers_hh)) %>% 

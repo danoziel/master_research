@@ -56,7 +56,8 @@ arrange(desc(Grp))
 # summary_stats ----
 library(rstatix)
 DF %>% group_by(HH_project) %>%
-  get_summary_stats(income_2016, type = "mean_sd")# %>% mutate_at(4:5,round) # (column ,round ,digits)
+  get_summary_stats(income_2016, type = "full")# %>% mutate_at(4:5,round) # (column ,round ,digits)
+
 
 
 # t_test t.test ----
@@ -214,7 +215,7 @@ colMeans(land_Treats)
 #  Get the column number in R given the column name [duplicate]
 match("column_name",names(df))
 
-
+# sum row ----
 mutate(avm_self = rowMeans(.[names(.)[7:8]], na.rm = T),#mean per row - by defined columns
 
 # dates---------------------------------

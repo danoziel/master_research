@@ -1,7 +1,8 @@
 
 # village_code ----
 
-villagesCode <- rmtl_srvy22 %>%
+#villagesCode <- rmtl_srvy22 %>%
+  ji=ji %>% rename(a5=village) %>% 
   mutate(village_code=ifelse(a5 %in% c("Amaravati", "amaravati",'Amaravathi',"AMARAVATHI"),"01",a5)) %>%
   mutate(village_code=ifelse(a5 %in% c("Bekamaladinni","bekamaladinni" ,"Bekamaldinni","BEKAMALADINNI"),"02",village_code)) %>% 
   mutate(village_code=ifelse(a5 %in% c("Binjawadgi" ,"binjawadagi","Binjawadagi","BINJAWADAGI"),"03",village_code)) %>% 

@@ -1,7 +1,6 @@
 #| THIS R SCRIPT [DF_22.R] is data-frames/sets/bases of "2022 midline survey"
 #| 🟣MIDELINE 2022  | rmtl_srvy22 #= a_rmtl_srvy22 
 
-
 #| df16.R # scrip of data-frames/sets/bases of "2016 baseline survey"
 #🟡BASELINE 2016| rmtl_baseline2016 #= baseline_RMTL
 
@@ -22,6 +21,18 @@ hh_2022 <- rmtl_srvy22 %>% select(hh_id,farmers_hh ) %>%
   left_join(cult_hh)
 hh_2022$hh_cult_2022[is.na(hh_2022$hh_cult_2022)] <- 0
 
+rmtl_groups <- 
+irrigation_HH
+
+m3_mm4=rmtl_srvy22 %>% 
+  select(farmers_hh,hh_id,m3_0:m3_5 ) %>%
+  pivot_longer(-c(farmers_hh,hh_id), names_to = "ans",values_to = "yn") %>% 
+  left_join(rmtl_srvy22 %>% select(hh_id,mm4,mm5)) %>% 
+  group_by(farmers_hh,mm4,ans) %>% summarise(n=sum(yn)) %>% ungroup()
+
+m3_mm4[c(7:18),] %>% group_by(farmers_hh) %>% mutate(N=sum(n),prt_mm4= n/N )
+
+
 #    essantials----
 attr(rmtl_srvy22$m59a, "labels")
 
@@ -32,6 +43,10 @@ table(flat_vector, useNA = "always")
 select(where(~!all(.x=="")))
 select(where(~!all(is.na(.x))))
 
+#    survey 2022 dataset----
+Ramthal_Karnataka_Cleaned_Data <- read_dta("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/Ramthal_Karnataka_submissions/Ramthal_Karnataka_Cleaned_Data.dta")
+a_rmtl_srvy22 <- Ramthal_Karnataka_Cleaned_Data %>% rename(hh_id=id)
+rm(Ramthal_Karnataka_Cleaned_Data)
 # Irrigation source a_source_irri ( from L 'cultivation') ----
 #   L7 rank irrigation source
 # What irrigation source are you dependent on? (Rank according to the degree of importance)
@@ -43,11 +58,13 @@ attr(a_rmtl_srvy22$l7_rank_3, "labels")
 # 4        Borewell
 # 5        Government water supply source (other than canal)
 # 6        Rainfed
-# -888	   Other (specify) == canal[7]
+# -888     Other (specify) == canal[7]
 
 L7_source_irri1 <- 
   rmtl_srvy22 %>%select(farmers_hh, hh_id,starts_with("l7_"))%>%  
-  mutate(l7_rank_1 = as.numeric (l7_rank_1),l7_rank_2 = as.numeric(l7_rank_2),l7_rank_3 = as.numeric(l7_rank_3)
+  mutate(l7_rank_1 = as.numeric (l7_rank_1),
+         l7_rank_2 = as.numeric(l7_rank_2),
+         l7_rank_3 = as.numeric(l7_rank_3)
   ) %>%
   mutate(l7_rank_1=ifelse(l7_rank_1=="-888", 7 ,l7_rank_1),
          l7_rank_2=ifelse(l7_rank_2=="-888",7,l7_rank_2),
@@ -55,35 +72,37 @@ L7_source_irri1 <-
 
 a_source_irri2 <- L7_source_irri1
 a_source_irri2[a_source_irri2==6] <- 0
-a_source_irri2[is.na(a_source_irri2)] <- 0
 
+a_source_irri123<- # "govSource" is based on rank1 and rank2 only
+  a_source_irri2 %>% select(hh_id, l7_rank_1, l7_rank_2,l7_rank_3 ) %>% 
+  pivot_longer(cols = -hh_id,names_to = "rank",  values_to = "source") %>%
+  filter(!is.na(source)) %>% 
+  group_by(hh_id ) %>% mutate(sumsource=sum(source,na.rm = T)) %>%
+  mutate(govSource_rnk123=ifelse(5 %in% source , "gov_supply",ifelse(any(sumsource == 0),"rain","other_source"))) %>% 
+  ungroup() %>% select(hh_id, govSource_rnk123) %>% distinct()
 
-a_source_irri3<- a_source_irri2 %>%
-  mutate(irri_source=
-           ifelse(l7_rank_1 ==5 | l7_rank_2 == 5 |l7_rank_3==5 , 5,
-                  ifelse(l7_rank_1+l7_rank_2+l7_rank_3== 0 , 0,
-                         ifelse(l7_rank_1>0 , l7_rank_1 ,
-                                l7_rank_2)) )) %>% 
-  mutate(irri_source_num=irri_source) %>% 
-  select(farmers_hh,hh_id,irri_source,irri_source_num)
+a_source_irri12<- # "govSource" is based on rank1 and rank2 only
+  a_source_irri2 %>% select(hh_id, l7_rank_1, l7_rank_2 ) %>% 
+  pivot_longer(cols = -hh_id,names_to = "rank",  values_to = "source") %>%
+  filter(!is.na(source)) %>% 
+  group_by(hh_id ) %>% mutate(sumsource=sum(source,na.rm = T)) %>%
+  mutate(govSource_rnk12=ifelse(5 %in% source , "gov_supply",ifelse(any(sumsource == 0),"rain","other_source"))) %>% 
+  ungroup() %>% select(hh_id, govSource_rnk12) %>% distinct()
 
-a_source_irri <- inner_join(L7_source_irri1,a_source_irri3 )
+a_source_irri <- inner_join(L7_source_irri1,a_source_irri123) %>% inner_join(a_source_irri12 )
 
-a_source_irri$irri_source[a_source_irri$irri_source== 2] <- "tank_pond"
-a_source_irri$irri_source[a_source_irri$irri_source== 3] <- "open_well"
-a_source_irri$irri_source[a_source_irri$irri_source== 4] <- "borewell"
-a_source_irri$irri_source[a_source_irri$irri_source== 0] <- "rain"
-a_source_irri$irri_source[a_source_irri$irri_source== 7] <- "canal"
-a_source_irri$irri_source[a_source_irri$irri_source== 5] <- "gov_supply"
+a_source_irri$l7_rank_1 [a_source_irri$l7_rank_1 == 2] <- "tank_pond"
+a_source_irri$l7_rank_1 [a_source_irri$l7_rank_1 == 3] <- "open_well"
+a_source_irri$l7_rank_1 [a_source_irri$l7_rank_1 == 4] <- "borewell"
+a_source_irri$l7_rank_1 [a_source_irri$l7_rank_1 == 6] <- "rain"
+a_source_irri$l7_rank_1 [a_source_irri$l7_rank_1 == 7] <- "canal"
+a_source_irri$l7_rank_1 [a_source_irri$l7_rank_1 == 5] <- "gov_supply"
 
 rm(L7_source_irri1,a_source_irri2,a_source_irri3)
 
 
 
-#    survey 2022 dataset----
-Ramthal_Karnataka_Cleaned_Data <- read_dta("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/Ramthal_Karnataka_submissions/Ramthal_Karnataka_Cleaned_Data.dta")
-a_rmtl_srvy22 <- Ramthal_Karnataka_Cleaned_Data %>% rename(hh_id=id)
-rm(Ramthal_Karnataka_Cleaned_Data)
+#  
 
 #    plots_VARS----
 plots_VARS=
@@ -193,13 +212,6 @@ plots_size$acres[plots_size$acres == 0] <- NA
 a_plots_size = plots_size
 
 
-
-
-
-
-
-
-
 # a_irri_rain_method [ irrigated|rainfed|method ] season-plot-crop ----
 
 # L48		How often was the crop irrigated manually? # 1=Always|2=Sometime|3=Never/Rain-fed 
@@ -261,6 +273,49 @@ a_irri_rain_method$season[a_irri_rain_method$season== "kha"] <- "kharif_2021"
 a_irri_rain_method$season[a_irri_rain_method$season== "rab"] <- "rabi_2021_22"
 
 rm( L48,L1_48,L2_48,L3_48)
+
+irrigation_HH <- 
+  a_irri_rain_method %>% filter(season != "KHA22") %>%  select( hh_id ,irri_method) %>% distinct() %>% 
+  group_by(hh_id)  %>%
+  mutate(hh_6methods = ifelse("drip" %in% irri_method , "drip", ifelse(any(irri_method  == "furrows"), "furrows",ifelse(any(irri_method  == "flood"), "flood",ifelse(any(irri_method  == "sprinkler"), "sprinkler",ifelse(any(irri_method  == "hose"), "hose","rain"))))) ) %>%
+  ungroup() %>% select(hh_id,hh_6methods) %>% distinct() %>% 
+  mutate(hh_irri=ifelse(hh_6methods=="rain",0,1),
+         hh_drip=ifelse(hh_6methods=="drip",1,0)) %>% left_join(hh_2022)
+
+# ir YEARS ----
+rmtl_srvy22 %>% select(hh_id, starts_with("l48_y"), starts_with("l48a_y"))
+L39y <- rmtl_srvy22 %>% select(hh_id, starts_with("l39b_y_")) # What crops were planted in [ 2018 2019 2020 ]?
+attr(L39y$l39b_y_20_1, "labels")
+
+# ir methods 2018-19-20 ----
+rmtl_srvy22 %>% select(hh_id, starts_with("l48a_y"))
+
+# check if there are "others"
+rmtl_srvy22 %>% select(hh_id, starts_with("l48a_y"),-contains("other")) %>% 
+  pivot_longer(cols = -hh_id,names_to = "observation",  values_to = "values") %>% 
+  count(values) # NO "others"
+
+ir22_2018_2020 <-
+  rmtl_srvy22 %>% select(farmers_hh,hh_id, starts_with("l48a_y"),-contains("other")) %>% 
+  pivot_longer(cols = -c(farmers_hh,hh_id),names_to = "observation",  values_to = "irri_method") %>% 
+  separate(observation, into = c("L48a","y" ,"year_ir","crop15"), sep = "_") %>% 
+  mutate(year_ir =as.numeric(year_ir),year_ir=year_ir+2000) %>% 
+  mutate(irri_method=ifelse(is.na(irri_method),0,irri_method)) %>% 
+  group_by(hh_id,year_ir) %>% 
+  mutate(
+    hh_6methods = ifelse(3 %in% irri_method , "drip", 
+                         ifelse(any(irri_method  == 2), "furrows",
+                                ifelse(any(irri_method  == 1), "flood",
+                                       ifelse(any(irri_method  == 4), "sprinkler",
+                                              ifelse(any(irri_method  == 6), "hose","rain"))))) ) %>%  #  filter(hh_id %in% c(103257,105832))
+  select(farmers_hh,hh_id,hh_6methods,year_ir) %>% distinct() %>% ungroup() %>% 
+  mutate(hh_irri=ifelse(hh_6methods=="rain",0,1),
+         hh_drip=ifelse(hh_6methods=="drip",1,0)) %>% 
+  select(year_ir,everything())
+
+ir22_2018_2020 %>%  count(farmers_hh,year_ir,hh_6methods) %>% mutate(prt=ifelse(farmers_hh=="inside_ramthal",n/946,n/666))
+
+
 
 
 # YIELD		 a_total_yield        ----					

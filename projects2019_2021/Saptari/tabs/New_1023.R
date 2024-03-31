@@ -50,21 +50,21 @@ Procurement %>% select(household_questionnaire_id,district) %>% distinct( )
 water01 %>% select(HH,district,District) %>% distinct()
 
 HH_srvey=Procurement %>% rename(HH=household_questionnaire_id) %>% select(HH) %>% distinct()%>% mutate(survey=1)
-HH_dairy=water01 %>% select(HH) %>% distinct()%>% mutate(dairy=1)
+HH_diary=water01 %>% select(HH) %>% distinct()%>% mutate(diary=1)
 
-HH_full=full_join(HH_srvey,HH_dairy)
-HH_full %>% filter(is.na(survey) | is.na(dairy))
+HH_full=full_join(HH_srvey,HH_diary)
+HH_full %>% filter(is.na(survey) | is.na(diary))
 
 # HH cases               ----
 
-# Survey data only,  no Dairy 
+# Survey data only,  no diary 
 # T304802123   LAL BABU MAHATO  Rautahat
 
-# Dairy data only, Survey not done
+# diary data only, Survey not done
 # T309900000      Kanti Devi       Bara
 # T309800000      Nirmala Devi     Bara
 
-# Dairy data👍  , Survey only endline
+# diary data👍  , Survey only endline
 # T109902002 (10 obs) | winter_2019_2020 | Mamta Yadav | Saptari
 
 # returned the pump | REMOVED from "water01" df
@@ -566,7 +566,7 @@ summary(model)
 tab_model(model,digits=3,p.style="numeric",show.se = TRUE,
           string.ci = "Conf. Int (95%)",dv.labels = c("usage_percent | endline"))
 
-# CROP | DAIRY # DF cropping pattern ----
+# CROP | DIARY # DF cropping pattern ----
 
 names(diary_spip_terai)
 table(diary_spip_terai$crop)
@@ -587,84 +587,84 @@ diary_spip_terai$cat4_crop[diary_spip_terai$crop_cat %in% c( "Pulses" )] <- "tra
 diary_spip_terai$cat4_crop[diary_spip_terai$crop_cat %in% c("Sugarcane", "Fish_Farming" )] <- "water_crop_annual"
 diary_spip_terai$cat4_crop[diary_spip_terai$crop_cat %in% c("Vegetables","Oilseeds" )] <- "water_crop_seasonal"
 
-#  crops_dairy----
-crops_dairy <- 
+#  crops_diary----
+crops_diary <- 
   diary_spip_terai %>% select(HH,crop_cat) %>% 
   filter(!is.na(crop_cat)) %>% distinct() %>% mutate(unit=1) %>% 
   pivot_wider(names_from = crop_cat,values_from =unit ) %>% 
   right_join(hh_usage_percent)
-crops_dairy[is.na(crops_dairy)] <- 0
+crops_diary[is.na(crops_diary)] <- 0
 
-# reg crops_dairy----
+# reg crops_diary----
 
-model <- lm(usage_percent ~ Paddy+Wheat+Vegetables+Oilseeds+Pulses+Maize+Fish_Farming,data = crops_dairy)
-model <- lm(usage_percent ~ Vegetables+Oilseeds+Fish_Farming,data = crops_dairy)
-model <- lm(usage_percent ~ Paddy+Wheat+Pulses+Maize,data = crops_dairy)
+model <- lm(usage_percent ~ Paddy+Wheat+Vegetables+Oilseeds+Pulses+Maize+Fish_Farming,data = crops_diary)
+model <- lm(usage_percent ~ Vegetables+Oilseeds+Fish_Farming,data = crops_diary)
+model <- lm(usage_percent ~ Paddy+Wheat+Pulses+Maize,data = crops_diary)
 summary(model)
 tab_model(model,digits=3,p.style="numeric",show.se = TRUE,
-          string.ci = "Conf. Int (95%)",dv.labels = c("usage_percent | dairy"))
+          string.ci = "Conf. Int (95%)",dv.labels = c("usage_percent | diary"))
 
 
-crops_2_dairy <- 
+crops_2_diary <- 
   diary_spip_terai %>% select(HH,cat2_crop) %>% 
   filter(!is.na(cat2_crop)) %>% distinct() %>% mutate(unit=1) %>% 
   pivot_wider(names_from = cat2_crop,values_from =unit )%>% 
   right_join(hh_usage_percent)
-crops_2_dairy[is.na(crops_2_dairy)] <- 0
+crops_2_diary[is.na(crops_2_diary)] <- 0
 
-model <- lm(usage_percent ~ traditional+water_required,data = crops_2_dairy)
+model <- lm(usage_percent ~ traditional+water_required,data = crops_2_diary)
 summary(model)
 tab_model(model,digits=3,p.style="numeric",show.se = TRUE,
-          string.ci = "Conf. Int (95%)",dv.labels = c("usage_percent | dairy"))
+          string.ci = "Conf. Int (95%)",dv.labels = c("usage_percent | diary"))
 
 
-crops_4_dairy <- 
+crops_4_diary <- 
   diary_spip_terai %>% select(HH,cat4_crop) %>% 
   filter(!is.na(cat4_crop)) %>% distinct() %>% mutate(unit=1) %>% 
   pivot_wider(names_from = cat4_crop,values_from =unit )%>% 
   right_join(hh_usage_percent)
-crops_4_dairy[is.na(crops_4_dairy)] <- 0
+crops_4_diary[is.na(crops_4_diary)] <- 0
 
 model <- lm(usage_percent ~ traditional_cereal+water_crop_seasonal+
-              traditional_pulses+water_crop_annual,data = crops_4_dairy)
+              traditional_pulses+water_crop_annual,data = crops_4_diary)
 summary(model)
 tab_model(model,digits=3,p.style="numeric",show.se = TRUE,
-          string.ci = "Conf. Int (95%)",dv.labels = c("usage_percent | dairy"))
+          string.ci = "Conf. Int (95%)",dv.labels = c("usage_percent | diary"))
 
 # graph----
 
 
-fit1 <- lm(usage_percent ~ Paddy ,crops_dairy)
+fit1 <- lm(usage_percent ~ Paddy ,crops_diary)
 fit2 <- lm(percentage ~    Paddy ,crop_base)
 fit3 <- lm(percentage ~    Paddy ,crop_end)
 
-fit11 <- lm(usage_percent ~ Wheat ,crops_dairy)
+fit11 <- lm(usage_percent ~ Wheat ,crops_diary)
 fit22 <- lm(percentage ~    Wheat ,crop_base)
 fit33 <- lm(percentage ~    Wheat ,crop_end)
 
-fit111 <- lm(usage_percent ~ Vegetables ,crops_dairy)
+fit111 <- lm(usage_percent ~ Vegetables ,crops_diary)
 fit222 <- lm(percentage ~    Vegetables ,crop_base)
 fit333 <- lm(percentage ~    Vegetables ,crop_end)
 
-fit101 <- lm(usage_percent ~ Oilseeds ,crops_dairy)
+fit101 <- lm(usage_percent ~ Oilseeds ,crops_diary)
 fit202 <- lm(percentage ~    Oilseeds ,crop_base)
 fit303 <- lm(percentage ~    Oilseeds ,crop_end)
 
-fit01 <- lm(usage_percent ~ Pulses ,crops_dairy)
+fit01 <- lm(usage_percent ~ Pulses ,crops_diary)
 fit02 <- lm(percentage ~    Pulses ,crop_base)
 fit03 <- lm(percentage ~    Pulses ,crop_end)
 
-fit011 <- lm(usage_percent ~ Maize ,crops_dairy)
+fit011 <- lm(usage_percent ~ Maize ,crops_diary)
 fit022 <- lm(percentage ~    Maize ,crop_base)
 fit033 <- lm(percentage ~    Maize ,crop_end)
 
-fit0111 <- lm(usage_percent ~ Fish_Farming,crops_dairy)
+fit0111 <- lm(usage_percent ~ Fish_Farming,crops_diary)
 fit0222 <- lm(percentage ~    Fish_Farming,crop_base)
 fit0333 <- lm(percentage ~    Fish_Farming,crop_end)
 
 
 tab_model(fit11,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",
-          dv.labels = c("usage_percent | Dairy"))
+          dv.labels = c("usage_percent | diary"))
 
 tab_model(fit22,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",
           dv.labels = c("usage_percent | baseline"))
@@ -688,10 +688,10 @@ plot_summs(fit1,fit2,fit3,
            point.shape = F)+ theme(legend.position="none")
 
 # plot for legend
-plot_summs(fit1,fit2,fit3,scale = T,colors = c( "orange3","deepskyblue3", "deepskyblue4"),model.names = c("Dairy", "Baseline (survey)", "Endline (survey)"),point.shape = F)+ coord_cartesian(xlim = c(-.25, .25))
+plot_summs(fit1,fit2,fit3,scale = T,colors = c( "orange3","deepskyblue3", "deepskyblue4"),model.names = c("diary", "Baseline (survey)", "Endline (survey)"),point.shape = F)+ coord_cartesian(xlim = c(-.25, .25))
 
 
-# CROP irrigated land | DAIRY  # DF # ----
+# CROP irrigated land | diary  # DF # ----
 
 
 # crops_land_size_Seasons irrigated by SIP
@@ -746,8 +746,8 @@ plot_summs(fit1,fit2,fit3,fit4,fit5,fit6,fit7,
            scale = T,colors = c( "orange3", "orange3","orange3", "orange3","orange3", "orange3","orange3"),
            point.shape = F)+ theme(legend.position="none")
 
-tab_model(fit1,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",dv.labels = c("usage_percent | Dairy"))
-tab_model(fit7,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",dv.labels = c("usage_percent | Dairy"))
+tab_model(fit1,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",dv.labels = c("usage_percent | diary"))
+tab_model(fit7,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",dv.labels = c("usage_percent | diary"))
 
 
 
@@ -789,19 +789,19 @@ total_area_of_pond
 
 # ____________________  NEXT ________________________- ----
 # Hours, Total.Area.Cultivated,Area.Irrigated,-----
-dairy <- 
+diary <- 
   diary_spip_terai %>% 
   select(date,HH,Hours,
          Total.Area.Cultivated,Area.Irrigated,
          crop,crop_cat,cat4_crop,cat2_crop)
-dairy$crop_cat[dairy$crop_cat=="NA"] <- NA
+diary$crop_cat[diary$crop_cat=="NA"] <- NA
 
-dairy %>%group_by(crop_cat) %>%  
+diary %>%group_by(crop_cat) %>%  
   summarise(hr=mean(Hours,na.rm = T),
             irri=mean(Area.Irrigated,na.rm = T)*0.0339,
             tot=max(Total.Area.Cultivated,na.rm = T)*0.0339) %>%arrange(irri)
 
-dairy %>%group_by(date,crop_cat) %>%  
+diary %>%group_by(date,crop_cat) %>%  
   filter(!is.na(crop_cat)) %>% 
   summarise(hr=mean(Hours,na.rm = T),
             irri=mean(Area.Irrigated,na.rm = T)*0.0339,
@@ -878,7 +878,7 @@ agri %>%   filter(survey=="baseline") %>%
 
 
   
-# DAIRY
+# diary
 crops_land_size_Seasons %>%   
    filter(!Seasons %in% c("Summer 2016-2017","Annual 2019-2020","Monsoon 2019-2020","Summer 2019-2020","Winter 2019-2020"  ) ) %>% 
    mutate(Season= ifelse(Seasons %in% c("Monsoon 2017-2018","Monsoon 2018-2019"),"Monsoon",

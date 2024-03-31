@@ -194,10 +194,11 @@ rm(bl_d6)
 
 bl_d12 = rmtl_baseline2016  [,c(1,grep("^D12",names(rmtl_baseline2016 ) ))] %>% 
   select(hh_id,D12_1,D12_2,D12_3,D12_4,D12_5,D12_6,D12_7,D12_8,D12_9,D12_10) %>% 
-  pivot_longer(-hh_id, names_to = "plot_num", values_to = "irri_plot_5y")
+  pivot_longer(-hh_id, names_to = "plot_num", values_to = "irri_plot_5y") %>% 
+  filter(!is.na(irri_plot_5y))
 bl_d12$plot_num <- str_replace(bl_d12$plot_num, "D12_(\\d)$", "plot_0\\1")
 bl_d12$plot_num <- str_replace(bl_d12$plot_num, "^D12_", "plot_")
-bl_d12 <- filter(bl_d12,!is.na(irri_plot_5y))
+
 
 # [D21] plot irri method last 5 years  ||  bl16_irri_methods                    ----
 
@@ -235,7 +236,8 @@ D28_2 <- # 2015 KHARIF
 D28_2$plot_num <- str_replace(D28_2$plot_num, "D28_2_irrigated_\\d_(\\d)$", "plot_0\\1")
 D28_2=D28_2 %>% 
   group_by(farmers_hh,hh_id,plot_num) %>% summarise(irri_plot=sum(irri_plot)) %>% 
-  mutate(irri_plot=ifelse( irri_plot>0,1,0 )) %>% distinct() %>% mutate(season="kharif_2015")
+  mutate(irri_plot=ifelse( irri_plot>0,1,0 )) %>% distinct() %>% mutate(season="kharif_2015") %>% 
+  ungroup()
 
 D28_3 <- # 2014-15 RABI
   rmtl_baseline2016 %>% select(farmers_hh, hh_id, starts_with("D28_3") ) %>% 

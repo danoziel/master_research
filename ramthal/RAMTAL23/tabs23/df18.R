@@ -228,6 +228,7 @@ ml18_irri_methods$irri_method[ml18_irri_methods$irri_method==0] <- "rain"
 
 
 
+
 #🟩  IRRI land acre || ml18_plots_size [plot-season] ----
 
 which(colnames(rmtl_midline2018) == "d3_1_hissa_nu_3")
