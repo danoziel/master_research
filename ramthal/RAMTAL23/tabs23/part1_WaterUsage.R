@@ -107,20 +107,27 @@ mw14_int= rmtl_srvy22 %>% select(farmers_hh, hh_id,mw14,mw14_int)%>% filter(farm
   summarise(mean(mw14_int,na.rm = T))
 
 # Damaged in the irrigation system  ----
+m35s <- 
+  rmtl_srvy22 %>%select(hh_id,contains("m35")) %>%
+  right_join(rmtl_In_groups)
 
 ############# m35		
-# What is the status of the main pipe coming into your land ?	1	Works # 2	Damaged
+# m35 What is the status of the main pipe coming into your land ?
+m35s %>% 
+  group_by(waterIR_17_21) %>% 
+  freq(m35, report.nas = FALSE, headings = T, cumul= FALSE)
+attr(rmtl_srvy22$m35, "labels")
 
-m35= rmtl_srvy22 %>% select(farmers_hh,hh_id,m35) %>% filter(!is.na(m35))%>%mutate(Works1_Damaged0=ifelse(m35==2,0,1)) 
-# m35  %>% count(Works1_Damaged0) %>%  mutate(N=sum(n),n/N)
-m35 %>% filter(farmers_hh=="inside_ramthal") %>%  count(Works1_Damaged0) %>%  mutate(N=sum(n),n/N)
 
-############ m35a	
-# What caused the damage?	#1	Animals that graze in the field #2	Rodents #3	Machinery like tractors or threshers #4	Thieves #5	Other Farmers #6	Damaged during operation #7	Company 
-rmtl_srvy22 %>% select(m35a) %>% filter(m35a !="") %>% count()
 
+# M35c : What is the status of the laterals?
+rmtl_srvy22 %>%select(farmers_hh,hh_id,contains("m35")) %>% filter(farmers_hh=="inside_ramthal") %>% 
+  freq(m35c, report.nas = FALSE, headings = T, cumul= FALSE)
+attr(rmtl_srvy22$m35c, "labels")
+
+# m35a: What caused the damage?	#1	Animals that graze in the field #2	Rodents #3	Machinery like tractors or threshers #4	Thieves #5	Other Farmers #6	Damaged during operation #7	Company 
 rmtl_srvy22 %>% 
-  select(farmers_hh,hh_id,m35a_1:m35a_7 ) %>% 
+  select(farmers_hh,hh_id,m35a_1:m35a_7 ) %>% # filter(!is.na(m35a_1)) N=386
   pivot_longer(-c(farmers_hh,hh_id), names_to = "ans",values_to = "yn") %>%
   filter(!is.na(yn) ,farmers_hh=="inside_ramthal") %>% 
   group_by(ans) %>% summarise(n=sum(yn))%>%  mutate(n/386)
@@ -153,7 +160,17 @@ rmtl_srvy22 %>% select(farmers_hh,hh_id, contains("m36")) %>%
 rmtl_srvy22 %>% select(farmers_hh,hh_id, contains("m37")) %>% 
   filter(!is.na(m37)) %>% count(m37)%>%  mutate(N=sum(n),n/N)
 
+# INFORMATION - what farmers knows on drip ------
 
+# [m3] Are you aware of any advantages of drip irrigation over other irrigation me...
+
+m3_mm4=rmtl_srvy22 %>% 
+  select(farmers_hh,hh_id,m3_0:m3_5 ) %>%
+  pivot_longer(-c(farmers_hh,hh_id), names_to = "ans",values_to = "yn") %>% 
+  left_join(rmtl_srvy22 %>% select(hh_id,mm4,mm5)) %>% 
+  group_by(farmers_hh,mm4,ans) %>% summarise(n=sum(yn)) %>% ungroup()
+
+m3_mm4[c(7:18),] %>% group_by(farmers_hh) %>% mutate(N=sum(n),prt_mm4= n/N )
 
 
 
@@ -325,6 +342,19 @@ rbind(t6,t66) %>% mutate_at(c(2:3,5:9),round,2) %>%
   unite("ci" , conf.low, conf.high, sep = ",") %>%
   mutate(ci = paste0("[",ci, "]")) %>% 
   kbl() %>% kable_styling()
+
+
+# SEASON USAGE ----
+rmtl_srvy22 %>% select(farmers_hh,hh_id, contains("mw2"))%>% 
+  filter(!is.na(mw2)) %>% count(farmers_hh,mw2) %>% 
+  group_by(farmers_hh) %>% mutate (N=sum(n),n/N)
+
+
+m20= rmtl_srvy22 %>% select(farmers_hh,hh_id,mw2, contains("m20_")) 
+m20 %>% filter(!is.na(mw2)) %>% group_by(farmers_hh) %>% summarise(sum(m20_kharif_2018),sum(m20_rabi_2018))
+m20%>% filter(!is.na(mw2)) %>% select(farmers_hh,hh_id,ends_with("2018")) %>% 
+  mutate(kr18=m20_kharif_2018+ m20_rabi_2018) %>% count(farmers_hh,kr18)
+
 
 
 
@@ -576,7 +606,7 @@ baseline_2016 <- read_dta("~/master_research/DATAs/ramthal_data/baseline_survey_
 # B9	In the last 5 years, has the household received any assistance from the municipality/government/gram panchayat? (NOT including ration card)
 
 c_i=
-  baseline_2016 %>% select(Id,A22, #caste
+  rmtl_baseline2016 %>% select(hh_id,A22, #caste
                            A23, #caste category
                            F13,# total HH income
                            B9)# In the last 5 years, has the household received any assistance

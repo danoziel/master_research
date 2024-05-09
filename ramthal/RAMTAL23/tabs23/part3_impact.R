@@ -6,6 +6,20 @@ library(rstatix) # ttest "add_significance"
 library(rempsyc) # ttest # nice_table
 library(kableExtra )
 
+# Share of farmers cultivated sorghum
+# Share of farmers cultivated Bengal gram
+# Share of farmers cultivated sunflower
+# 
+# Cultivated area (acres)  
+# Share of area cultivated
+#
+# Actual sorghum yields (q/acre)
+# Actual bengal gram yields (q/acre)
+
+# Share of farmers used irrigation
+
+# Operational expenses (Rs./Acre cultivated)
+
 #| 🟡BASELINE 2016|rmtl_baseline2016   🟠MIDELINE 2018|rmtl_midline2018   🟣SURVEY 2022|rmtl_srvy22
 
 # CROPPING PATTERN                                ----
@@ -784,8 +798,7 @@ h1h2_h18h23[3:8,] %>% select(-POV) %>% kbl() %>% kable_material()
 
 
 
-# ESSANTIALS CODES -----
-
+######################    essantials    ----
 
 # Function to compute summary statistics
 compute_summary <- function(x) {
@@ -793,10 +806,22 @@ compute_summary <- function(x) {
     Mean = mean(x),
     Median = median(x),
     sd = sd(x),
-    Q = quantile(x, 0.25),
-    Q = quantile(x, 0.75),
-    P= quantile(x, 0.9),
-    P= quantile(x, 0.95),
+    Q25 = quantile(x, 0.25),
+    Q75 = quantile(x, 0.75),
+    P9= quantile(x, 0.9),
+    P95= quantile(x, 0.95),
+    Min = min(x),
+    Max = max(x)
+  )
+}
+compute_summary_1_99 <- function(x) {
+  c(
+    Count = n(),
+    Mean = mean(x),
+    Median = median(x),
+    sd = sd(x),
+    P1 = quantile(x, 0.01),
+    P99 = quantile(x, 0.99),
     Min = min(x),
     Max = max(x)
   )
@@ -812,21 +837,30 @@ summary_stats <- tapply(yield22_acre$kg_per_acre, group_var, compute_summary)
 summary_df <- as.data.frame(do.call(rbind, summary_stats))
 
 
+attr(a_rmtl_srvy22$l7_rank_3, "labels")
+
+flat_vector <- unlist(L48[,-1], use.names = FALSE)
+table(flat_vector, useNA = "always") 
+
+# remove columns only NA or empty
+select(where(~!all(.x=="")))
+select(where(~!all(is.na(.x))))
+
+# write.csv
+write.csv(rmtl_In_groups, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_In_groups.csv", row.names=FALSE)
+write.csv(rmtl_InOut_groups, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_InOut_groups.csv", row.names=FALSE)
+write.csv(rmtl_baseline2016, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_baseline2016.csv", row.names=FALSE)
 
 
-# Share of farmers cultivated sorghum
-# Share of farmers cultivated Bengal gram
-# Share of farmers cultivated sunflower
-# 
-# Cultivated area (acres)  
-# Share of area cultivated
-#
-# Actual sorghum yields (q/acre)
-# Actual bengal gram yields (q/acre)
 
-# Share of farmers used irrigation
 
-# Operational expenses (Rs./Acre cultivated)
+
+
+
+
+
+
+
 
 
 

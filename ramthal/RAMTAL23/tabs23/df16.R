@@ -1,17 +1,16 @@
 #| THIS R SCRIPT [df16.R] is data-frames/sets/bases of "2016 baseline survey"
 #| 🟡BASELINE 2016  | rmtl_baseline2016 #= baseline_RMTL
 
+rmtl_baseline2016 <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_baseline2016.csv")
 
-#| df18.R # scrip of data-frames/sets/bases of "2018 midline survey"
-#🟠MIDELINE 2018| rmtl_midline2018 #= mid2018_RMTL
-
-#| DF_22.R # scrip of data-frames/sets/bases of "2022 midline survey"
-#🟣MIDELINE 2022| rmtl_srvy22 #= a_rmtl_srvy22 
+#🟠MIDELINE 2018| rmtl_midline2018 is in `df18.R` script
+#🟣MIDELINE 2022| rmtl_srvy22 is in `DF_22.R` script
 
 library(dplyr)
 library(haven)
 library(tidyr)
 library("stringr") #"str_replace"
+library(summarytools)
 
 ####### HH CHARACTERISTICS #######             ----
 # vars_02 caste income 2016
@@ -84,6 +83,124 @@ plot_summs(lmm5, plot.distributions = TRUE, inner_ci_level = .9)
 library(sjPlot)
 tab_model(lmm5, show.se = TRUE)
 tab_model(lmm5, collapse.ci = TRUE, show.se = TRUE)
+
+####### INCOME tab #######             ----
+
+
+
+# NET income earned by household members in the past 12 months.       				
+incom16= rmtl_baseline2016 %>% select(hh_id ,contains(c("F")))
+
+# F1	Income sent by seasonal migrating household members	
+# F2	Remittances (from permanent migrants)
+
+#   Do you earn any income from this source? (Y/N)	
+rmtl_baseline2016 %>% select(contains(c("F1_s","F2_s"))) %>% freq()
+
+#   How much earned in past month?	
+#   How much earned in 2015?
+f1_f2=rmtl_baseline2016 %>% select(contains(c("F1_","F2_")))
+summary(f1_f2)
+
+
+####### F3-F12 not include income from seasonal or permanent migrants.
+
+f3_f13=
+  rmtl_baseline2016 %>% 
+  select(starts_with (c("F"))) %>% select(contains(c("_s"))) %>% freq()
+
+# F3	"Farming own or rented land (Net profit)
+# F4	"Own livestock (Net profit)
+# F5	"Own non-agricultural business (Net profit)
+# F6	Salaried job
+# F7	Casual work or daily labor by current household members
+# F9	Government pension or scheme
+# F10	Rent/lease of property or land (land, house, vehicle, electronic appliances, tractor, etc.)
+# F11	Other jobs or activities not already mentioned
+# F12	Total (Rs.)
+# F13	According to what you indicated, your total HH income is Rs. [     ].
+# F14	What is you income expectation in 2 years from now? (Rs.)		
+
+
+  ####### ASSETS tab #######             ----
+
+# E1	In the past 3 years, did your household sell any agricultural land?
+# E2	How many plots has your household sold in the past 3 years?
+# E3	When was the plot sold? (MMYYYY)
+# E4	How much was this plot sold for? (Rs.)
+# E4	What was the area of the plot? (Acres)
+
+# E6-E22
+# [A] How many of this item does the household currently own? (0 if none)	
+# [B] How many of this item did the household own 3 years ago?
+
+rmtl_baseline2016 %>% select(starts_with (c("E"))) 
+
+e2016= rmtl_baseline2016 %>% 
+  select(hh_id, E6_1:E21_1 ) %>% select(hh_id,contains(c("_1")))%>% select(-c(E14_1,E19_1)) # e17
+e2016[is.na(e2016)] <- 0
+
+e9=e2016 %>% filter(!is.na(E9_1))
+freq(e9$E9_1)
+compute_summary_1_99(e9$E9_1)
+e2016$E9_1 [e2016$E9_1>20] <- 20
+
+e2016A=
+  e2016 %>% mutate(total_assets=E6_1+E7_1+E8_1+E9_1+E10_1+E11_1+E12_1+E13_1+E15_1+E16_1+E18_1,
+         total_livestock=E6_1+E7_1+E8_1+E9_1,
+         total_farm_equipments=E10_1+E11_1+E12_1+E13_1) 
+
+e2016B= e2016 %>% select(-c(E20_1,E21_1))
+e2016B[e2016B>0 & e2016B<1000] <- 1
+e2016B=e2016B %>% 
+  mutate(yn_assets=E6_1+E7_1+E8_1+E9_1+E10_1+E11_1+E12_1+E13_1+E15_1+E16_1+E18_1,
+         yn_livestock=E6_1+E7_1+E8_1+E9_1,
+         yn_farm_equipments=E10_1+E11_1+E12_1+E13_1) 
+
+
+
+
+# LIVESTOCK
+# E6	Cows
+# E7	Bullock
+# E8	Buffaloes
+# E9	Goats and sheep
+# FARM EQUIPMENT
+# E10	Tractor
+# E11	Plough
+# E12	Thresher
+# E13	Seed drill
+# E14	JCB (front/back loader, for digging/leveling)
+# VEHICLES
+# E15	Cycles
+# E16	Motorcycles
+# E17	Cars
+
+# HOUSEHOLD ITEMS
+# E18	Fridge
+# E19	Television
+# E20	Gold (in grams)
+# E21	Silver (in grams)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -327,5 +444,93 @@ sample <-
   select(south_north_inner, sampledafter200517 ,Srno, SI, survey, 
          si_no, surveyround, south1_north0 ,hh_id, 
          inner_plots, in1_out0, in_out_intersect)
+######################    essantials    ----
+
+
+attach(rmtl_baseline2016)
+detach(rmtl_baseline2016)
+
+# Function to compute summary statistics
+compute_summary <- function(x) {
+  c(
+    Mean = mean(x),
+    Median = median(x),
+    sd = sd(x),
+    Q25 = quantile(x, 0.25),
+    Q75 = quantile(x, 0.75),
+    P9= quantile(x, 0.9),
+    P95= quantile(x, 0.95),
+    Min = min(x),
+    Max = max(x)
+  )
+}
+compute_summary_1_99 <- function(x) {
+  c(
+    Count = n(),
+    Mean = mean(x),
+    Median = median(x),
+    sd = sd(x),
+    p = quantile(x, 0.01),
+    P = quantile(x, 0.99),
+    Min = min(x),
+    Max = max(x)
+  )
+}
+
+# group by as variable
+group_var <- yield22_acre$your_grouping_variable
+
+# Apply the function to each group
+summary_stats <- tapply(yield22_acre$kg_per_acre, group_var, compute_summary)
+
+# Convert the result to a data frame
+summary_df <- as.data.frame(do.call(rbind, summary_stats))
+
+
+attr(a_rmtl_srvy22$l7_rank_3, "labels")
+
+flat_vector <- unlist(L48[,-1], use.names = FALSE)
+table(flat_vector, useNA = "always") 
+
+# remove columns only NA or empty
+select(where(~!all(.x=="")))
+select(where(~!all(is.na(.x))))
+
+# LM
+#m_edu <- lm(hh_irrigated ~ edu_hh_head + edu_hh + hh_literacyPrt , social_bl16)
+m_edu <- lm(hh_irrigated ~ hh_literacyPrt+edu_hh_head , social_bl16)
+summary(m_edu)
+sjPlot::tab_model(m_edu,show.se = TRUE,
+                  pred.labels = c("(Intercept)",  "% literacy in HH","HH head education level"),
+                  dv.labels = "`",
+                  string.se = "__Std. Err__",
+                  string.pred = "Predictors",
+                  string.est = "Coef.",
+                  string.ci = "CI (95%)",
+                  string.p = "p",
+                  p.style = "numeric",
+                  col.order = c("est","se","ci","p")
+)
+
+
+# regression with fixed effects
+model <- lm(hh_irrigated ~ factor(District) + X, data = social_bl16)
+
+broom::tidy(m_edu) %>%mutate(p.value = round(p.value, 3)) %>% 
+  kbl() %>% kable_minimal()
+
+#nice_lm
+model1 <- lm(mpg ~ cyl + wt * hp, mtcars)
+model2 <- lm(qsec ~ disp + drat * carb, mtcars)
+mods <- nice_lm(list(model1, model2), standardize = TRUE)
+mods
+nice_table(mods, highlight = TRUE)
+
+
+# write.csv
+write.csv(rmtl_In_groups, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_In_groups.csv", row.names=FALSE)
+write.csv(rmtl_InOut_groups, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_InOut_groups.csv", row.names=FALSE)
+write.csv(rmtl_baseline2016, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_baseline2016.csv", row.names=FALSE)
+
 
 

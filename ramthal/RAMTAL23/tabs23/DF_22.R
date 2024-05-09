@@ -1,52 +1,101 @@
-#| THIS R SCRIPT [DF_22.R] is data-frames/sets/bases of "2022 midline survey"
-#| 🟣MIDELINE 2022  | rmtl_srvy22 #= a_rmtl_srvy22 
 
-#| df16.R # scrip of data-frames/sets/bases of "2016 baseline survey"
-#🟡BASELINE 2016| rmtl_baseline2016 #= baseline_RMTL
-
-#| df18.R # scrip of data-frames/sets/bases of "2018 midline survey"
-#🟠MIDELINE 2018| rmtl_midline2018 #= mid2018_RMTL
+#| 🟡BASELINE 2016 # `rmtl_baseline2016` df from `df16.R` script
+#| 🟠MIDELINE 2018 # `rmtl_midline2018` df from `df18.R` script
+#| 🟣MIDELINE 2022 # `rmtl_srvy22` df
+Ramthal_Karnataka_Cleaned_Data <- read_dta("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/Ramthal_Karnataka_submissions/Ramthal_Karnataka_Cleaned_Data.dta")
+rmtl_srvy22 <- Ramthal_Karnataka_Cleaned_Data %>% rename(hh_id=id)
+rm(Ramthal_Karnataka_Cleaned_Data)
 
 library(dplyr)
 library(haven)
 library(tidyr)
-library("stringr") #"str_replace"
-
+library(stringr) #"str_replace"
 library(rstatix) # ttest "add_significance"
 library(rempsyc) # ttest # nice_table
 library(kableExtra )
 
+# DF's | [cult_hh]  [hh_2022]  [rmtl_In_groups] [rmtl_InOut_groups] ----
+
 cult_hh <- a_plots_crop[,1] %>% distinct() %>% mutate(hh_cult_2022=1)
-hh_2022 <- rmtl_srvy22 %>% select(hh_id,farmers_hh ) %>% 
-  left_join(cult_hh)
+
+hh_2022 <- rmtl_srvy22 %>% select(hh_id,farmers_hh ) %>% left_join(cult_hh)
 hh_2022$hh_cult_2022[is.na(hh_2022$hh_cult_2022)] <- 0
 
-rmtl_groups <- 
-irrigation_HH
-
-m3_mm4=rmtl_srvy22 %>% 
-  select(farmers_hh,hh_id,m3_0:m3_5 ) %>%
-  pivot_longer(-c(farmers_hh,hh_id), names_to = "ans",values_to = "yn") %>% 
-  left_join(rmtl_srvy22 %>% select(hh_id,mm4,mm5)) %>% 
-  group_by(farmers_hh,mm4,ans) %>% summarise(n=sum(yn)) %>% ungroup()
-
-m3_mm4[c(7:18),] %>% group_by(farmers_hh) %>% mutate(N=sum(n),prt_mm4= n/N )
 
 
-#    essantials----
-attr(rmtl_srvy22$m59a, "labels")
+# groups ONLY inside_ramthal
+rmtl_In_groups <- 
+  rmtl_srvy22 %>% filter(farmers_hh == "inside_ramthal") %>% 
+  select(hh_id,mm4,mm5) %>%  
+  rename(infrstr_17_21=mm4) %>%           # B infrstr_17_21
+  mutate(waterIR_17_21=
+           ifelse(is.na(mm5),0, mm5)) %>% # C waterIR_17_21 
+  left_join(ir_yr_21) %>%                 # D hh_drip_2021
+  left_join(ir_yr_17_21) %>%              # E hh_drip_yrs_17_21
+  select(-farmers_hh) %>% select(-mm5) %>% 
+  mutate(wIR_drip=ifelse(waterIR_17_21 ==1,1,ifelse(hh_drip_yrs_17_21==1,1,0))) %>% 
+  left_join(geo_rmtl) %>% 
+  mutate(inf_drip_17_21=
+           ifelse(infrstr_17_21==1 & hh_drip_yrs_17_21==1,1,
+           ifelse(infrstr_17_21==1,0,NA )) ) %>% 
+  select("hh_id",infrstr_17_21,"hh_drip_yrs_17_21",inf_drip_17_21 ,everything() )
 
-flat_vector <- unlist(L48[,-1], use.names = FALSE)
-table(flat_vector, useNA = "always") 
 
-# remove columns only NA or empty
-select(where(~!all(.x=="")))
-select(where(~!all(is.na(.x))))
+# groups in1_out0 ramthal
+rmtl_InOut_groups <- 
+  hh_2022 %>%             # A #farmers_hh / in1_out0
+  left_join(mm4_new) %>%  # B infrstr_17_21 #  have infrstr inside_ramthal [VS] no have infrstr outside_ramthal
+  left_join(mm5_new) %>%  # C waterIR_17_21 # use inside_ramthal [VS] not use + NA  outside_ramthal
+  left_join(ir_yr_21) %>% # D hh_drip_2021
+  left_join(ir_yr_17_21) %>%   # E hh_drip_yrs_17_21
+  left_join(geo_rmtl)
+#|A farmers_hh in1_out0 # inside_ramthal 1 [VS] outside_ramthal 0
 
-#    survey 2022 dataset----
-Ramthal_Karnataka_Cleaned_Data <- read_dta("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/Ramthal_Karnataka_submissions/Ramthal_Karnataka_Cleaned_Data.dta")
-a_rmtl_srvy22 <- Ramthal_Karnataka_Cleaned_Data %>% rename(hh_id=id)
-rm(Ramthal_Karnataka_Cleaned_Data)
+#|B infrstr_17_21 # mm4==1 & inside_ramthal [VS] mm4==0  & outside_ramthal
+
+#|C waterIR_17_21 # mm5==1 & inside_ramthal [VS] mm5==0 NA & outside_ramthal
+
+#|D hh_drip_2021 # hh_drip_2021==1 & inside_ramthal [VS] hh_drip_2021==0 & outside_ramthal
+
+#|E hh_drip_yrs_17_21 # hh_drip_yrs_17_21==1 & inside_ramthal [VS] hh_drip_yrs_17_21==0 & outside_ramthal
+
+
+# dfs for "groups"
+mm4_new <- 
+  rmtl_srvy22 %>% 
+  select(hh_id,mm4,farmers_hh) %>% 
+  mutate(infrstr_17_21=ifelse(mm4==1 & farmers_hh=="inside_ramthal",1,
+                              ifelse(mm4==0 & farmers_hh=="outside_ramthal",0,NA ) ))
+mm5_new <- 
+  rmtl_srvy22 %>% 
+  select(hh_id,mm5,farmers_hh) %>%
+  mutate(waterIR_17_21=ifelse(is.na(mm5),3,mm5)) %>% 
+  mutate(waterIR_17_21= ifelse(farmers_hh== "inside_ramthal" & waterIR_17_21==1, 1,
+                        ifelse(farmers_hh=="outside_ramthal" & waterIR_17_21==3, 0,
+                        ifelse(farmers_hh=="outside_ramthal" & waterIR_17_21==0,0 ,NA ) )))
+
+ir_yr_21 <- 
+  irrigation_HH %>% # df in this script below
+  rename(hh_irri_2021=hh_irrigated,hh_drip_2021= hh_drip,hh_6m_2021= hh_6methods)
+
+ir_yr_17_21 <- # rbind dfs in part1_WaterUsage.R script
+  rbind(ir18_2017,ir22_2018_2020,ir22_2021) %>% 
+  group_by(farmers_hh,hh_id) %>% 
+  summarise(hh_irri_yrs_17_21=sum(hh_irri) , hh_drip_yrs_17_21=sum(hh_drip)) %>% 
+  mutate(hh_irri_yrs_17_21=ifelse(hh_irri_yrs_17_21==0,0,1), hh_drip_yrs_17_21=ifelse(hh_drip_yrs_17_21==0,0,1) ) %>% ungroup()
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Irrigation source a_source_irri ( from L 'cultivation') ----
 #   L7 rank irrigation source
 # What irrigation source are you dependent on? (Rank according to the degree of importance)
@@ -281,6 +330,15 @@ irrigation_HH <-
   ungroup() %>% select(hh_id,hh_6methods) %>% distinct() %>% 
   mutate(hh_irri=ifelse(hh_6methods=="rain",0,1),
          hh_drip=ifelse(hh_6methods=="drip",1,0)) %>% left_join(hh_2022)
+
+irrigation_HH_k21_r2122_k22 <- 
+  a_irri_rain_method %>%  select( hh_id ,irri_method) %>% distinct() %>% 
+  group_by(hh_id)  %>%
+  mutate(hh_6methods = ifelse("drip" %in% irri_method , "drip", ifelse(any(irri_method  == "furrows"), "furrows",ifelse(any(irri_method  == "flood"), "flood",ifelse(any(irri_method  == "sprinkler"), "sprinkler",ifelse(any(irri_method  == "hose"), "hose","rain"))))) ) %>%
+  ungroup() %>% select(hh_id,hh_6methods) %>% distinct() %>% 
+  mutate(krk_hh_irri=ifelse(hh_6methods=="rain",0,1),
+         krk_hh_drip=ifelse(hh_6methods=="drip",1,0)) %>% 
+  rename(krk_hh_6methods=hh_6methods)
 
 # ir YEARS ----
 rmtl_srvy22 %>% select(hh_id, starts_with("l48_y"), starts_with("l48a_y"))
@@ -826,6 +884,18 @@ PCN_01=  # new_cultivated
                    grep("l35",names(a_rmtl_srvy22)),
                    grep("kharif_new_cultivated|rabi_new_cultivated|KHA22_new_cultivated",names(a_rmtl_srvy22)) )]
 
+######################    essantials    ----
 
-# write.csv----
-write.csv(a_plots_size, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/a_plots_size.csv", row.names=FALSE)
+attr(a_rmtl_srvy22$l7_rank_3, "labels")
+
+flat_vector <- unlist(L48[,-1], use.names = FALSE)
+table(flat_vector, useNA = "always") 
+
+# remove columns only NA or empty
+select(where(~!all(.x=="")))
+select(where(~!all(is.na(.x))))
+
+# write.csv
+write.csv(rmtl_In_groups, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_In_groups.csv", row.names=FALSE)
+write.csv(rmtl_InOut_groups, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_InOut_groups.csv", row.names=FALSE)
+write.csv(rmtl_baseline2016, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_baseline2016.csv", row.names=FALSE)

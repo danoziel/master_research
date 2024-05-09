@@ -1,0 +1,402 @@
+---
+title: ' _'
+output:
+  word_document: default
+  pdf_document: default
+  html_document:
+    header-includes: "<style>\n  body {\n    font-family: serif;\n  }\n</style>\n"
+---
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(readr)
+gj1 <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/world_bank/gj1.csv")
+
+library(dplyr)
+library(ggplot2)
+library(summarytools)
+library(gridExtra)
+library(tidyr)
+mis_type=
+  gj1 %>%select(regno,mistype) %>% filter(mistype != "")
+
+
+```
+
+## **Gujarat Green Revolution Company Limited**
+Gujarat Green Revolution Company limited is an implementing agency for implementation of Micro Irrigation Scheme on behalf of Government of India and Government of Gujarat in Gujarat State through reputed authorized Micro Irrigation System suppliers, who supplies and installs the Micro Irrigation System and also provides agro services pertaining to Micro Irrigation System. It is aim to bring 2nd Green Revolution in the state by saving of water, electricity and enhancing agriculture productivity resulting in the farmers prosperity at large.
+
+[Rashtriya Krishi Vikas Yojana (RKVY)](https://agriwelfare.gov.in/sites/default/files/rkvy_inro.pdf)
+
+>
+>
+
+
+The total number of farmers in the database - those who have registered for an irrigation system.
+Below - Farm registered each year from 2005 to 2014
+The percentage of farms in drip and splash
+and categories by land size
+```{r desc, echo=FALSE, warning=FALSE,fig.width=6, fig.height=2}
+
+library(modelsummary )
+
+gj1  %>% count(year_Registration)  %>%
+  ggplot(aes(year_Registration, n)) +
+  geom_line(size=1)+theme_light() + 
+  scale_x_continuous(breaks=seq(2005,2014,1))
+
+mistype=  gj1$mistype %>% as.data.frame() %>% filter(!is.na(.)) 
+datasummary_skim(mistype, type = "categorical")
+
+farmer_cat=  gj1$farmer_category %>% as.data.frame() %>% filter(!is.na(.))
+datasummary_skim(farmer_cat, type = "categorical")
+
+```
+  
+  **Farmers Category**  
+Marginal     | Below 1 hectare   
+Small        | 1-2  
+Semi- Medium | 2-4   
+Medium       | 4-10   
+Large        | 10  and above 
+
+
+
+
+```{r ct_farmers1, echo=FALSE, warning=FALSE,fig.width=7, fig.height=3}
+
+ct_farmers= 
+  gj1 %>% filter(!FarmerType %in% c("","0","NULL")) %>% 
+  count(year_Registration,FarmerType) %>%   
+  group_by(year_Registration) %>% 
+  mutate(prt = n / sum(n) * 100)
+
+ct_farmers %>% ggplot(aes(year_Registration, prt, color = FarmerType)) +
+  geom_line(size=1)+theme_light() +
+  scale_x_continuous(breaks=seq(2005,2014,1))+ ylim(0, 40)
+
+gj1 %>% filter(!FarmerType %in% c("","0","NULL")) %>% 
+  count(year_Registration,FarmerType) %>%   
+  group_by(FarmerType) %>% 
+  mutate(prt = n / sum(n) * 100) %>% 
+  ggplot(aes(year_Registration, prt, color = FarmerType)) +
+  geom_line(size=1)+theme_light() + scale_x_continuous(breaks=seq(2005,2014,1))+ ylim(0, 40)
+
+```
+
+<br>
+<br>
+<br>
+<br>
+<br>
+
+
+
+#### **Micro Irrigation system type**  
+
+```{r mistype, echo=FALSE , warning=FALSE,fig.width=7, fig.height=3}
+
+# mistype ----
+
+colour <- c( "blue4" ,"royalblue1")
+gj1 %>% filter(mistype %in% c("Drip","Sprinkler")) %>% 
+  count(mistype, year_Registration) %>%   
+  group_by(mistype) %>% 
+  mutate(sum(n) ,prt = n / sum(n) * 100) %>% 
+  ggplot(aes(year_Registration, prt, color = mistype)) +
+  geom_line(size=1)+theme_light() + scale_x_continuous(breaks=seq(2005,2014,1))+ ylim(0, 30) + 
+  scale_colour_manual(values=colour)
+
+```
+
+<br>
+<br>
+<br>
+<br>
+<br>
+
+#### **Social Status**
+
+<span style="color:#5F6EA0;">High castes</span> |
+<span style="color:#5F9EA0;">Low castes</span>
+
+```{r caste1, echo=FALSE , warning=FALSE, fig.width=5, fig.height=3}
+
+# caste ----
+clr_caste <- c("#5F6EA0",  "#5F9EA0" )
+
+  gj1 %>% filter(!is.na(caste)) %>% 
+  count(year_Registration,caste) %>%   
+  group_by(caste) %>% 
+  mutate(sum(n),prt = n / sum(n) * 100) %>% 
+  ggplot(aes(year_Registration, prt, color = caste)) +
+  geom_line(size=1.5)+theme_light() + 
+  scale_x_continuous(breaks=seq(2005,2014,1))+
+  scale_colour_manual(values=clr_caste)+
+  theme(legend.position = "none")
+  
+```
+
+```{r caste2, echo=FALSE , warning=FALSE, fig.width=8, fig.height=2.5}
+
+# caste ----
+clr_caste <- c("#5F6EA0",  "#5F9EA0" )
+
+p2 <- 
+  gj1 %>% filter(!is.na(caste)) %>% 
+  inner_join(mis_type) %>% filter(mistype=="Drip") %>%
+  count(year_Registration,caste) %>%   
+  group_by(caste) %>% 
+  mutate(sum(n),prt = n / sum(n) * 100) %>% 
+  ggplot(aes(year_Registration, prt, color = caste)) +
+  geom_line(size=1)+theme_light() + 
+  scale_x_continuous(breaks=seq(2005,2014,1))+
+  scale_colour_manual(values=clr_caste)+  labs(title = "Drip-irrigated farms")
+
+p2 <- p2+ guides(color = "none")
+
+p3 <- 
+  gj1 %>% filter(!is.na(caste)) %>% 
+  inner_join(mis_type) %>% filter(mistype=="Sprinkler") %>%
+  count(year_Registration,caste) %>%   
+  group_by(caste) %>% 
+  mutate(sum(n),prt = n / sum(n) * 100) %>% 
+  ggplot(aes(year_Registration, prt, color = caste)) +
+  geom_line(size=1)+theme_light() + 
+  scale_x_continuous(breaks=seq(2005,2014,1))+
+  scale_colour_manual(values=clr_caste)+  labs(title = "Sprinkler-irrigated farms")
+p3 <- p3+ guides(color = "none")
+
+
+
+# Arrange the plots side by side
+grid.arrange(p2, p3, nrow = 1)
+
+
+```
+
+<br>
+<br>
+<br>
+<br>
+<br>
+
+#### **Loan**
+```{r loan , echo=FALSE , warning=FALSE, fig.width=7, fig.height=3}
+
+Loan=  as.character(gj1$Loan) %>% as.data.frame() %>% filter(!is.na(.)) 
+datasummary_skim(Loan, type = "categorical")
+
+
+loan_year=
+  gj1 %>%filter(!is.na(Loan)) %>% count(year_Registration,Loan) %>%
+  group_by(year_Registration) %>% 
+  mutate(pct=n/sum(n)*100) %>% mutate_at(4,round) %>% filter(Loan==1) %>% 
+  ungroup() %>% mutate(Loan="year_wise")
+
+loan_farmers=
+  gj1 %>%filter(!is.na(Loan)) %>% count(year_Registration,Loan) %>%
+  group_by(Loan) %>% 
+  mutate(pct=n/sum(n)*100) %>% mutate_at(4,round) %>% filter(Loan==1) %>% 
+  ungroup() %>% mutate(Loan="HHs_wise")
+
+clr_loan <- c("gold2",  "gold4" )
+rbind(loan_farmers,loan_year) %>% 
+  ggplot(aes(x=year_Registration, y=pct, color = Loan)) +
+  geom_line(size=1)+
+  scale_x_continuous(breaks=seq(2005,2014,1))+
+  scale_colour_manual(values=clr_loan)+
+  ggtitle("% HH who took loan") +theme_bw()
+
+
+
+```
+
+<br>
+<br>
+<br>
+<br>
+<br>
+
+#### **MIS Supplier**
+```{r supplier , echo=FALSE , warning=FALSE, fig.width=7, fig.height=4}
+
+gj1 %>%filter(supplier != "") %>% count(year_Registration,supplier) %>%
+  group_by(year_Registration) %>% 
+  mutate(pct=n/sum(n)*100) %>% top_n(3,pct) %>% mutate_at(4,round) %>% 
+  ggplot(aes(x=year_Registration, y=pct, group=supplier, fill=supplier)) +
+  geom_bar(stat = "identity")+ theme_bw()+
+  scale_x_continuous(breaks=seq(2005,2014,1))+
+  scale_fill_manual(values=
+                      c("gray50", "gray60", "gray70","gray80", 
+                        "green4", "blue4","red3") )
+
+```
+
+<br>
+<br>
+<br>
+<br>
+<br>
+
+#### **LAND**
+ 
+<span style="color:royalblue;">Total Land</span> |
+<span style="color:brown;">Irrigated Land</span>
+
+```{r land, echo=FALSE, warning=FALSE,fig.width=10, fig.height=5}
+
+land1=
+  gj1 %>% select(regno, year_Registration,TotalLand, misarea, mi_pct_land ) %>% 
+  filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56 ) %>% 
+  group_by(year_Registration) %>% 
+  summarise(
+    total_land=mean(TotalLand),
+    irrigated_land=mean(misarea),
+    pct_irrigated_land=mean(mi_pct_land)*100) %>% 
+  mutate_at(4,round) %>% 
+  pivot_longer(!year_Registration, names_to = "land", values_to = "size") %>% 
+  mutate(mistype="All farm")
+
+#__Fig___Total land & Irrigated Land [In Ha]
+colour3 <- c("royalblue1", "brown4")
+p1=land1 %>% filter(land != "pct_irrigated_land" ) %>% 
+  ggplot(aes(year_Registration, size, color = land)) +
+  geom_line(size=1.5)+theme_light() +
+  scale_x_continuous(breaks=seq(2005,2014,1))+
+  scale_colour_manual(values = colour3)+
+  labs(title = "Ha of land holding and irrigated land ")+ 
+  theme(legend.position = "none")
+
+#__Fig___share of irrigated land [In %] 
+p2=land1 %>% filter(land == "pct_irrigated_land" ) %>% 
+  ggplot(aes(year_Registration,size)) +
+  geom_line(color="royalblue4", size=1.5)+theme_light() +
+  scale_x_continuous(breaks=seq(2005,2014,1))+
+  labs(title = "% of irrigated land")
+
+grid.arrange(p1, p2, nrow = 1)
+
+```
+
+##### land and micro irrigation
+
+```{r land2A, echo=FALSE, warning=FALSE,fig.width=7, fig.height=4}
+
+######## filter(mistype %in% c("Drip","Sprinkler"))
+  
+land2=
+  gj1 %>% select(regno, year_Registration,TotalLand, misarea, mi_pct_land,mistype ) %>%
+  filter(mistype %in% c("Drip","Sprinkler")) %>% 
+  filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56 ) %>% 
+  group_by(mistype,year_Registration) %>% 
+  summarise(
+    land_holding=mean(TotalLand),
+    land_irrigated=mean(misarea),
+    pct_irrigated_land=mean(mi_pct_land)*100) %>% mutate_at(5,round) %>% 
+  ungroup() %>% 
+  pivot_longer(!c(mistype,year_Registration), names_to = "land", values_to = "size") %>% 
+  unite(land_mistype, land, mistype, sep = "_", remove = FALSE)
+
+#__Fig___Total land & Irrigated Land [In Ha]
+clr4 <- c("royalblue4","royalblue1" , "royalblue4" ,"royalblue1")
+
+land2 %>% filter(land != "pct_irrigated_land" ) %>% 
+  ggplot(aes(year_Registration, size, color = land_mistype)) +
+  geom_line(size=1.5)  +
+  theme_light() +
+  scale_x_continuous(breaks = seq(2005, 2014, 1)) +
+  scale_colour_manual(values = clr4) 
+
+```
+
+```{r land2B, echo=FALSE, warning=FALSE,fig.width=7, fig.height=4}
+
+#__Fig___share of irrigated land [In %] 
+clr5 <- c("royalblue4"  ,"royalblue1")
+
+land2 %>% filter(land == "pct_irrigated_land" ) %>% 
+  ggplot(aes(year_Registration, size, color = land_mistype)) +
+  geom_line(size=1.5)  +
+  theme_light() +
+  scale_x_continuous(breaks = seq(2005, 2014, 1)) +
+  scale_colour_manual(values = clr5)
+
+```
+
+<br>
+<br>
+<br>
+<br>
+<br>
+
+#### **first_to_adopt**
+```{r first_to_adopt , echo=F , warning=F, fig.width=7, fig.height=3}
+
+
+# gujarat villages list and frequency
+gj_village=gj1 %>% filter(farmervillage != "") %>%  count(farmervillage) %>% filter(n>10)
+
+# The first 5 farmers RegistrationDate in each village
+date_rank=
+  gj1 %>% filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56 ) %>% 
+  select(regno, RegistrationDate,farmervillage,TotalLand) %>%
+  right_join(gj_village[,1]) %>% 
+  group_by(farmervillage) %>% 
+  arrange(RegistrationDate) %>% slice(1:15) %>%
+  mutate(rank_date_adopters = row_number(),
+         days_gap = c(NA, diff(RegistrationDate))) %>% 
+  ungroup()
+
+#__Fig__
+date_rank %>% group_by(rank_date_adopters)%>% 
+  summarise(mean_land_ha=mean(TotalLand,na.rm = T))%>%
+  ggplot(aes(rank_date_adopters,mean_land_ha)) +
+  geom_line(color="#69b3a2", size=1.5)+theme_light() +
+  scale_x_continuous(breaks=seq(1,15,2))
+
+
+```
+
+##### No. weeks between RegistrationDate of 15 first farmers 
+
+```{r first_to_adopt2, echo=F, warning=F, fig.width=8,fig.height=3}
+
+
+date_gap <- 
+  date_rank %>% group_by(rank_date_adopters)%>% 
+  summarise(days_gap=mean(days_gap,na.rm = T))%>%
+  filter(rank_date_adopters!=1)%>%
+  mutate(week_gap=days_gap/7) %>% 
+  mutate(accumulated_week_gap = cumsum(week_gap))
+
+library(patchwork)
+library(hrbrthemes)
+
+# A few constants
+coeff <- 5
+weeks <- "#69b3a2"
+acc_weeks <- rgb(0.2, 0.6, 0.9, 1)
+
+
+ggplot(date_gap, aes(x=rank_date_adopters)) +
+  geom_line( aes(y=week_gap), size=1, color=weeks) + 
+  geom_line( aes(y=accumulated_week_gap / coeff), size=1, color=acc_weeks) +
+  scale_y_continuous(
+    name = "Weeks Gap",
+    sec.axis = sec_axis(~.*coeff, name="Accumulated Weeks Gap")
+  )  + 
+  theme_ipsum() +
+  theme(axis.title.y = element_text(color = weeks, size=13),
+        axis.title.y.right = element_text(color = acc_weeks, size=13))+
+  scale_x_continuous(breaks=seq(2,15,2))
+
+
+```
+
+
+
