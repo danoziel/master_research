@@ -92,8 +92,12 @@ sr <- HH_pct_N_rain  %>% filter(!is.na(ALLSKY_SFC_SW_DWN))
 AA=lm(pct ~ ALLSKY_SFC_SW_DWN+ rain_day_1mm,sr)
 
 library(sjPlot)
+M <- 
 tab_model(AA,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",
           dv.labels = c(" "),pred.labels = c("(Intercept)", "GHI [Solar Radiation]","Rainy Day [>1 mm]"))
+M <- summary(AA)
+kable(M) %>% kable_minimal()
+
 #-----
 modSR <- lm(pct ~ ALLSKY_SFC_SW_DWN,sr)
 

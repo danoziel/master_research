@@ -1,10 +1,15 @@
 #| THIS R SCRIPT [df16.R] is data-frames/sets/bases of "2016 baseline survey"
 #| 🟡BASELINE 2016  | rmtl_baseline2016 #= baseline_RMTL
 
+
+CMF_RAMTHAL_IRRIGATION_18_Aug_2016_cleaned <- read_dta("~/master_research/DATAs/ramthal_data/baseline_survey_2016/CMF_RAMTHAL_IRRIGATION_18 Aug 2016 - cleaned.dta")
+
+
 rmtl_baseline2016 <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_baseline2016.csv")
 
 #🟠MIDELINE 2018| rmtl_midline2018 is in `df18.R` script
 #🟣MIDELINE 2022| rmtl_srvy22 is in `DF_22.R` script
+library(readr)
 
 library(dplyr)
 library(haven)
@@ -230,34 +235,38 @@ bl_season_plot_irri$irri_source_5y[is.na(bl_season_plot_irri$irri_source_5y)] <-
 
 --------------------------------------------------------------------------------
   
+      
+      quantile(a_plots_size$acres, 0.99, na.rm = TRUE)
+    
+      
+      
 #       D2 Total Area (acres)                            ----
 
 # D2	How many acres (guntas) of land does your household currently own?
-land_bl <- baseline_RMTL%>% 
-  select(hh_id,D2,D2_acer,D2_guntas,D3) %>% 
+land_bl <- rmtl_baseline2016 %>% 
+  select(hh_id,D2,D2_acer,D2_guntas,D3,in1_out0) %>% 
   rename( total_acres=D2 , total_plots=D3) %>% 
-  right_join(a_sample[,1:2])
+      filter(total_acres<40.74) # elimination of the 99%
+
+quantile(land_bl$total_acres, 0.99, na.rm = TRUE)
+    
 
 # D2 total_acres COR D3 total_plots 
-ggplot(d, aes(x=total_acres, y=total_plots)) +
-  geom_point(shape=18, color="green4")+
-  geom_smooth(method=lm, se=FALSE, color="brown4")+ theme_minimal()
-
-d2d3 <- lm(total_acres ~ total_plots, d)
+ggplot(land_bl, aes(x=total_acres, y=total_plots)) + geom_point(shape=18, color="green4")+ geom_smooth(method=lm, se=FALSE, color="brown4")+ theme_minimal()
+d2d3 <- lm(total_acres ~ total_plots, land_bl)
 summary(d2d3)
 
-library(sjPlot)
-tab_model(d2d3, show.se = TRUE)
 
 # D2	Total Area  (acres) 
 
 
 # total_acres | total_plots summary_stats t.test
 library(rstatix)
-stats_acres= land_bl %>% group_by(farmers_hh) %>% get_summary_stats(total_acres, type = "mean_sd")
+land_bl %>% get_summary_stats(total_acres, type = "mean_sd")
+land_bl %>% group_by(in1_out0) %>% get_summary_stats(total_acres, type = "mean_sd")
 
-d1 <- land_bl %>% t_test(total_acres  ~ farmers_hh, detailed = T) %>% add_significance()
-d2 <- land_bl %>% t_test(total_plots  ~ farmers_hh, detailed = T) %>% add_significance()
+d1 <- land_bl %>% t_test(total_acres  ~ in1_out0, detailed = T) %>% add_significance()
+d2 <- land_bl %>% t_test(total_plots  ~ in1_out0, detailed = T) %>% add_significance()
 
 table_dd=bind_rows(d1,d2) %>% 
   rename(`Inside \nRamthal`=estimate1,`Outside \nRamthal`=estimate2,t=statistic) %>% 

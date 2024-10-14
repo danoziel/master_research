@@ -16,8 +16,6 @@ library(rempsyc) # ttest # nice_table
 library(kableExtra )
 library(tidyverse)
 ----------------------------------------------- # essentials               -----
-#|🟥🟧🟨🟩🟦🟪⬛⬜🟫 
-#|🟦🟩
 
 select(where(~!all(is.na(.x)))) 
 
@@ -114,7 +112,8 @@ irrigation_season.HH <- # former hh_irr_season <-
          hh_drip=ifelse(hh_6methods=="drip",1,0)) %>% left_join(hh_2022)
 
 ##### STAT
-irrigation_season.HH %>% group_by(season,farmers_hh) %>% summarise(mean(hh_irri)) %>%  count(hh_irri) %>% group_by(season,farmers_hh) %>% mutate( n/sum(n)) %>% mutate_at(5,round,2)
+irrigation_season.HH %>% group_by(season,farmers_hh) %>% summarise(mean(hh_irri)) 
+
 t_L48a <- irrigation_season.HH %>% group_by(season) %>%t_test(hh_irri ~ farmers_hh , detailed = T) %>% rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% select(season,Ramthal,Outside_Ramthal,n1,n2,estimate,conf.low,conf.high,t,df,p) 
 nice_table(t_L48a,title = c("Table 48a | Fraction of hh who use irrigation, by season"),note = c("[L48a] What is the method of irrigation?","🟩" ))
 
@@ -159,9 +158,6 @@ ml18_15a <- ml18_irri_methods %>% mutate(hh_irrigate_past_year = ifelse(irri==0,
 table_2H=bind_rows(mt01, ml18_15a, mt_bl01) %>% 
   rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
   select(.y.,Ramthal,Outside_Ramthal,n1,n2,estimate,conf.low,conf.high,t,df,p) 
-table_2H$.y.[table_2H$.y.== "bl_last_5years"] <- "2012-2016"
-table_2H$.y.[table_2H$.y.== "hh_irrigate_past_year"] <- "2017-2018"
-table_2H$.y.[table_2H$.y.== "hh_irri"] <- "2021-2022"
 names(table_2H)[names(table_2H) == ".y."] <- "Crop year"
 
 nice_table(table_2H, # W700 H400
@@ -934,3 +930,60 @@ rm(hh)
 plotNew %>% full_join(a_sample) %>% group_by(farmers_hh) %>%
   summarise(new_plot_num=mean(new_plot_num ), new_plot_acre=mean(new_plot_acre) )
   
+
+
+
+# LeapSKY ___----
+# install.packages("jsonlite")
+library(jsonlite)
+data <- fromJSON("C:/Users/Dan/Downloads/sessions_2024_07_25/sessions_2024_07_25/667a691baa8b12087785ece2.json")
+data <- fromJSON("C:/Users/Dan/Downloads/sessions_2024_07_25/sessions_2024_07_25/669f61693ac2f46f115b7df6.json")
+data <- fromJSON("C:/Users/Dan/Downloads/sessions_2024_07_25/sessions_2024_07_25/66709ee6a9604fd208792e25.json")
+data <- fromJSON("C:/Users/Dan/Downloads/sessions_2024_07_25/sessions_2024_07_25/66726e6bbaaa4a6ef4d9ce83.json")
+data <- fromJSON("C:/Users/Dan/Downloads/sessions_2024_07_25/sessions_2024_07_25/66731bc7baaa4a6ef4d9e362.json")
+data <- fromJSON("C:/Users/Dan/Downloads/sessions_2024_07_25/sessions_2024_07_25/668106e96c751f43dd3f3fd7.json")
+data <- fromJSON("C:/Users/Dan/Downloads/sessions_2024_07_25/sessions_2024_07_25/665e0abf2a7e6d1174775589.json")
+data %>% select(2,5) %>% kbl() %>% kable_minimal()
+dta1=
+  data %>% 
+  mutate(createdAt = strptime(createdAt, format="%Y-%m-%dT%H:%M:%OSZ")) %>%   
+  mutate(words_count = sapply(strsplit(content, " "), length)) %>% 
+  
+  mutate(time_in_seconds = lead(createdAt) - createdAt,
+         time_in_minutes = as.numeric(time_in_seconds / 60),
+         words_per_minute = words_count / time_in_minutes
+  ) %>% 
+  select("role","content","words_count","time_in_seconds","time_in_minutes","words_per_minute" ) %>% 
+  mutate_at(4:6,round,2)
+
+
+
+
+
+
+data <- fromJSON("C:/Users/Dan/Downloads/sessions_2024_07_25/sessions_2024_07_25/666ea5167f016ccc6d7a7957.json")
+data <- fromJSON("C:/Users/Dan/Downloads/sessions_2024_07_25/sessions_2024_07_25/666ef8021794d4c054328856.json")
+data <- fromJSON("C:/Users/Dan/Downloads/sessions_2024_07_25/sessions_2024_07_25/666efcc21794d4c0543289ba.json")
+dta2=
+  data %>% 
+  mutate(createdAt = strptime(createdAt, format="%Y-%m-%dT%H:%M:%OSZ")) %>%   
+  mutate(words_count = sapply(strsplit(content, " "), length)) %>% 
+  mutate(time_in_seconds = lead(createdAt) - createdAt,
+         time_in_minutes = as.numeric(time_in_seconds / 60),
+         words_per_minute = words_count / time_in_minutes
+  ) %>% 
+  select("content","words_count","role","time_in_seconds","time_in_minutes","words_per_minute" ) %>% 
+  mutate_at(4:6,round,2)
+
+
+  
+
+
+
+data %>% filter(role == "user") %>% select(1) %>% kbl() %>% kable_minimal()
+data %>% select(3,1) %>% kbl() %>% kable_minimal()
+data %>% select(2,5) %>% kbl() %>% kable_minimal()
+
+
+rm(data)
+

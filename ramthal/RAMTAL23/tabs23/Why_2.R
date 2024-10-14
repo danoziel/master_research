@@ -1,6 +1,7 @@
 library(dplyr)
 library(haven)
 library(tidyr)
+library(ggplot2)
 library("stringr") #"str_replace"
 library(summarytools)
 
@@ -12,24 +13,11 @@ library(tidyverse)
 rmtl_In_groups
 rmtl_InOut_groups
 scale_fill_manual(values = c("lightblue", "gray80"))+theme_minimal()
-
- -----
-# To what extent was the sample contaminated? ----
-
-sample_contaminated <- 
-  rmtl_srvy22 %>% select(farmers_hh,hh_id, mm2_1,mm4,mm5,mw1a ) %>% left_join(irrigation) %>% #count(farmers_hh, mm2_1) # 143 HH - outside_ramthal + mm2_1==1
-  filter(farmers_hh=="outside_ramthal", mm2_1 == 1)
-
-# Do you think the income of those farmers covered by the project improved? 
-m7 <- rmtl_srvy22 %>% select(farmers_hh,hh_id, mm2_1,mm4,mm5,m7 ) %>% left_join(prt.irri_hh.22) 
-m7%>% group_by(irri01) %>% summarise(mean(m7))
-m7%>% group_by(farmers_hh) %>% summarise(mean(m7))
-
-m7 %>%t_test(m7 ~ farmers_hh , detailed = T)
-m7 %>%t_test(m7 ~ irri01 , detailed = T)
+color2_bin <- c("infrstr_17_21" = "darkgreen","hh_drip_yrs_17_21"="darkblue")
+color3_bin <- c("infrstr_17_21" = "darkgreen","hh_drip_yrs_17_21"="darkblue" ,"inf_drip_17_21" = "blue2")
 
 
-#🟦🟩 who1: overlap  ----
+# overlap data  ----
 
 #| Used  source [Gov_supply] / infrastructure [Installed] / water [used] 
 
@@ -110,56 +98,261 @@ but_ramthal %>% count(farmers_hh) %>% mutate(grp=c(946,666 )) %>% mutate(n/grp)
 
 # 2️⃣Why do farmers use the DIS to a low extent?----
 #
+#_____DF_Socioeconomic ___________________ [economic16]       ----
+
+# bpl_card AND official_assistance
+# B8	Does this household have a BPL ration card?
+# B9	In the last 5 years, has the household received any assistance from the municipality/government/gram panchayat? (NOT including ration card)
+rmtl_baseline2016 %>% select(contains(c( "B8","B9")))
+# B1	Is this housing constructed with pucca, semi-pucca, or kutcha materials?1Pucca House/ 2Semi Pucca House/ 3Kutcha House
+# D2	How many acres (guntas) of land does your household currently own?
+# D3	How many plots of land does your household currently own?
+rmtl_baseline2016 %>% select(contains(c( "B1","D2" ,"D3")))
+# F12	Total (Rs.)
+# F13	According to what you indicated, your total HH income is Rs. [     ].
+# F14	What is you income expectation in 2 years from now? (Rs.)		
+
+f13=
+  rmtl_baseline2016 %>% select(hh_id ,contains(c("F12_year","F13"))) %>% 
+  mutate(income_2015= ifelse(is.na(F12_year), F13,ifelse(is.na(F13),F12_year, pmax(F12_year,F13, na.rm = TRUE)))) %>% 
+  select(hh_id,income_2015)
+summary_1_99(f12_f13$bl_yr_income)
+f13$income_2015[f13$income_2015<7000] <- NA
+f13$income_2015[f13$income_2015>1000000] <- NA
+f13$incomeK_2015=f13$income_2015/1000  
+  
+
+economic16=
+  rmtl_baseline2016 %>% 
+  select(hh_id, D2 ,D3, B1,B8,B9) %>% 
+  rename(bpl_card=B8,official_assistance=B9,
+         total_plots=D3, total_acre=D2) %>%   #[total_acre | total_plots] 
+  mutate(total_acre_bin = ntile(total_acre, 5)) %>% 
+  mutate(housing_str01=ifelse(B1==1,1,0)) %>% 
+  mutate(housing_str321=ifelse(B1==1,3,ifelse(B1==3,1,2))) %>% 
+  select(-B1) %>% 
+  left_join(f13) %>% 
+  mutate(income2015_bin = ntile(incomeK_2015, 5))
+
+
+# Summary stat
+summary_1_99(economic16$total_acre)
+summary_1_99(economic16$total_plots)
+
+# remove outlyres
+economic16$total_acre[economic16$total_acre>40] <- NA
+economic16$total_plots[economic16$total_plots>7] <- NA
+
+#_____DF_education _______________________ [education16]      ----
+#   
+# C5	What is their relationship to the head of household?
+# C7	What is their educational level? (0=NOT literate)
+
+c5= rmtl_baseline2016 %>% select(hh_id,starts_with("C5" ),-contains("_os_") ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "hh_member")
+c5$id_member <- sub("^C5_(\\d{1,2})","C_\\1",c5$id_member )
+
+c7= rmtl_baseline2016 %>% select(hh_id, starts_with("C7"), -ends_with("_bin") ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level")
+c7$id_member <- sub("^C7_(\\d{1,2})","C_\\1",c7$id_member )
+
+
+#literate=educated  hh_literacyPrt=prt_educated
+edu = 
+  full_join(c5,c7)%>%  # full_join(c6)-- "educated" var instead
+  filter(!is.na(hh_member)) %>% 
+  mutate(educated=ifelse(is.na(edu_level),0 ,ifelse(edu_level == -999 ,0,1) )) %>% 
+  mutate(edu_hh_head = 100)
+edu$edu_level[is.na(edu$edu_level)] <- 0                         
+edu$edu_hh_head=ifelse( edu$hh_member==1,edu$edu_level,NA )
+rm(c5,c7)
+
+# HH with one head
+edu1 = edu %>% filter(!is.na(edu_hh_head)) %>% count(hh_id) %>%filter(n==1) %>% left_join(edu)
+
+# HH with more then one head & without head
+edu2 = edu %>%left_join(edu1[,1:2] %>% distinct()) %>% filter(is.na(n)) %>% select(-n)
+edu2$edu_hh_head=ifelse(edu2$id_member=="C_1", edu2$edu_level, NA )
+
+# edu1 + edu2 [8,129 × 7]
+Edu =  edu1 %>% select(-n) %>% rbind(edu2)
+Edu$edu_level[Edu$edu_level==-999] <- NA
+Edu$high_edu= ifelse(Edu$edu_level %in% c(4,5,6),1,0 )
+Edu$edu_level_CAT= ifelse(Edu$edu_level %in% c(1,2),1,ifelse(Edu$edu_level == 3,2,ifelse(Edu$edu_level %in% c(4,5,6),3,0)  )) 
+
+Edu %>% freq(edu_level_CAT)
+Edu %>% freq(edu_level)
+
+education16 =
+  Edu %>% 
+  group_by(hh_id) %>% 
+  mutate(
+    total_hh_members= n(),
+    edu_level_hh= mean(edu_level),
+    high_edu_pct_hh= mean(high_edu),
+    educated_pct_hh=mean(educated),
+    edu_level_hh_CAT=mean(edu_level_CAT) 
+                      ) %>% 
+  select(hh_id, edu_hh_head,edu_level_hh,edu_level_hh_CAT, high_edu_pct_hh, educated_pct_hh) %>% 
+  filter(!is.na( edu_hh_head )) %>% ungroup() %>% 
+  mutate(edu_hh_head_01=ifelse(edu_hh_head==0,0,1)) %>%    # edu_hh_head_01
+  mutate_at(3:6,round,2)
+  
+
+
+# this DF is index which C_ is the hh head
+  head_of_hh= Edu %>% select(hh_id, id_member, edu_hh_head) %>% 
+  filter(!is.na(edu_hh_head)) %>% mutate(hh_head_id=1)
+  
+rm(edu, edu1, edu2)
+
+
+#_____DF_Age Gendar ______________________ [age_gndr_hh_head] ----
+head_of_hh
+
+C3_gndr=rmtl_baseline2016 %>% select(hh_id, starts_with("C3_")) %>% pivot_longer(!hh_id, names_to = "id_member", values_to= "gndr") %>% mutate(id_member = gsub("C3_", "C_", id_member))
+C4_age= rmtl_baseline2016 %>% select(hh_id, starts_with("C4_")) %>% pivot_longer(!hh_id, names_to = "id_member", values_to = "age") %>% mutate(id_member = gsub("C4_", "C_", id_member))
+
+age_gndr=inner_join(C3_gndr,C4_age) %>% left_join(head_of_hh) %>% filter(!is.na(hh_head_id)) %>% select(hh_id,gndr,age,edu_hh_head)
+
+age_gndr_hh_head <- age_gndr %>%
+  mutate(age_cat = cut(age, breaks = c(0, 19, 29, 39, 49, 59, 100), 
+                       labels = c(1, 2, 3, 4, 5, 6),
+                       right = FALSE, include.lowest = TRUE)) %>% 
+  mutate(age_bin = ntile(age, 5))
+
+
+#stat
+age_gndr_hh_head %>% inner_join(rmtl_In_groups) %>% group_by(age_bin ) %>%  summarise(mean(infrstr_17_21),n=n())
+
+#_____DF_Social __________________________ [caste]            ----
+
+# a21	What is your religion?	#	rmtl_baseline2016 %>% count(A21)
+# a22 What is your caste? # rmtl_baseline2016 %>% count(A22) / rmtl_baseline2016$A22_os
+# a23 Which caste category does this fall under?
+
+caste1= rmtl_baseline2016 %>% select(hh_id,A21, A22,A22_os,A23)
+caste1 %>% count(A23)
+
+# 1 General Category # 2 Other Backward Caste # 3 Scheduled Caste # 4 Scheduled Tribe
+caste1$A23[caste1$A23 %in% c("","-777","-999")] <- NA
+caste2=caste1%>%
+  mutate(caste_01=ifelse(A23=="1",1,                # General Category
+                  ifelse(A23 %in% c("2","3","4"),0 ,# OBC/SC/ST
+                                NA))) %>% 
+  rename(caste_4321=A23)
+
+caste = caste2 %>% select(hh_id, caste_01, caste_4321)
+rm(caste1,caste2)
+#
+
+
+#_____DF_Information _____________________ [info]             ----
+#### knowledge about irrigation
+# I3	Do you know any farmer in your village who uses it?
+#### Demonstration plots
+# I24	Have you ever gone to visit them?
+
+info = 
+  rmtl_baseline2016 %>% select(hh_id, I3 , I24) %>% 
+  rename(know_frmr_uses_drip=I3, visit_demo_plot=I24)
+
+
+
+
+
 
 --------------------------------------------------------------------------------
-# pl16 | age_gndr_hh_head | economic16 | caste | edu_hh_level
+# Combine df [dt10] ----
+--------------------------------------------------------------------------------
 #
 dt10 =
   rmtl_In_groups %>% 
   select(hh_id, infrstr_17_21, hh_drip_yrs_17_21, inf_drip_17_21) %>% 
-  left_join(pl16) %>% # bpl_card [official_assistance] 
-  left_join(age_gndr_hh_head) %>% # gndr # age
-  mutate(age_bin = ntile(age, 5)) %>% 
   
-  left_join(edu_hh_level) %>% # edu_hh_head [] edu_hh [] prt_educated
-  mutate(edu_hh_head_01=ifelse(edu_hh_head==0,0,1)) %>% # edu_hh_head_01
+  left_join(source_n_ir) %>%      # own_source_ir
   
-  left_join(caste) %>% 
-  
-  left_join(economic16) %>% # total_acre
-  mutate(total_acre_bin = ntile(total_acre, 5)) %>% 
+  left_join(age_gndr_hh_head) %>%  # gndr # age
+  left_join(caste) %>%             # caste_01 
+  left_join(education16) %>%       # edu_hh_head_01
+  left_join(economic16) %>%        # total_acre 
+  left_join(info)                  # know_frmr_uses_drip
 
-  left_join(source_n_ir)  # own_source_ir  X[ir_before]
-##### regs ################################################################ ####
+demography16=
+  rmtl_In_groups %>% 
+  select(hh_id, in1_out0 , south1_north0 , a5 ) %>% 
+  left_join(age_gndr_hh_head) %>%  # gndr # age
+  left_join(caste) 
+
+
+
+# DESCRIPTIVE STATISTICS
+
+# destat
+tapply(dt10$bpl_card, dt10$hh_drip_yrs_17_21, summary_stat)
+tapply(dt10$bpl_card, dt10$infrstr_17_21, summary_stat)
+#
+tapply(dt10$official_assistance, dt10$hh_drip_yrs_17_21, summary_stat)
+tapply(dt10$official_assistance, dt10$infrstr_17_21, summary_stat)
+#
+tapply(dt10$total_acre, dt10$hh_drip_yrs_17_21, summary_1_99)
+tapply(dt10$total_acre, dt10$infrstr_17_21, summary_1_99)
+#
+tapply(dt10$total_plots, dt10$hh_drip_yrs_17_21, summary_stat)
+tapply(dt10$total_plots, dt10$infrstr_17_21, summary_stat)
+#
+tapply(dt10$incomeK_2015, dt10$hh_drip_yrs_17_21, summary_stat)
+tapply(dt10$incomeK_2015, dt10$infrstr_17_21, summary_stat)
+##
+##
+dt10 %>% filter(is.na(caste_4321)) %>% count()
+dt10 %>% group_by(hh_drip_yrs_17_21) %>% freq(caste_4321)
+dt10 %>% group_by(infrstr_17_21) %>% freq(caste_4321)
+##
+## edu_hh_head_01  edu_hh_head educated_pct_hh
+dt10 %>% group_by(hh_drip_yrs_17_21) %>% freq(edu_hh_head)
+dt10 %>% group_by(hh_drip_yrs_17_21) %>% freq(educated_pct_hh)
+tapply(dt10$educated_pct_hh, dt10$hh_drip_yrs_17_21, summary_stat)
+
+
+
+##### COR   ####
+my_data=dt10 %>% 
+  select(
+    gndr, age, caste_01, edu_hh_head_01, total_acre, own_source_ir ,know_frmr_uses_drip
+  )%>%drop_na()
+cor(my_data) %>% kable(format = "html", digits = 2) %>% kable_styling()
+
+
+##### regs m1 infrstr_17_21      ----
 names(dt10)
+m11<-lm(infrstr_17_21 ~ 
+          gndr + age + caste_01 + edu_hh_head_01  +
+          total_acre16 +own_source_ir+know_frmr_uses_drip, dt10)
+sjPlot::tab_model(m11, digits = 4, show.se = T)
 
-m1 <- 
-  lm(infrstr_17_21 ~ gndr + age + bpl_card +edu_hh_head_01 + caste_01+ 
-      own_source_ir +total_acre , dt10)
-summary(m1)
-sjPlot::tab_model(m1, digits = 4, show.se = T)
 
-m2 <- 
-  lm(hh_drip_yrs_17_21 ~ gndr + age + bpl_card +edu_hh_head_01 + caste_01+ 
-       own_source_ir +total_acre , dt10)
+##### regs m2 hh_drip_yrs_17_21  ----
+m2 <- lm(hh_drip_yrs_17_21 ~ 
+           gndr + age + caste_01 + edu_hh_head_01 + total_acre16, 
+         dt10)
+
+m3 <- lm(hh_drip_yrs_17_21 ~ gndr + age + caste_01 + edu_hh_head_01  +total_acre16 +
+           own_source_ir+know_frmr_uses_drip, dt10)
 summary(m2)
 sjPlot::tab_model(m2, digits = 4, show.se = T)
 
-m3 <- lm(inf_drip_17_21 ~ gndr + age + bpl_card +edu_hh_head_01 + caste_01+ 
-           own_source_ir +total_acre , dt10)
-summary(m3)
-sjPlot::tab_model(m3, digits = 4, show.se = T)
+
+##### regs m3 inf_drip_17_21     ----
+m31<-lm(inf_drip_17_21 ~ 
+          gndr + age + caste_01 + edu_hh_head_01  +
+          total_acre +own_source_ir+know_frmr_uses_drip, dt10)
+sjPlot::tab_model(m31, digits = 4, show.se = T)
 
 
-##### COR ################################################################## ####
-my_data=dt10 %>% 
-  select(i, gndr, age, 
-         bpl_card, edu_hh_head_01, caste_01, total_acre) %>%drop_na()
-res <- cor(my_data)
-round(res, 2)
 
-
-#### ggPLOT ################################################################ ####
+--------------------------------------------------------------------------------
+######|FIGs |---------------------------------------------------------- ----
 library(ggplot2)
 dev.off()
 
@@ -170,7 +363,6 @@ dt10 %>%
   geom_line() +geom_point() + theme_bw()+
   labs(x = "",y = "HH % infrastructure connection",title = "infrastructure connection/ total acre bins")
 
-
 plot_mean_by_group <- function(data, x_var, y_var, group_var) {
   data %>%
     group_by({{group_var}}) %>%
@@ -179,45 +371,89 @@ plot_mean_by_group <- function(data, x_var, y_var, group_var) {
     geom_line() +
     geom_point() +
     theme_bw() +
-    labs(x = "", y = y_var, title = paste(y_var, "by", group_var))
+    labs(x = "", y = "HH %", title = title)
 }
-
-# Example usage:
-plot_mean_by_group(dt10, infrstr_17_21, total_acre_bin)
-plot_mean_by_group(dt10, infrstr_17_21, total_acre_bin)
+color_bin <- c("infrstr_17_21" = "darkgreen", "inf_drip_17_21" = "darkblue")
 
 
+
+#-----| TOTALAND |---------------------------------------------------------- ####
+
+m1 <- lm(infrstr_17_21 ~ total_acre , dt10)
+m1 <- lm(inf_drip_17_21 ~ total_acre , dt10)
+summary(m1)
+sjPlot::tab_model(m1, digits = 4, show.se = T)
+
+title="infrstr_17_21/total_acre_bin"
+plot_mean_by_group(dt10,total_acre_bin ,infrstr_17_21,total_acre_bin )
+
+dt10 %>% select(infrstr_17_21,total_acre,total_acre_bin) %>% filter(!is.na(total_acre)) %>% group_by(total_acre_bin) %>%
+  mutate(tb=mean(total_acre,na.rm = T)) %>% mutate_at(4,round,1) %>% mutate(tb=as.character(tb)) %>% 
+  group_by(tb) %>%mutate(PCT = mean(infrstr_17_21)) %>% ungroup() %>% select(3,4,5 ) %>% distinct() %>%   arrange(total_acre_bin) %>%
+  mutate(tb = factor(tb, levels = tb)
+         ) %>% 
+  ggplot(aes(x = tb, y = PCT)) +
+  geom_line(aes(group = 1)) + 
+  geom_point() +
+  theme_bw() +
+  labs(x = "Total Acre Bin")
+  
+
+
+title="total_acre_bin"
+ta1=dt10 %>%group_by(total_acre_bin) %>%summarize(PCT = mean(infrstr_17_21)) %>% mutate(grp="infrstr_17_21")
+ta2=dt10 %>%group_by(total_acre_bin) %>%summarize(PCT = mean(hh_drip_yrs_17_21)) %>% mutate(grp="hh_drip_yrs_17_21")
+#ta3=dt10 %>%group_by(total_acre_bin) %>%summarize(PCT = mean(inf_drip_17_21,na.rm = T)) %>% mutate(grp="inf_drip_17_21")
+rbind(ta1,ta2) %>% 
+  ggplot(aes(x = total_acre_bin, y = PCT,colour =grp))+
+  geom_line() +geom_point() + theme_bw()+ scale_colour_manual(values = color_bin)
+
+dt10[,c(21,25)] %>% filter(total_acre_bin==1) %>% 
+  summarise(min(total_acre16),max(total_acre16))
+
+
+#-----| AGE      |---------------------------------------------------------- ####
+
+m1 <- lm(infrstr_17_21 ~ age , dt10)
+m1 <- lm(inf_drip_17_21 ~ age , dt10)
+summary(m1)
+sjPlot::tab_model(m1, digits = 4, show.se = T)
+
+title="age_bin"
+ta1=dt10 %>%group_by(age_bin) %>%summarize(PCT = mean(infrstr_17_21)) %>% mutate(grp="infrstr_17_21")
+ta2=dt10 %>%group_by(age_bin) %>%summarize(PCT = mean(hh_drip_yrs_17_21)) %>% mutate(grp="hh_drip_yrs_17_21")
+#ta3=dt10 %>%group_by(age_bin) %>%summarize(PCT = mean(inf_drip_17_21,na.rm = T)) %>% mutate(grp="inf_drip_17_21")
+#
+rbind(ta1,ta2) %>%  ggplot(aes(x = age_bin, y = PCT,colour =grp))+geom_line() +geom_point() + theme_bw() +labs (title = title)+ scale_colour_manual(values = color_bin)
+
+#-----| EDUCATION|---------------------------------------------------------- ----
+
+names(education16) 
+# edu_hh_head 
+# BIN: "edu_level_hh"  "high_edu_pct_hh"  "educated_pct_hh" 
+
+summary_1_99(dt10$edu_hh_head)
+
+# One LM only
+m1 <- lm(infrstr_17_21 ~ edu_hh_head_01 , dt10)
+summary(m1)
+sjPlot::tab_model(m1, digits = 4, show.se = T)
+
+title="edu_hh_head"
+ta1=dt10 %>%group_by(edu_hh_head) %>%summarize(PCT = mean(infrstr_17_21)) %>% mutate(grp="infrstr_17_21")
+ta3=dt10 %>%group_by(edu_hh_head) %>%summarize(PCT = mean(inf_drip_17_21,na.rm = T)) %>% mutate(grp="inf_drip_17_21")
+rbind(ta1,ta3) %>% 
+  ggplot(aes(x = edu_hh_head, y = PCT,colour =grp))+geom_line() +geom_point() + theme_bw() +labs (title = title)+ scale_colour_manual(values = color_bin)
 
 
 #__________________________________________________________________________ ----
-  # age_gndr_hh_head  ----
-head_of_hh
-
-C3_gndr=rmtl_baseline2016 %>% select(hh_id, starts_with("C3_")) %>% pivot_longer(!hh_id, names_to = "id_member", values_to= "gndr") %>% mutate(id_member = gsub("C3_", "C_", id_member))
-C4_age= rmtl_baseline2016 %>% select(hh_id, starts_with("C4_")) %>% pivot_longer(!hh_id, names_to = "id_member", values_to = "age") %>% mutate(id_member = gsub("C4_", "C_", id_member))
-
-age_gndr=inner_join(C3_gndr,C4_age) %>% left_join(head_of_hh) %>% filter(!is.na(hh_head_id)) %>% select(hh_id,gndr,age,edu_hh_head)
-
-age_gndr_hh_head <- age_gndr %>%
-  mutate(age_cat = cut(age, breaks = c(0, 19, 29, 39, 49, 59, 100), 
-                                 labels = c(1, 2, 3, 4, 5, 6),
-                                 right = FALSE, include.lowest = TRUE)) %>% 
-  select(hh_id, gndr, age, age_cat, edu_hh_head)
-
-
-
-dt10 %>% filter(!is.na(total_acre)) %>% 
-  mutate(grp20 = cut(total_acre , breaks = c(0,2.5, 5,7.5, 10, 15, 20, 100), 
-                     labels = c(1, 2, 3, 4, 5,6,7),
-                     right = FALSE, include.lowest = TRUE)) %>% 
-  group_by(grp20) %>%  
-  summarise(mean(infrstr_17_21),n=n())
+  
   
 #
 --------------------------------------------------------------------------------
 
-# [ 1 ] Socioeconomic            ----
-# 1.1 Poverty           ----
+# [ 1 ] Socioeconomic                        ----
+# 1.1 Poverty                                ttests       ----
 
 # bpl_card AND official_assistance
 # B8	Does this household have a BPL ration card?
@@ -229,17 +465,6 @@ pl16=
   rename(bpl_card=B8,official_assistance=B9) %>% 
   filter(!is.na(bpl_card))
 
-pl16=
-  rmtl_baseline2016 %>% 
-  select(hh_id ,contains(c( "B8","B9"))) %>% 
-  rename(bpl_card=B8,official_assistance=B9) %>% 
-  left_join(rmtl_In_groups) %>% filter(!is.na(bpl_card))
-
-
-pl16= rmtl_In_groups %>% inner_join(socioeconomic16) 
-pl16 %>% group_by(bpl_card ) %>% freq(hh_drip_yrs_17_21)
-pl16 %>% group_by(official_assistance ) %>% freq(hh_drip_yrs_17_21)
-
 chisq.test(pl16$hh_drip_yrs_17_21,pl16$bpl_card)
 chisq.test(pl16$hh_drip_yrs_17_21,pl16$official_assistance)
 
@@ -248,42 +473,17 @@ pl16 %>%  t_test(hh_drip_yrs_17_21~ official_assistance , detailed = T)
 
 m1.1 <- lm(hh_drip_yrs_17_21~ bpl_card, pl16)
 m1.1 <- lm(hh_drip_yrs_17_21~ official_assistance, pl16)
-m1.1 <- lm(hh_drip_yrs_17_21~bpl_card+ official_assistance, pl16)
 
 summary(m1.1)
 sjPlot::tab_model(m1.1)
 plot_model(m1.1, show.values = TRUE, value.offset = .1)
 
-tapply(income16$bl_yr_income, income16$hh_drip_yrs_17_21, compute_summary)
-
-income16=socioeconomic16 %>% right_join(rmtl_In_groups)
-socioeconomic16 %>% right_join(rmtl_In_groups) %>% filter(!is.na(bl_yr_income )) %>% summarize(percentile_99 = quantile(bl_yr_income, probs = 0.99))
 
 
 
-# 1.2 Social status     ----
+# 1.2 Social status                          plotbar      ----
 
-######## castes category [caste]
-# a21	What is your religion?	#	rmtl_baseline2016 %>% count(A21)
-# a22 What is your caste? # rmtl_baseline2016 %>% count(A22) / rmtl_baseline2016$A22_os
-# a23 Which caste category does this fall under?
-
-caste1= rmtl_baseline2016 %>% select(hh_id,A21, A22,A22_os,A23)
-caste1 %>% count(A23)
-
-# 1 General Category # 2 Other Backward Caste # 3 Scheduled Caste # 4 Scheduled Tribe
-caste1$A23[caste1$A23 %in% c("","-777","-999")] <- NA
-caste2=
-  caste1%>%
-  mutate(caste_01=ifelse(A23=="1",1, # GC
-                  ifelse(A23 %in% c("2","3","4"),0 ,# OBC/SC/ST
-                                      NA))) %>% 
-  mutate(caste_321=ifelse(A23=="1",3, # GC
-                            ifelse(A23=="2",2, # Other BC
-                            ifelse(A23 %in% c("3","4"), 1,# SC/ST
-                                                 NA))))
-caste = caste2 %>% select(hh_id, A22, A22_os, caste_01, caste_321)
-rm(caste1,caste2)
+######## castes category 
 
 
 ##
@@ -298,7 +498,7 @@ caste %>% filter(!is.na(caste_cat)) %>%
 
 
 
-# 1.3 Education         ----
+# 1.3 Education                              ttests       ----
 
 #| edu_hh_level ⬇️
 
@@ -326,88 +526,31 @@ nice_table(t1234)
 
 rm(t1,t2,t3,t4,t1234)
 
-#_____DF_to_education____________________________________________ [edu_hh_level]
-#   
-# C5	What is their relationship to the head of household?
-# C6	Are they literate?
-# C7	What is their educational level?
 
-c5= rmtl_baseline2016 %>% select(hh_id,starts_with("C5" ),-contains("_os_") ) %>% 
-  pivot_longer(!hh_id, names_to = "id_member", values_to = "hh_member")
-c5$id_member <- sub("^C5_(\\d{1,2})","C_\\1",c5$id_member )
+education10 =education %>% left_join(rmtl_In_groups[,1:4]) %>% 
+  mutate(high_edu_hh_head = ifelse(edu_hh_head %in% c(5,6),1,0 )  )
 
-c6= rmtl_baseline2016 %>% select(hh_id, contains("C6") ) %>% 
-  pivot_longer(!hh_id, names_to = "id_member", values_to = "r_they_literate")
-c6$id_member <- sub("^C6_(\\d{1,2})","C_\\1",c6$id_member)
+m1=lm(infrstr_17_21 ~ edu_hh_head, education10)
+m1=lm(infrstr_17_21 ~ edu_level_hh, education10)
+m1=lm(infrstr_17_21 ~ edu_level_hh_CAT, education10)
+m1=lm(infrstr_17_21 ~ high_edu_pct_hh, education10)
+m1=lm(infrstr_17_21 ~ educated_pct_hh, education10)
+m1=lm(infrstr_17_21 ~ edu_hh_head_01, education10)
+m1=lm(infrstr_17_21 ~ high_edu_hh_head, education10)
+summary(m1)
 
-c7= rmtl_baseline2016 %>% select(hh_id, starts_with("C7"), -ends_with("_bin") ) %>% 
-  pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level")
-c7$id_member <- sub("^C7_(\\d{1,2})","C_\\1",c7$id_member )
+m1=lm(inf_drip_17_21 ~ edu_hh_head, education10)
+m1=lm(inf_drip_17_21 ~ edu_level_hh, education10)
+m1=lm(inf_drip_17_21 ~ edu_level_hh_CAT, education10)
+m1=lm(inf_drip_17_21 ~ high_edu_pct_hh, education10)
+m1=lm(inf_drip_17_21 ~ educated_pct_hh, education10)
+m1=lm(inf_drip_17_21 ~ edu_hh_head_01, education10)
+m1=lm(inf_drip_17_21 ~ high_edu_hh_head, education10)
 
 
-#literate=educated  hh_literacyPrt=prt_educated
-edu = 
-  full_join(c5,c7)%>%  # full_join(c6)-- "educated" var instead
-  filter(!is.na(hh_member)) %>% 
-  mutate(educated=ifelse(is.na(edu_level),0 ,ifelse(edu_level == -999 ,0,1) )) %>% 
-  mutate(edu_hh_head = 100)
-edu$edu_level[is.na(edu$edu_level)] <- 0                         
-edu$edu_hh_head=ifelse( edu$hh_member==1,edu$edu_level,NA )
-rm(c5,c6,c7)
 
-# HH with one head
-edu1 = edu %>% filter(!is.na(edu_hh_head)) %>% count(hh_id) %>%filter(n==1) %>% left_join(edu)
-
-# HH with more then one head & without head
-edu2 = edu %>%left_join(edu1[,1:2] %>% distinct()) %>% filter(is.na(n)) %>% select(-n)
-edu2$edu_hh_head=ifelse(edu2$id_member=="C_1", edu2$edu_level, NA )
-
-# edu1 + edu2 [8,129 × 7]
-Edu =  edu1 %>% select(-n) %>% rbind(edu2)
-
-head_of_hh= Edu %>% select(hh_id, id_member, edu_hh_head) %>% 
-  filter(!is.na(edu_hh_head)) %>% mutate(hh_head_id=1)
-
-edu_hh_level =  # [1,610 × 6]
-  Edu %>% group_by(hh_id) %>% 
-  mutate(total_hh_members= n(),
-         edu_hh= mean(edu_level),
-         prt_educated= (sum(educated))/total_hh_members ) %>% 
-  select(hh_id, edu_hh_head, edu_hh, prt_educated) %>% 
-  filter(!is.na( edu_hh_head )) %>% ungroup()
-
-rm(edu, edu1, edu2)
-
-# 1.4 Assets, income & revenue      ----
-
-###### Assets ----
-### total_acre | total_plots ----
-# B1	Is this housing constructed with pucca, semi-pucca, or kutcha materials?1Pucca House/ 2Semi Pucca House/ 3Kutcha House
-# D2	How many acres (guntas) of land does your household currently own?
-# D3	How many plots of land does your household currently own?
-
-economic16=
-  rmtl_baseline2016 %>% 
-  select(hh_id, B1, D2 ,D3 ) %>% 
-  rename(total_plots=D3, total_acre=D2) %>% 
-  mutate(housing_str01=ifelse(B1==1,1,0)) %>% 
-  mutate(housing_str321=ifelse(B1==1,3,ifelse(B1==3,1,2))) %>% 
-  select(-B1)
-
-summary(economic16$total_acre)
-quantile(economic16$total_acre, 0.99, na.rm = TRUE)
-
-summary(economic16$total_plots)
-quantile(economic16$total_plots, 0.99, na.rm = TRUE)
-
-economic16$total_acre[economic16$total_acre>40] <- NA
-economic16$total_plots[economic16$total_plots>7] <- NA
-
-# housing_cstr
-# freq(economic16$housing_cstr )
-# economic16 %>% group_by(hh_drip_yrs_17_21) %>%  freq(housing_cstr01 )
-# t1= economic16 %>% t_test(housing_cstr01 ~ hh_drip_yrs_17_21 ,detailed = T) %>% select(4,2,3,10,12,13)%>% mutate(x="hh_drip_yrs_17_21")
-
+# 1.4 Assets, income & revenue               ----
+# land                                       ttest        ----
 # total_acre
 compute_summary(economic16$total_acre)
 t2= economic16 %>% filter(total_acre<40.74) %>% 
@@ -418,7 +561,7 @@ compute_summary(economic16$total_plots)
 t3= economic16 %>%  filter(total_plots<7) %>% 
   t_test(total_plots ~ hh_drip_yrs_17_21 ,detailed = T) %>% select(4,2,3,10,12,13)%>% mutate(x="hh_drip_yrs_17_21")
 
-### Non-cultivation income     ----
+###  income                                  ttest & lm   ----
 
 # NET income earned by household members in the past 12 months.       				
  # F1	Income sent by seasonal migrating household members	
@@ -453,7 +596,7 @@ f12_f13=
   ) %>%  left_join(rmtl_In_groups)
 
 # bl_yr_income
-compute_summary(f12_f13$bl_yr_income)
+summary_1_99(f12_f13$bl_yr_income)
 t4= f12_f13 %>% filter(bl_yr_income>7000 ,bl_yr_income<1000000) %>% 
   t_test(bl_yr_income ~ hh_drip_yrs_17_21 ,detailed = T) %>% 
   select(4,2,3,10,12,13)%>% mutate(x="hh_drip_yrs_17_21") %>% 
@@ -480,7 +623,7 @@ library(DT)
 df=rbind(t2,t3,t4,t6) %>% mutate_at(2:6,round,2)
 datatable(df)
 
-# ASSETS -----
+# ASSETS                                     ttest        -----
 e2016A=
   e2016 %>% mutate(total_assets=E6_1+E7_1+E8_1+E9_1+E10_1+E11_1+E12_1+E13_1+E15_1+E16_1+E18_1,
                    total_livestock=E6_1+E7_1+E8_1+E9_1,
@@ -510,18 +653,42 @@ t_E <- rbind(t01,t03,t05,t02,t04,t06) %>%
 nice_table(t_E,title = c("Table E | Assats ಆಸ್","% Households own assats/ total assat household own" ),
            note = c("[E6-E21] How many of this item does the household currently own? (0 if none)","🟨" ))
 
-# [ 2 ] Information        ----
+# [ 2 ] Information                          lm           ----
+#### knowledge about irrigation
+   # I2	Have you ever seen it working in a field?
+   # I3	Do you know any farmer in your village who uses it?
+#### Demonstration plots
+   # I24	Have you ever gone to visit them?
+#### training
+   # I34	Have you attended any of the trainings organized by the implementers of the project?
+  
+rmtl_baseline2016 %>%  select(contains(c("I2","I3","I24","I34")))
+rmtl_baseline2016 %>%  select(hh_id, I2 , I3 , I24 , I34 ) %>% freq()
 
-# I2	Have you ever seen it working in a field?
-# I3	Do you know any farmer in your village who uses it?
-  
-### Demonstration plots
-# I24	Have you ever gone to visit them?
-  
-### trainings
-# I34	Have you attended any of the trainings organized by the implementers of the project?
-  
-# [ ? ] agriculture ----
+info <- 
+  rmtl_baseline2016 %>%  
+  select(hh_id, I2 , I3 , I24 , I34 ) %>%
+  left_join(rmtl_In_groups[,1:4])
+
+info  %>% t_test(I2   ~ hh_drip_yrs_17_21 ,detailed = T)%>% select(4,2,3,10,12,13) %>% mutate(x="hh_drip_yrs_17_21")
+info  %>% t_test(I3   ~ hh_drip_yrs_17_21 ,detailed = T)%>% select(4,2,3,10,12,13) %>% mutate(x="hh_drip_yrs_17_21")
+info  %>% t_test(I24   ~ hh_drip_yrs_17_21 ,detailed = T)%>% select(4,2,3,10,12,13) %>% mutate(x="hh_drip_yrs_17_21")
+info  %>% t_test(I34   ~ hh_drip_yrs_17_21 ,detailed = T)%>% select(4,2,3,10,12,13) %>% mutate(x="hh_drip_yrs_17_21")
+
+
+
+model <- lm(infrstr_17_21  ~ I2 + I3 + I24 + I34  , info)
+model <- lm(hh_drip_yrs_17_21 ~ I2 + I3 + I24 + I34  , info)
+model <- lm(inf_drip_17_21  ~ I2 + I3 + I24 + I34  , info)
+summary(model)
+
+model <- lm(infrstr_17_21  ~ I3 + I24  , info)
+model <- lm(hh_drip_yrs_17_21 ~ I3 + I24  , info)
+model <- lm(inf_drip_17_21  ~ I3 + I24   , info)
+summary(model)
+
+#
+# [ ? ] source / irrigation                  DF           ----
 
 # D20	Do you own the source of the irrigation?
 D20=rmtl_baseline2016 %>% select(hh_id, starts_with("D20")) %>% 
@@ -540,45 +707,9 @@ D12 =D12 %>%  mutate(ir_before= rowSums(.[names(.)[2:10]], na.rm = T)) %>%
   select(hh_id,ir_before)
 
 source_n_ir= inner_join(D20,D12)
-
-#___________________________________________________________________________----
   
-# [ ] Information        ----
-
-
-
-
-# M59a : Are you aware of the existence of a Water User Associations (WUA)?
-ta=vars_irri %>% group_by(hh_irrigated ,m59a) %>% count() %>% group_by(hh_irrigated ) %>%  mutate(prt=n/sum(n)) %>% 
-  ungroup() %>% mutate(prt = paste0(round(100 * prt, 0), "%"))
-
-inner_join(ta[4:6,c(2,4)] %>% rename(irri_prt=prt) ,ta[1:3,c(2,4)] %>% rename(Not_irri_prt=prt) )
-
-------------------------
-  # Are you aware of a drip irrigation project demonstration plot?
-rmtl_srvy22 %>% select(farmers_hh,hh_id,contains("m40c") ) %>%summarise(mean(m40c) )
-rmtl_srvy22  %>%  t_test(m40c  ~ farmers_hh , detailed = T)
-rmtl_srvy22 %>% left_join(prt.irri_hh.22) %>%  t_test(m40c  ~ irri01 , detailed = T)
-
-#Have you ever gone to visit it?
-rmtl_srvy22 %>% select(farmers_hh,hh_id,contains("m42") ) %>% filter(m42 != -999) %>%summarise(mean(m42,na.rm = T) )
-rmtl_srvy22 %>%  filter(m42 != -999) %>% t_test(m42 ~ farmers_hh , detailed = T)
-rmtl_srvy22 %>%  filter(m42 != -999) %>% left_join(prt.irri_hh.22) %>%  t_test(m42 ~ irri01 , detailed = T)
-
-
-
-
-# 2.1 Knowledge about DIS         ----
-# 2.2 DIS use recommendations          ----
-# 2.3 Participation in trainings          ----
-
-# m51		Are you aware of any trainings on irrigation organized in the area?
-rmtl_srvy22 %>% select(farmers_hh,hh_id,contains("m51") ) %>%summarise(mean(m51,na.rm = T) )
-rmtl_srvy22 %>%  t_test(m51 ~ farmers_hh , detailed = T)
-rmtl_srvy22 %>% left_join(prt.irri_hh.22) %>%  t_test(m51 ~ irri01 , detailed = T)
-
-# [ 3 ] Pipeline infrastructure status     ----
-
+# [ 3 ] Pipeline infrastructure status       ----
+# 3.1 DIS's first use                        stat         ----
 
 rmtl_srvy22 %>% 
   select(hh_id,contains("mw1c"),-mw1c_other,-mw1c__888)%>% filter(mw1c != "") %>% 
@@ -596,9 +727,11 @@ vars_irri <-
          
          m59a  # M59a : Are you aware of the existence of a Water User Associations (WUA)?
   ) %>%
-  left_join(irrigation_HH)
+  left_join(rmtl_In_groups  [,1:4])
 vars_irri$mw1a
 vars_irri$mm9[vars_irri$mm9==-999] <- NA
+
+infrstr_17_21
 
 vars_irri %>% group_by(farmers_hh,mw4) %>% count() %>% group_by(farmers_hh) %>%  mutate(prt=n/sum(n)) %>% 
   ungroup() %>% mutate(prt = paste0(round(100 * prt, 0), "%"))
@@ -607,16 +740,39 @@ vars_irri %>% group_by(hh_irrigated ,mw4) %>% count() %>% group_by(hh_irrigated 
   ungroup() %>% mutate(prt = paste0(round(100 * prt, 0), "%"))
 
 
-# 3.1 DIS's first use          ----
-# 3.2 Maintenance         ----
-# 3.3 Damages         ----
-# [ 4 ] Location                 ----
-# 4.1 Elevation                    ----
-# 4.2 Village                    ----
+# 3.2 Maintenance                            ----
+# 3.3 Damages                                lm           ----
+###
+  # m35  What is the status of the main pipe coming into your land ?	# 1	Works | 2=Damaged
+  # m35b How long has the main pipes been damaged?		[months/years]
+  # m35c What is the status of the laterals?	1	Works, laid in the field | 2=OK, but in storage | 3=Damaged
+
+rmtl_srvy22 %>% select(hh_id, contains("m35") )
+m35=rmtl_srvy22 %>% select(hh_id, m35, m35b_month, m35b_year, m35c )
+m35[m35==-999] <- NA
+damage=m35 %>% 
+  mutate(damage_yr= (m35b_month/12)+ m35b_year ) %>% 
+  mutate(damage_yr=ifelse(m35==1,0,damage_yr)) %>% 
+  mutate_at(6,round,2) %>% 
+  mutate(damage_yr_bin = ntile(damage_yr, 5)) %>% 
+  left_join(rmtl_In_groups[,1:4])
+
+# infrstr_17_21 is erelevant the 0s are NAs in damage
+
+damage %>% group_by(inf_drip_17_21) %>% summarise(mean(damage_yr,na.rm = T))
+m1 <- lm(hh_drip_yrs_17_21~ damage_yr , damage)
+m2 <- lm(inf_drip_17_21~ damage_yr , damage)
+summary(m1)
+sjPlot::tab_model(m2, digits = 4, show.se = T)
+
+
+# [ 4 ] Location                             ----
+# 4.1 Elevation                              ----
+# 4.2 Village                                ----
 # 4.3 North-center-south                     ----
-# 4.4 Project border distance         ----
-# 4.5 Operational irrigation zones         ----
-# 4.6 Distance from tap/valve         ----
+# 4.4 Project border distance                ----
+# 4.5 Operational irrigation zones           ----
+# 4.6 Distance from tap/valve                ttest        ----
 
 
 #--mm10--enough water
@@ -711,11 +867,11 @@ distance_from_filter_bins %>% count(hh_irrigated, close_to_valveYN )%>%group_by(
 # Fig. freq
 rmtl_srvy22 %>%
   select(farmers_hh, hh_id,mm9,mm10) %>% mutate(mm10=as.numeric(mm10)) %>% 
-  left_join(irrigation_HH) %>% filter(mm9>=0) %>% # rm -999
-  count(hh_irrigated,mm9) %>% 
-  group_by(hh_irrigated) %>%mutate(pct=n/sum(n)) %>% 
+  left_join(rmtl_In_groups) %>% filter(mm9>=0, !is.na(hh_drip_yrs_17_21)) %>% # rm -999
+  count(hh_drip_yrs_17_21,mm9) %>% 
+  group_by(hh_drip_yrs_17_21) %>%mutate(pct=n/sum(n)) %>% 
   group_by(mm9) %>% mutate(sum_pct=sum(pct)) %>% mutate(percent=pct/sum_pct) %>% 
-  mutate(hh_irrigated=ifelse(hh_irrigated==1,"Irrigation","0irrigation")) %>%
+  mutate(hh_irrigated=ifelse(hh_drip_yrs_17_21==1,"Irrigation","0irrigation")) %>%
   mutate_at(6,round,2) %>% mutate(percent=percent*100) %>% 
   ggplot(aes(x = mm9, y = percent, fill = hh_irrigated)) +
   geom_bar(stat = "identity") +
@@ -733,81 +889,46 @@ rmtl_srvy22 %>%
 #__________________________________________________________________________----
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-######################    essantials    ----
+##### essantials                         ----
 
 
 attach(rmtl_baseline2016)
 detach(rmtl_baseline2016)
 
+summary_1_99(economic16$total_acre)
+quantile(economic16$total_acre, 0.99, na.rm = TRUE)
+
 
 # Function to compute summary statistics
-compute_summary <- function(x) {
-  c(
-    Mean = mean(x),
-    Median = median(x),
-    sd = sd(x),
-    Q25 = quantile(x, 0.25),
-    Q75 = quantile(x, 0.75),
-    P9= quantile(x, 0.9),
-    P95= quantile(x, 0.95),
-    Min = min(x),
-    Max = max(x)
-  )
-}
-compute_summary_1_99 <- function(x) {
-  c(
-    Count = n(),
-    Mean = mean(x),
-    Median = median(x),
-    sd = sd(x),
-    P1 = quantile(x, 0.01),
-    P99 = quantile(x, 0.99),
-    Min = min(x),
-    Max = max(x)
-  )
-}
 summary_1_99 <- function(x) {
+  # Remove NAs for calculations and round to 2 decimal places
   summary <- c(
     Count = length(x),
-    Mean = mean(x),
-    Median = median(x),
-    sd = sd(x),
-    p = quantile(x, 0.01),
-    P = quantile(x, 0.99),
-    Min = min(x),
-    Max = max(x)
+    Mean = round(mean(x, na.rm = TRUE), 2),
+    Median = round(median(x, na.rm = TRUE), 2),
+    sd = round(sd(x, na.rm = TRUE), 2),
+    p = round(quantile(x, 0.01, na.rm = TRUE), 2),
+    P = round(quantile(x, 0.99, na.rm = TRUE), 2),
+    Min = round(min(x, na.rm = TRUE), 2),
+    Max = round(max(x, na.rm = TRUE), 2)
   )
-  
-  # Round numerical values to two digits after the decimal point
-  summary <- lapply(summary, function(y) if(is.numeric(y)) round(y, 2) else y)
   
   return(summary)
 }
+summary_stat <- function(x) {
+  # Remove NAs for calculations and round to 2 decimal places
+  summary <- c(
+    Count = length(x),
+    Mean = round(mean(x, na.rm = TRUE), 2),
+    Median = round(median(x, na.rm = TRUE), 2),
+    sd = round(sd(x, na.rm = TRUE), 2)
+  )
+  
+  return(summary)
+}
+
+# group by for summry function(x)
+tapply(income16$bl_yr_income, income16$hh_drip_yrs_17_21, compute_summary)
 
 # group by as variable
 group_var <- yield22_acre$your_grouping_variable

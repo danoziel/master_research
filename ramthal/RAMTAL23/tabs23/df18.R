@@ -1,12 +1,12 @@
 #| THIS R SCRIPT [df18.R] is data-frames/sets/bases of "2018 midline survey"
-#| 🟠MIDELINE 2018  | rmtl_midline2018 #= mid2018_RMTL
+#| 🟠MIDELINE 2018  | rmtl_midline2018
 
 
 #| df16.R # scrip of data-frames/sets/bases of "2016 baseline survey"
-#🟡BASELINE 2016| rmtl_baseline2016 #= baseline_RMTL
+#🟡BASELINE 2016| rmtl_baseline2016
 
 #| DF_22.R # scrip of data-frames/sets/bases of "2022 midline survey"
-#🟣MIDELINE 2022| rmtl_srvy22 #= a_rmtl_srvy22 
+#🟣MIDELINE 2022| rmtl_srvy22
 
 library(dplyr)
 library(haven)
@@ -51,11 +51,19 @@ Irrigation_Midline_Clean_with_Callbacks<- read_dta("~/master_research/DATAs/ramt
 YR_Ramthal_Data_Entry_2 <- read_dta("~/master_research/DATAs/ramthal_data/Ramthal Midline/YR_Ramthal_Data_Entry_2.dta")
 # A tibble: 1,702 × 7,853  # 8/4/2019
 
+
+# rmtl_midline2018 -----
+
 YR_Ramthal_Data_Entry_2_stata13 <- read_dta("~/master_research/DATAs/ramthal_data/Ramthal Midline/YR_Ramthal_Data_Entry_2_stata13.dta")
 # A tibble: 1,702 × 7,853  # 8/4/2019
 
-rmtl_midline2018 = YR_Ramthal_Data_Entry_2_stata13
+rmtl_midline2018 = 
+  YR_Ramthal_Data_Entry_2_stata13 %>% 
+  rename(hh_id=id) %>% 
+  mutate(farmers_hh=ifelse(in1_out0==1,"inside_ramthal" , "outside_ramthal"))
+
 rm(YR_Ramthal_Data_Entry_2_stata13)
+
 # rmtl_midline2018 ----
 # CROP ml18_crop_plot_3s ----
 d41 <- rmtl_midline2018 %>% select(farmers_hh,hh_id, starts_with("d41"))
@@ -166,7 +174,6 @@ ml18_source_irrigate$irri_source[ml18_source_irrigate$irri_source_num=="5" ] <- 
 
 
 
-ml18_source_irrigate %>% group_by( )
 
 #🟩  IRRI METHODS | d15A |ml18_irri_methods  [HH wise]    ----
 # D15_A	What methods?   DF: ml18_irri_methods
@@ -226,7 +233,7 @@ ml18_irri_methods$irri_method[ml18_irri_methods$irri_method==0] <- "rain"
 
 
 
-
+rm(d15A,d15A_2 )
 
 
 #🟩  IRRI land acre || ml18_plots_size [plot-season] ----

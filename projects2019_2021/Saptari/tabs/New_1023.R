@@ -210,7 +210,6 @@ tibble <-
 
 
 
-# ________________________ Appendix G __________________________- ----
       # DF total_land_holding (survey)      ----
 total_land_Saptari_baseline # TAB cultivatione_xpantion.R
 total_land_rbs_baseline # TAB cultivatione_xpantion.R
@@ -230,6 +229,10 @@ land_holding %>%
   theme_minimal() + theme(text = element_text(family = "serif"))
 
 
+land_holding %>% 
+  t_test(total_land_holding    ~ usage_high_low, detailed = T)  %>% 
+  select(estimate1,estimate2,statistic,p,df,conf.low,conf.high) %>% 
+  rename(`High usage`=estimate1,`Low usage`=estimate2,t=statistic)
 
 
 
@@ -371,23 +374,28 @@ DM2=rbind(DM21,DM23)%>%
   rename(HH=household_questionnaire_id) %>% mutate(survey="baseline",caste=NA) 
 rm(DM21,DM23)
 
-DM2$caste[DM2$which_is_the_caste_of_you_househ ==1] <- 3
-DM2$caste[DM2$which_is_the_caste_of_you_househ ==2] <- 1
+DM2$caste[DM2$which_is_the_caste_of_you_househ %in% c(1,9 )] <- 3
 DM2$caste[DM2$which_is_the_caste_of_you_househ %in% c(5,6,8,20,21 ) ] <- 2
-DM2$caste[DM2$which_is_the_caste_of_you_househ ==28] <- 1
-
-# code         name            grade              rate (for reg)
-# 1       Brahmin/Chhetri    higt_caste           1
-# 2                 Tharu    scheduled_tribe      3
-# 5                Yadavs    middle_caste         2
-# 6        Kori/Khushwaha    middle_caste         2
-# 8                  Teli    middle_caste         2
-# 20         Hajam/Thakur    middle_caste         2
-# 21              Haluwai    middle_caste         2
-# 28 T305001120   KALAWAR    low_caste            3
+DM2$caste[ is.na(DM2$caste)] <- 1
+# code         name            grade              
+# 1       Brahmin/Chhetri    higt_caste           
+# 2                 Tharu    scheduled_tribe      
+# 5                Yadavs    middle_caste         
+# 6        Kori/Khushwaha    middle_caste         
+# 8                  Teli    middle_caste         
+# 20         Hajam/Thakur    middle_caste         
+# 21              Haluwai    middle_caste         
+# 28 T305001120   KALAWAR    low_caste            
 DM2=DM2 %>% 
   select(HH,caste,# bullock,cow,calf,buffalo,goat,pigeon,chicken,duck,pig,sheep,
          district,survey)
+
+DM2_binary <- DM2 %>% select(HH,caste) %>% 
+  mutate( caste=ifelse(caste==3,"High caste", 
+                ifelse(caste==2, "middle caste","Low caste" ))) %>% 
+  mutate(bi=1) %>% 
+  pivot_wider(names_from = caste, values_from = bi )
+DM2_binary[is.na(DM2_binary)] <- 0
 
 # rec education_of_hh_head 
 recSAP <- read_dta("~/Nepal Data/Saptari/Baseline 73-74 (Saptari)/Household questionnaires_rec_Baseline(2017).dta")
@@ -402,31 +410,51 @@ rm(recSAP,recRBS)
              # REG characters ----
 demography <- 
   left_join(hh_usage_percent,age_sex) %>% 
+  left_join(DM2_binary) %>% 
   left_join(DM2) %>% 
-  left_join(rec)
-demography$intensity_high1_low0
-rm(age_sex,DM2,rec)
-model1 <- lm(usage_percent ~ age_hh_head, data = demography)
-model2 <- lm(usage_percent ~ hh_head_edu, data = demography)
-model3 <- lm(usage_percent ~ caste, data = demography)
+  left_join(rec) %>% ungroup()
 
-model1 <- lm(intensity_high1_low0  ~ age_hh_head, data = demography)
-model2 <- lm(intensity_high1_low0  ~ hh_head_edu, data = demography)
-model3 <- lm(intensity_high1_low0  ~ caste, data = demography)
+rm(age_sex,DM2,DM2_binaryrec)
 
-summary(model1)
+intensity_high2_low1
+intensity_high1_low0
+
+mod1 <- lm(usage_percent  ~age_hh_head+ hh_head_edu+ `Low caste`+ `middle caste`, data = demography)
+summary(mod1)
+# INTERPETATION FOR TH LM :
+# In socioeconomic we found evidence of correlation between socioeconomic farmers attributes and the frequency of SIP operation. Households from high caste were more likely to use SIP frequency and households from middle caste were 2% less likely to do so. Education also shows a negative effect of 2% and age is not significant in SIP usage (Table S6).
+
+mod2 <- lm(intensity_high1_low0   ~age_hh_head+ hh_head_edu+ `Low caste`+ `middle caste`, data = demography)
+summary(mod2)
+tab_model(mod2,digits=3,p.style="numeric",show.se = TRUE,
+          string.ci = "Conf. Int (95%)",
+          pred.labels = c("Constant", 
+                          "Household head's age",
+                          "Household head's education level",
+                          "Low caste","Middle caste"),
+          dv.labels = c("________________intensity_high1_low0________________"))
 
 library(jtools)
 summ(model1)
 
-tab_model(model1,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",
-          pred.labels = c("Constant", "Household head's age"),dv.labels = c("Usage percent"))
+library(rstatix)
+library(rempsyc) # ttest # nice_table
 
-tab_model(model2,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",
-          pred.labels = c("Constant", "Household head's education level"),dv.labels = c("Usage percent"))
+t1<-demography%>% t_test(age_hh_head~ usage_high_low, detailed = T)
+t2<-demography%>% t_test(hh_head_edu~ usage_high_low, detailed = T)
+t3<-demography%>% t_test(caste  ~     usage_high_low, detailed = T)
+t10 <- demography  %>% t_test(`High caste`  ~ usage_high_low, detailed = T)
+t20 <- demography  %>% t_test(`middle caste`~ usage_high_low, detailed = T)
+t30 <- demography  %>% t_test(`Low caste`   ~ usage_high_low, detailed = T)
 
-tab_model(model3,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",
-          pred.labels = c("Constant", "Household caste"),dv.labels = c("Usage percent"))
+t66 <- 
+  rbind(t1,t2,t3, t10,t20,t30) %>% 
+  select(.y.,estimate1,estimate2,statistic,p,df,conf.low,conf.high) %>% 
+  rename("  "= `.y.`, `High usage`=estimate1,`Low usage`=estimate2,t=statistic)
+
+nice_table(t66 , title = c("Socioeconomy", ""))
+
+
 
 
 
@@ -473,6 +501,18 @@ crop_be$intensity_high1_low0 <- ifelse(crop_be$percentage>.38,1,0)
 crop_base= crop_be %>% filter(survey=="baseline")
 crop_end= crop_be %>% filter(survey=="endline")
 names(crop_be)
+
+# reg crop Base End 27/7/2024 ----
+library(sjPlot)
+
+modelB <- lm(percentage ~ Paddy+Fish_Farming,data = crop_base)
+tab_model(modelB,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",
+          dv.labels = c("____________SIP Usage % | Baseline____________"))
+
+modelE <- lm(percentage ~ Paddy+Fish_Farming,data = crop_end)
+tab_model(modelE,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",
+          dv.labels = c("____________SIP Usage % | Endline_____________"))
+
 
 # reg crop_base ----
 
@@ -595,6 +635,15 @@ crops_diary <-
   right_join(hh_usage_percent)
 crops_diary[is.na(crops_diary)] <- 0
 
+# reg crops_diary 27/7/2024----
+library(sjPlot)
+
+modelD <- lm(usage_percent ~ Paddy+Fish_Farming,data = crops_diary)
+tab_model(modelD,digits=3,p.style="numeric",show.se = TRUE,string.ci = "Conf. Int (95%)",
+          dv.labels = c("____________SIP Usage % | crops_diary____________"))
+
+
+
 # reg crops_diary----
 
 model <- lm(usage_percent ~ Paddy+Wheat+Vegetables+Oilseeds+Pulses+Maize+Fish_Farming,data = crops_diary)
@@ -708,17 +757,19 @@ crops_land_size_Seasons <-
   summarise(TotalAreaIrri=sum(TotalAreaIrrigated))
 
 
-# crop irrigated area = usage_high_low
+# crop HH freq = usage_high_low
 crops_land_size_Seasons %>%   
   group_by(HH,crop_cat) %>% summarise(AreaIrri=max(TotalAreaIrri)) %>% 
   inner_join(hh_usage_percent[,c(1,5)]) %>% 
-  group_by(usage_high_low,crop_cat) %>% summarise(AreaIrri =mean(AreaIrri ),n=n()) %>% 
+  group_by(usage_high_low,crop_cat) %>% summarise( #AreaIrri =mean(AreaIrri ),
+    n=n()) %>% 
   mutate(prt= ifelse(usage_high_low=="high_usage", n/23,n/25 )) %>% 
   filter(!crop_cat %in% c("Sugarcane","Oilseeds", "Maize" ))
 
 
 # WITH 0s
-# crop irrigated area = usage_high_low <- 
+# crop irrigated area = 
+monitoring_CP_usage_high_low <- 
 crops_land_size_Seasons %>%   
   group_by(HH,crop_cat) %>% summarise(AreaIrri=max(TotalAreaIrri)) %>% 
   pivot_wider(names_from = crop_cat,values_from = AreaIrri) %>%   
@@ -726,7 +777,8 @@ crops_land_size_Seasons %>%
   mutate(AreaIrri= ifelse(is.na(AreaIrri),0,AreaIrri)) %>% 
   filter(!crop_cat %in% c("Sugarcane","Oilseeds", "Maize" )) %>% 
   inner_join(hh_usage_percent[,c(1,5)]) %>% 
-  group_by(usage_high_low,crop_cat) %>% summarise(AreaIrri =mean(AreaIrri ))
+  ungroup()
+monitoring_CP_usage_high_low %>%  group_by(usage_high_low,crop_cat) %>% summarise(AreaIrri =mean(AreaIrri ))
 
 
 
@@ -814,7 +866,8 @@ diary %>%group_by(date,crop_cat) %>%
 crops_land_size_Seasons %>%   
   group_by(HH,crop_cat) %>% summarise(AreaIrri=max(TotalAreaIrri)) %>% 
   inner_join(hh_usage_percent[,c(1,5)]) %>% 
-  group_by(usage_high_low,crop_cat) %>% summarise(AreaIrri =mean(AreaIrri ),n=n()) %>% 
+  group_by(usage_high_low,crop_cat) %>% summarise(# AreaIrri =mean(AreaIrri ),
+    n=n()) %>% 
   mutate(prt= ifelse(usage_high_low=="high_usage", n/23,n/25 )) %>% 
   filter(!crop_cat %in% c("Sugarcane","Oilseeds", "Maize" ))
 
@@ -897,7 +950,7 @@ stat=
   pivot_wider(names_from = crop,values_from = crop_area) %>%   # A tibble: 98 × 7
   pivot_longer(-c(survey,HH), names_to = "crop_cat", values_to = "area_irri") %>%    # A tibble: 490 × 4
   mutate(area_irri=ifelse(is.na(area_irri),0, ifelse(area_irri==-888,NA,area_irri ) )) %>%
-  filter(survey=="baseline")
+  filter(survey=="baseline") %>% ungroup()
   
 st=stat %>% filter(area_irri!=0) %>%group_by(HH) %>%  summarise(area_irri=mean(area_irri)) %>% 
   group_by(mean(area_irri))
@@ -908,7 +961,7 @@ size=stat %>% filter(area_irri!=0) %>% group_by(crop_cat) %>% summarise(area_irr
 
 inner_join(num,size) %>% kable() %>% kable_minimal()
 
-
+## surveyCP ####
 ####### Field crop + Fish Farming + hh_usage_percent[,c(1,5)]
 
 surveyCP=
@@ -918,12 +971,10 @@ surveyCP=
   pivot_wider(names_from = crop,values_from = crop_area) %>%   # A tibble: 98 × 7
   pivot_longer(-c(survey,HH), names_to = "crop_cat", values_to = "area_irri") %>%    # A tibble: 490 × 4
   mutate(area_irri=ifelse(is.na(area_irri),0, ifelse(area_irri==-888,NA,area_irri ) )) %>% 
-  inner_join(hh_usage_percent[,c(1,5)] )
+  inner_join(hh_usage_percent[,c(1,5)] ) %>% 
+  ungroup()
 
-# total sample baseline
-surveyCP %>%filter(area_irri!=0,survey=="baseline") %>%  
-  group_by(survey,crop_cat) %>% count() %>% 
-  mutate(prt= ifelse(usage_high_low=="high_usage", n/22,n/25 ))
+
 
 # HH total
 surveyCP %>%select(survey,HH,usage_high_low) %>%distinct() %>%
@@ -932,7 +983,7 @@ surveyCP %>%select(survey,HH,usage_high_low) %>%distinct() %>%
 #prt baseline
 surveyCP %>%filter(area_irri!=0,survey=="baseline") %>%  
   group_by(survey,crop_cat,usage_high_low) %>% count() %>% 
-  mutate(prt= ifelse(usage_high_low=="high_usage", n/22,n/25 ))
+  mutate(prt= ifelse(usage_high_low=="high_usage", n/22,n/25 )) %>% ungroup()
   
 # size baseline
 surveyCP %>%filter(survey=="baseline") %>%  
@@ -949,5 +1000,113 @@ surveyCP %>%filter(survey=="endline") %>%
   group_by(survey,crop_cat,usage_high_low) %>%
   summarise(mean(area_irri,na.rm = T))
 
+library(rstatix)
+library(rempsyc) # ttest # nice_table
+
+### CROPING PATERN
+### Surveys
+
+t23 <-
+  surveyCP  %>% 
+  group_by(survey,crop_cat) %>%
+  t_test(area_irri  ~ usage_high_low   , detailed = T)  %>% 
+  select(survey ,crop_cat,estimate1,estimate2,statistic,p,df,conf.low,conf.high)
+t23$crop_cat[t23$crop_cat== "Fish_Farming"] <- "Fish Farming"
+
+### table_irri area
+table_t23= t23 %>% 
+  select(survey ,crop_cat ,estimate1,estimate2,statistic,p,df,conf.low,conf.high) %>% 
+  rename(`High usage`=estimate1,`Low usage`=estimate2,t=statistic,Crop =crop_cat)
+
+# Baseline
+table_t2 <-  table_t23 %>% filter( survey=="baseline") %>% select(-survey)
+nice_table(table_t2 , title = c("Baseline survey", ""))
+
+# Endline
+table_t3 <-  table_t23 %>% filter( survey=="endline") %>% select(-survey)
+nice_table(table_t3, title = c("Endline survey", ""))
+
+
+### CROPING PATERN
+### Daily irrigation report
+t1 <-
+  monitoring_CP_usage_high_low  %>% 
+  group_by(crop_cat) %>%
+  t_test(AreaIrri   ~ usage_high_low, detailed = T)  %>% 
+  select(crop_cat,estimate1,estimate2,statistic,p,df,conf.low,conf.high)
+t1$crop_cat[t1$crop_cat== "Fish_Farming"] <- "Fish Farming"
+
+table_t1= t1 %>% 
+  select(crop_cat ,estimate1,estimate2,statistic,p,df,conf.low,conf.high) %>% 
+  rename(`High usage`=estimate1,`Low usage`=estimate2,t=statistic,Crop =crop_cat)
+nice_table(table_t1, title = c("Daliy irrigation report", ""))
+
+nice_table(table_t1, title = c("Daliy irrigation report", "Comparison of Irrigated Land Size (in hectares) by Crop Category"))
+
+
+
+
+
+
+
+### likelihood of cultivating the crops 
+
+# Daily Report
+prob_cult_crop_Report <- 
+  crops_land_size_Seasons %>% 
+  filter(!crop_cat %in% c("Sugarcane","Oilseeds", "Maize" )) %>% 
+  group_by(HH,crop_cat) %>% summarise(AreaIrri=max(TotalAreaIrri)) %>% ungroup() %>% 
+  inner_join(hh_usage_percent[,c(1,5)]) %>% 
+  mutate(are=1) %>% select(-AreaIrri) %>% 
+  pivot_wider(names_from = crop_cat,values_from = are)
+prob_cult_crop_Report[is.na(prob_cult_crop_Report)] <- 0
+prob_cult_crop_Report <- 
+  prob_cult_crop_Report %>% pivot_longer(!c(HH,usage_high_low),names_to = "crop",values_to = "prob")
+
+# baseline
+prob_cult_crop_baseline <- 
+surveyCP %>%filter(area_irri!=0,survey=="baseline") %>% 
+  select(HH,crop_cat, usage_high_low) %>% mutate(are=1) %>% 
+  pivot_wider(names_from = crop_cat,values_from = are)
+prob_cult_crop_baseline[is.na(prob_cult_crop_baseline)] <- 0
+prob_cult_crop_baseline <- 
+  prob_cult_crop_baseline %>% pivot_longer(!c(HH,usage_high_low),names_to = "crop",values_to = "prob")
+
+# endline
+prob_cult_crop_endline <- 
+  surveyCP %>%filter(area_irri!=0,survey=="endline") %>% 
+  select(HH,crop_cat, usage_high_low) %>% mutate(are=1) %>% 
+  pivot_wider(names_from = crop_cat,values_from = are)
+prob_cult_crop_endline[is.na(prob_cult_crop_endline)] <- 0
+prob_cult_crop_endline <- 
+  prob_cult_crop_endline %>% pivot_longer(!c(HH,usage_high_low),names_to = "crop",values_to = "prob")
+
+# TTESTS
+t1= 
+  prob_cult_crop_Report %>% group_by(crop) %>% 
+  t_test(prob ~ usage_high_low, detailed = T)  %>% 
+  select(crop ,estimate1,estimate2,statistic,p,df,conf.low,conf.high) %>% 
+  rename(`High usage`=estimate1,`Low usage`=estimate2,t=statistic,Crop=crop)
+t1$Crop[t1$Crop== "Fish_Farming"] <- "Fish Farming"
+
+t2= 
+  prob_cult_crop_baseline %>% group_by(crop) %>% 
+  t_test(prob ~ usage_high_low, detailed = T)  %>% 
+  select(crop ,estimate1,estimate2,statistic,p,df,conf.low,conf.high) %>% 
+  rename(`High usage`=estimate1,`Low usage`=estimate2,t=statistic,Crop=crop)
+t2$Crop[t2$Crop== "Fish_Farming"] <- "Fish Farming"
+
+t3= 
+  prob_cult_crop_endline %>% group_by(crop) %>% 
+  t_test(prob ~ usage_high_low, detailed = T)  %>% 
+  select(crop ,estimate1,estimate2,statistic,p,df,conf.low,conf.high) %>% 
+  rename(`High usage`=estimate1,`Low usage`=estimate2,t=statistic,Crop=crop)
+t3$Crop[t3$Crop== "Fish_Farming"] <- "Fish Farming"
+
+
+
+nice_table(t1,stars = F, title = c("Likelihood of cultivating the crops", "Daliy irrigation report"))
+nice_table(t2,stars = F, title = c("Likelihood of cultivating the crops","prob_cult_crop_baseline"))
+nice_table(t3,stars = F, title = c("Likelihood of cultivating the crops", "prob_cult_crop_endline"))
 
 

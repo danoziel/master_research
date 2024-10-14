@@ -106,12 +106,19 @@ library(dplyr)
 
 
 ############### year_Registration ###########  
-  freq(gj1$year_Registration  , report.nas=F, totals=F, cumul=F, headings=F)
-  freq_table <- gj1 %>% filter(year_Registration > 0) %>% count(year_Registration) %>%
-    mutate(pct=n/sum(n)*100, pct=paste0(round(pct),"%"), n=format(n,big.mark=","))
-  freq_table$pct[freq_table$pct=="0%"] <- "0.2%"
-  
-  
+freq(gj1$year_Registration  , report.nas=F, totals=F, cumul=F, headings=F)
+
+yr <- gj1 %>% count(year_Registration) %>% 
+  filter(year_Registration<2014)
+
+ggplot(yr, aes(x = year_Registration, y = n)) +
+  geom_line(color = "green4") +    # Add a line without points
+  scale_x_continuous(breaks = seq(2005, 2013, 1)) +  # Ensure all x-axis values appear
+  labs(title = "Number of Registrations over the Years", 
+       x = "Registrations Year", 
+       y = "Number of Registrations") +
+  theme_minimal()
+
   
 
 ###########  TotalLand  ###########  

@@ -20,7 +20,300 @@ library(kableExtra )
 
 # Operational expenses (Rs./Acre cultivated)
 
-#| 🟡BASELINE 2016|rmtl_baseline2016   🟠MIDELINE 2018|rmtl_midline2018   🟣SURVEY 2022|rmtl_srvy22
+#|🟡rmtl_baseline2016 🟠rmtl_midline2018 🟣rmtl_srvy22
+
+
+
+# LAND HOLDING     ----
+land_holding=
+  a_plots_size %>% 
+  filter(!plotStatus %in% c("1","6")) %>% 
+  group_by(hh_id) %>% 
+  summarise(total_num_plots=n(),total_acre=sum(acres,na.rm = T)) %>% left_join(hh_2022)
+
+compute_summary <- function(x) {
+  data.frame(
+    Count = length(x),
+    Mean = mean(x),
+    Median = median(x),
+    SD = sd(x),
+    P01 = quantile(x, 0.01),
+    P99 = quantile(x, 0.99),
+    Min = min(x),
+    Max = max(x)
+  )
+}
+
+library(rstatix)
+
+land_holding %>% group_by(farmers_hh) %>% summarize(across(total_acre, compute_summary))
+#  total of 99% obs ARE total_acre<38 
+land_holding_99= land_holding %>% filter(total_acre<39)
+
+land_holding_99 %>% ggplot(aes(x=total_acre,fill=farmers_hh))+ geom_histogram(alpha=0.5)+scale_fill_manual(values=c( "#E69F00","skyblue"))
+land_holding_99 %>% t_test(total_acre  ~ farmers_hh , detailed = T) %>% select(2:3,9:13)
+
+
+
+
+
+
+
+
+# CULTIVATED LAND ----
+
+
+cultivated_land=
+  land_holding %>% 
+  left_join(a_irri_rain_method) %>% # filter(hh_id==101046)
+  left_join(a_plots_size[,c(1:2,7)]) %>% 
+  select(hh_id, season, plotID, irri_method,acres) %>% distinct() %>% 
+  group_by(season ,hh_id) %>% 
+  summarise(total_acre=sum(acres,na.rm = T)) %>% 
+  right_join (full_seasons) %>% 
+  mutate(total_acre=ifelse(is.na(total_acre),0,total_acre)) %>%
+  ungroup()
+
+quantile(cultivated_land$total_acre, 0.99)
+
+cultivated_land %>%
+  filter(total_acre<30.8)%>% group_by(season) %>%  
+  t_test(total_acre  ~ farmers_hh , detailed = T)%>% 
+  mutate_at(c(3:4,10:14) ,round,2) %>%
+  mutate(CI = paste0("[", conf.low, ", ", conf.high, "]")) %>% 
+  select(season ,estimate1, estimate2, statistic,p,df,CI) %>%  
+  kbl() %>% kable_paper()
+
+
+
+
+# Gross Cropped Area # year 2022
+cultivated_land_2022 =
+  land_holding %>% 
+  left_join(a_irri_rain_method) %>% # filter(hh_id==101046)
+  left_join(a_plots_size[,c(1:2,7)]) %>% 
+  select(hh_id, season, plotID, irri_method,acres) %>% distinct() %>% 
+  group_by(hh_id) %>% 
+  summarise(total_acre=sum(acres,na.rm = T)) %>%
+  left_join(hh_2022) %>% ungroup()
+cultivated_land_2022 %>% summarize(across(total_acre, compute_summary))
+cultivated_land_2022_99= cultivated_land_2022 %>% filter(total_acre<77.5)
+
+cultivated_land_2022_99 %>% t_test(total_acre  ~ farmers_hh , detailed = T)%>% select(2:3,9:13) %>% mutate_at(2:7,round,2) %>% kbl() %>% kable_paper()
+
+# Gross Cropped Area
+land_holding_99 %>% 
+  inner_join(cultivated_land_2022_99,by = join_by(hh_id,farmers_hh,in1_out0)) %>% 
+  mutate(gca=total_acre.y/total_acre.x )
+
+
+
+
+
+
+
+
+
+
+# IRRIGATED LAND   ----
+
+irrigated_land= 
+  a_irri_rain_method %>% # filter(hh_id==101046)
+  left_join(a_plots_size[,c(1:2,7)]) %>% 
+  select(hh_id, season, plotID, irri_method,acres) %>% distinct() %>% 
+  group_by(hh_id, season, plotID) %>% 
+  mutate(hh_6methods =  ifelse("drip" %in% irri_method , "drip", ifelse(any(irri_method  == "furrows"), "furrows",ifelse(any(irri_method  == "flood"), "flood",ifelse(any(irri_method  == "sprinkler"), "sprinkler",ifelse(any(irri_method  == "hose"), "hose","rain"))))) ) %>% 
+  select(hh_id, season, plotID, hh_6methods,acres) %>% distinct() %>% 
+  left_join(hh_2022) %>% 
+  mutate(acre_ir=ifelse(hh_6methods =="rain",0,acres),
+         acre_drip=ifelse(hh_6methods =="drip",acres,0)) %>% 
+  group_by(farmers_hh,season ,hh_id) %>% 
+  summarise(acre_ir=sum(acre_ir,na.rm = T),
+            acre_drip=sum(acre_drip,na.rm = T)) %>% ungroup()
+
+irrigated_land %>% group_by(season) %>%  t_test(acre_drip  ~ farmers_hh , detailed = T)
+irrigated_land %>% group_by(season) %>%  t_test(acre_ir  ~ farmers_hh , detailed = T)
+
+## calculate the 99th percentile [$P99]
+# irrigated_land %>% summarize(across(acre_drip, compute_summary))
+# irrigated_land %>% summarize(across(acre_ir , compute_summary))
+# 
+# irrigated_land_99_acre_drip <- irrigated_land %>% filter(acre_drip < 3.97)
+# irrigated_land_99_acre_ir <- irrigated_land %>% filter(acre_ir < 12.2)
+# 
+# irrigated_land_99_acre_drip %>% group_by(season) %>%  t_test(acre_drip  ~ farmers_hh , detailed = T) #📌
+# irrigated_land_99_acre_ir %>% group_by(season) %>%  t_test(acre_ir  ~ farmers_hh , detailed = T)
+#### The results are in unreasonable numbers ### ### ### ###
+
+
+# irrigated_land WITHOUT 0s
+irrigated_land %>% filter(acre_ir!=0) %>% group_by(season, farmers_hh) %>%
+  summarise(mean(acre_drip),mean(acre_ir))
+
+
+
+# prt_ir=
+irri_acre_plotID <- #  [HH-season-plot] # md # irrigation_drip_plot 
+  a_irri_rain_method %>% # [1,578 hh_id] # [6,740 rows]
+  select( hh_id ,season ,plotID ,irri_method) %>% distinct() %>%  # [6,242]
+  group_by(hh_id , season, plotID)  %>%  # make it  ONE irri method for ONE plot 
+  mutate(hh_6methods =  ifelse("drip" %in% irri_method , "drip", ifelse(any(irri_method  == "furrows"), "furrows",ifelse(any(irri_method  == "flood"), "flood",ifelse(any(irri_method  == "sprinkler"), "sprinkler",ifelse(any(irri_method  == "hose"), "hose","rain"))))) ) %>%
+  ungroup() %>% select(hh_id, season, plotID ,hh_6methods) %>% distinct() %>% 
+  left_join(a_plots_size[,c(1:2,7)])  %>% 
+  mutate(plot_irrigated=ifelse(hh_6methods == "rain",0,1)) %>%
+  mutate(acre_irrigate=ifelse(plot_irrigated ==1,acres,0 )) %>% 
+  mutate(acre_drip=ifelse(hh_6methods =="drip", acres,0) ) %>% 
+  left_join(hh_2022 )  
+
+
+irri_acre_plotID %>%group_by(hh_id ,season, farmers_hh) %>% summarise(acres=sum(acres)) 
+
+irri_acre_plotID %>%
+  group_by(hh_id ,season, farmers_hh) %>% 
+  summarise(cult=sum(acres),ir=sum(acre_irrigate),drip=sum(acre_drip)) %>% 
+  #  filter(ir != 0) %>% results for ONLY irrigate HH
+  mutate(prt_ir.cult= ir/cult, prt_drip.cult=drip/cult,prt_drip.ir=ifelse(drip>0,drip/ir,NA)) %>% 
+  group_by(season, farmers_hh) %>% 
+  summarise(
+    prt_ir.cult= mean(prt_ir.cult), 
+    prt_drip.cult=mean(prt_drip.cult),
+    prt_drip.ir=mean(prt_drip.ir,na.rm = T))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# demography16 -----
+### DFs `age_gndr_hh_head` & `caste` from "Part2_why.R"
+
+demography16=
+  rmtl_In_groups %>% 
+  select(hh_id, in1_out0 , south1_north0 , a5 ) %>% 
+  left_join(age_gndr_hh_head) %>%  # gndr # age
+  left_join(caste)
+
+
+# ECONOMOIC ----
+f13=
+  rmtl_baseline2016 %>% select(hh_id ,contains(c("F12_year","F13"))) %>% 
+  mutate(income_2015= ifelse(is.na(F12_year), F13,ifelse(is.na(F13),F12_year, pmax(F12_year,F13, na.rm = TRUE)))) %>% 
+  select(hh_id,income_2015)
+summary_1_99(f12_f13$bl_yr_income)
+f13$income_2015[f13$income_2015<7000] <- NA
+f13$income_2015[f13$income_2015>1000000] <- NA
+f13$incomeK_2015=f13$income_2015/1000  
+
+economic16=
+  rmtl_baseline2016 %>% 
+  select(hh_id, D2 ,D3, B1,B8,B9) %>% 
+  rename(bpl_card=B8,official_assistance=B9,
+         total_plots16=D3, total_acre16=D2) %>%   #[total_acre | total_plots] 
+  mutate(total_acre_bin = ntile(total_acre16, 5)) %>% 
+  mutate(housing_str01=ifelse(B1==1,1,0)) %>% 
+  mutate(housing_str321=ifelse(B1==1,3,ifelse(B1==3,1,2))) %>% 
+  select(-B1) %>% 
+  left_join(f13) %>% 
+  mutate(income2015_bin = ntile(incomeK_2015, 5))
+
+land_holding22=
+  a_plots_size %>% 
+  filter(!plotStatus %in% c("1","6")) %>% 
+  group_by(hh_id) %>% 
+  summarise(total_plots22=n(),total_acre22=sum(acres,na.rm = T)) %>% 
+  left_join(hh_2022)
+
+summary_1_99(income_21_22$income_2021)
+
+dt40=
+  income_21_22[,c(2, 24,26,27 )] %>% # DF income_21_22 below in this script
+  mutate(
+    income_2021=ifelse(income_2021>1091200,NA,income_2021),
+    income_2021=income_2021/1000,
+    income_2022_withoutRevenue=income_2022_withoutRevenue/1000,
+    income_2022_withRevenue=income_2022_withRevenue/1000
+  ) %>% 
+  left_join(age_gndr_hh_head) %>% 
+  left_join(caste) %>% 
+  left_join(land_holding22) %>% 
+  left_join( economic16[,c(1:3,10)]
+             ) %>% 
+  mutate(total_acre16_bin = ntile(total_acre16, 5)) %>% 
+  mutate(total_acre22_bin = ntile(total_acre22, 5)
+         ) %>% 
+  mutate(income2015_bin = ntile(incomeK_2015, 5)) %>% 
+  mutate(income2021_bin = ntile(income_2021 , 5))
+
+
+# # total_acre22 #
+names(dt40)
+
+M1<-lm(total_acre22  ~ in1_out0 + gndr + age + caste_01, dt40)
+sjPlot::tab_model(M1, digits = 4, show.se = T)
+
+M2 <- lm(total_acre22 ~ in1_out0 + gndr + age + caste_01 + total_acre16, dt40)
+sjPlot::tab_model(M2, digits = 4, show.se = T)
+
+dt40 %>% group_by(total_acre22_bin) %>% summarise (mean(total_acre22,na.rm = T))
+dt401=dt40 %>% filter(total_acre22>11)
+M3 <- lm(total_acre22 ~ in1_out0 +gndr + age + caste_01, dt401)
+sjPlot::tab_model(M3, digits = 4, show.se = T)
+
+M4 <- lm(total_acre22 ~ in1_out0 , dt40)
+sjPlot::tab_model(M4, digits = 4, show.se = T)
+#
+
+# income_2021 #
+M1<-lm(income_2021  ~ in1_out0 + gndr + age + caste_01, dt40)
+sjPlot::tab_model(M1, digits = 4, show.se = T)
+
+M2 <- lm(income_2021 ~ in1_out0 + gndr + age + caste_01 + incomeK_2015, dt40)
+sjPlot::tab_model(M2, digits = 4, show.se = T)
+
+dt40 %>% group_by(income2021_bin) %>% summarise (mean(income_2021,na.rm = T))
+dt401=dt40 %>% filter(income_2021>187)
+M3 <- lm(income_2021 ~ in1_out0 +gndr + age + caste_01, dt401)
+sjPlot::tab_model(M3, digits = 4, show.se = T)
+
+M4 <- lm(income_2021 ~ in1_out0 , dt40)
+sjPlot::tab_model(M4, digits = 4, show.se = T)
+
+
+summary_1_99(yield22_acre$kg_per_acre)
+yield22=
+  yield22_acre %>% 
+  mutate(kg_per_acre=ifelse(kg_per_acre>9670.14,NA,kg_per_acre)) %>%
+  filter(season !="kharif_2022" ) %>%
+  group_by(hh_id) %>% 
+  summarise( 
+    kg_2021_22=sum(kg_season,na.rm = T),
+    kg_per_acre_2021_22=sum(kg_per_acre,na.rm = T),
+    cult_acre_2021_22=sum(acre ,na.rm = T)) %>%
+  left_join(age_gndr_hh_head) %>% 
+  left_join(caste) %>%
+  left_join(hh_2022)
+  
+
+M1<-lm(kg_2021_22  ~ in1_out0 + gndr + age + caste_01, yield22)
+sjPlot::tab_model(M1, digits = 4, show.se = T)
+
+
+
+
+
 
 # CROPPING PATTERN                                ----
 
@@ -194,19 +487,27 @@ a_plots_revenue %>% filter(plotRevenue>999) %>%
   mutate(revenue_per_acre_season=revenue/totalAcre) %>% 
   left_join(hh_2022)
 
-revenue_per_acre_SEASON$season[revenue_per_acre_SEASON$season=="rab"] <- "rabi_2021_22"
+revenue_per_acre_SEASON$season[revenue_per_acre_SEASON$season=="rabi"] <- "rabi_2021_22"
 revenue_per_acre_SEASON$season[revenue_per_acre_SEASON$season=="kha"] <- "kharif_2021"
 revenue_per_acre_SEASON$season[revenue_per_acre_SEASON$season=="KHA22"] <- "kharif_2022"
 
-revenue_per_acre_SEASON %>% group_by(season,farmers_hh ) %>% summarise(revenue_per_acre_season=mean(revenue_per_acre_season))
 
-# t test
-t01 <- revenue_per_acre_SEASON %>% group_by(season) %>% 
-  t_test(revenue_per_acre_season  ~ farmers_hh , detailed = T) 
+revenue_per_acre_SEASON %>% filter(season =="kharif_2021") %>% rename(re=revenue_per_acre_season) %>% 
+  summarize(across(re, compute_summary))
+re_kha21_99= revenue_per_acre_SEASON %>% filter(season =="kharif_2021",revenue_per_acre_season<81266)
+t1=re_kha21_99 %>% t_test(revenue_per_acre_season  ~ farmers_hh , detailed = T) %>% rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% select(season,Ramthal,Outside_Ramthal,t,df,p,conf.low,conf.high)
 
-t_L78a <- t01 %>% 
-  rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
-  select(season,Ramthal,Outside_Ramthal,n1,n2,estimate,conf.low,conf.high,t,df,p) 
+revenue_per_acre_SEASON %>% filter(season =="rabi_2021_22") %>% rename(re=revenue_per_acre_season) %>% summarize(across(re, compute_summary))
+re_rabi_99= revenue_per_acre_SEASON %>% filter(season =="rabi_2021_22",revenue_per_acre_season<48259)
+t2=re_rabi_99 %>% t_test(revenue_per_acre_season  ~ farmers_hh , detailed = T) %>% rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% select(season,Ramthal,Outside_Ramthal,t,df,p,conf.low,conf.high)
+
+revenue_per_acre_SEASON %>% filter(season =="kharif_2022") %>% rename(re=revenue_per_acre_season) %>% summarize(across(re, compute_summary))
+re_rabi_99= revenue_per_acre_SEASON %>% filter(season =="kharif_2021",revenue_per_acre_season<52398)
+t3=re_rabi_99 %>% t_test(revenue_per_acre_season  ~ farmers_hh , detailed = T) %>% rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% select(season,Ramthal,Outside_Ramthal,t,df,p,conf.low,conf.high)
+
+t_L78a <- rbind(t1,t2,t3) 
+nice_table(t_L78a)
+
 nice_table(t_L78a,title = c("Table L78a | Crop revenue", "Revenue per acre by season 2021-2022"),
            note = c("[L78]	Total revenue?","🟩" ))
 
@@ -241,11 +542,20 @@ L56_crop_sell <-
 # How much of the yield was [%]	# [percentage at Season-Crop]
 # [L52] Sold # [L53] Kept for HH consumption # [L54] Lost in post-harves
 
+L56 <- rmtl_srvy22 %>% select(farmers_hh,hh_id, starts_with( "L56")) 
+
+
 yield_prt_season <- 
   yield_prt %>% 
   group_by(hh_id,farmers_hh,season) %>% 
   summarise(prt_sold=mean(prt_sold),prt_stored=mean(prt_stored),
-            prt_consum=mean(prt_consum),prt_lost=mean(prt_lost))
+            prt_consum=mean(prt_consum),prt_lost=mean(prt_lost)) %>% 
+  ungroup() %>%   mutate(
+    prt_sold = prt_sold / 100,
+    prt_stored = prt_stored / 100,
+    prt_consum = prt_consum / 100,
+    prt_lost = prt_lost / 100
+  )
 
 yield_prt_season %>% group_by(season,farmers_hh) %>% summarise(prt_lost=mean(prt_lost))
   
@@ -259,12 +569,9 @@ t01 <- yield_prt_season %>% group_by(season) %>%
 
 t_L54 <- t01%>% 
   rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
-  select(season,Ramthal,Outside_Ramthal,n1,n2,estimate,conf.low,conf.high,t,df,p) 
+  select(season,Ramthal,Outside_Ramthal,t,df,p,conf.low,conf.high) 
 nice_table(t_L54,title = c("Table L54 | Lost yield", "Percentage of yield lost in post-harvest"),
            note = c("How much  of the yield % was [L54] Lost in post-harvest?","🟩" ))
-
-
-
 
 t01 %>%
   ggplot(aes(x = season, y = estimate, ymin = conf.low, ymax = conf.high)) +
@@ -302,15 +609,8 @@ yield22_acre <-
             acre=sum(acres),
             kg_per_acre=kg_season/ acre)
 
-### summary_stats
-summary_stats1 <-compute_summary(yield22_acre$kg_per_acre)
-summary_stats1_df <- as.data.frame(t(summary_stats1))
+compute_summary(yield22_acre$kg_per_acre)
 
-group_var <- yield22_acre$farmers_hh
-summary_stats <- tapply(yield22_acre$kg_per_acre, group_var, compute_summary)
-summary_df <- as.data.frame(do.call(rbind, summary_stats))
-
-rbind(summary_stats1_df, summary_df)%>% mutate_at(1:9,round) %>% kbl() %>% kable_styling()
 
 ### fig.
 yield22_acre %>% filter(kg_per_acre>0,kg_per_acre<583) %>% 
@@ -328,21 +628,20 @@ yield22_acre %>% filter(kg_per_acre>0,kg_per_acre<583) %>%
           legend.margin = margin(1,1,1,1))
         
 ### ttest
-t01 <- yield22_acre %>% group_by(season) %>% t_test(kg_per_acre ~ farmers_hh, detailed = T)
-t02 <- yield22_acre %>% filter(kg_per_acre>0,kg_per_acre<583) %>% group_by(season) %>% 
-  t_test(kg_per_acre ~ farmers_hh, detailed = T)
+compute_summary(yield22_acre$kg_per_acre)
+
+yield22_acre %>% group_by(season) %>% t_test(kg_per_acre ~ farmers_hh, detailed = T)
+
+t02 <- yield22_acre %>% filter(kg_per_acre>0,kg_per_acre<9670) %>% group_by(season) %>% t_test(kg_per_acre ~ farmers_hh, detailed = T)
 
 ### Table L49
-t_L49 <- t01%>% 
+t_L49 <- t02%>% 
   rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
   select(season,Ramthal,Outside_Ramthal,n1,n2,estimate,conf.low,conf.high,t,df,p) 
 nice_table(t_L49,title = c("Table L49 | Crop yield", "Crop yield per acre by season (in Kg)"),
            note = c("[L49] What was the total yield [int]","🟩" ))
 
-t_L49b <- t02%>% 
-  rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
-  select(season,Ramthal,Outside_Ramthal,n1,n2,estimate,conf.low,conf.high,t,df,p) 
-nice_table(t_L49b,title = c("Table L49b | Crop yield<583"))
+
 
 # INPUTS                           ----
 # costs of  [__].   Season wise
@@ -654,12 +953,41 @@ nice_table(t_F129,title = c("Table F1.2.9 | External income" ,"family assistance
 
 # HOUSEHOLD ROSTER  ಮನೆಯ ರೋಸ್ಟರ್  ----
 
-attr(rmtl_srvy22$r2, "labels")
+attr(rmtl_srvy22$r3, "labels")
 
-roster22A= rmtl_srvy22 %>% select(hh_id, farmers_hh, r1)
+roster22A= 
 # r1 How many household members live in this house?
 # r3_ What is the household member status ?
 # r26_ Since 2016, has [member's name] migrated from the village for work for a period of 6 months or more?
+rmtl_srvy22 %>% select(hh_id, farmers_hh, r1 )
+rmtl_srvy22 %>% select(hh_id, farmers_hh, starts_with("r3_"))
+
+# Migration  ----
+migration22=
+  rmtl_srvy22 %>% 
+  select(hh_id, farmers_hh, starts_with("r26_")) %>% 
+  pivot_longer(-c(hh_id,farmers_hh), names_to = "mmbr", values_to = "migrated") %>% 
+  filter(!is.na(migrated)) %>% 
+  group_by(hh_id,farmers_hh) %>% 
+  summarise(migrt_total=sum(migrated), n_hhm=n() ,migrt_prc= migrt_total/n_hhm) %>% 
+  ungroup()
+
+t01 <- migration22 %>% t_test(migrt_total  ~ farmers_hh , detailed = T) 
+t02 <- migration22 %>% t_test(migrt_prc ~ farmers_hh , detailed = T) 
+
+t_R26 <- rbind(t01,t02) %>% 
+  rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
+  select(.y. ,Ramthal,Outside_Ramthal,t,df,p,conf.low,conf.high)
+t_R26$.y.[t_R26$.y.=="migrt_prc"] <- "fraction members of a HH who migrates"
+t_R26$.y.[t_R26$.y.=="migrt_total"] <- "Total HH members who migrates"
+
+nice_table(t_R26,title = c("Table R26 | Migration","HH members who migrates Since 2016" ),
+           note = c("", "[R26] Since 2016, has [member's name] migrated from the village for work for a period of 6 months or more?","n includes 0s"))
+
+
+
+
+
 
 
 roster18A= rmtl_midline2018 %>% select(id, farmers_hh, c1, c1_exist, c27)
@@ -672,6 +1000,58 @@ roster16A=rmtl_baseline2016 %>% select(hh_id, farmers_hh, C1,C27)
 # C27	How many people, who previously lived in the household in the past 10 years now live elsewhere?
 
 # C18_	Where do they reside most of the time during the rest of the year?
+
+
+#education      ----
+#   
+# r7	Are they literate?
+# r8	What is their educational level? (0=NOT literate)
+
+# The HH head is the same as in 2016, so there is no need to examine it
+
+r7= rmtl_srvy22 %>% select(hh_id,starts_with("r7" ) ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "literate") %>% 
+  filter(!is.na(literate))
+r7$id_member <- sub("^r7_(\\d{1,2})","r_\\1",r7$id_member )
+
+r8= rmtl_srvy22 %>% select(hh_id, starts_with("r8"), -ends_with("_bin") ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level")
+r8$id_member <- sub("^r8_(\\d{1,2})","r_\\1",r8$id_member )
+
+attr(rmtl_srvy22$r8_1, "labels")
+
+edu22 = 
+  left_join(r7,r8)%>%
+  mutate(edu_level=ifelse(is.na(edu_level),0 ,edu_level )) %>% 
+  mutate(high_edu_level=ifelse(edu_level %in% c(4:6),1 ,0 )) %>% 
+rm(r7,r8)
+
+education122 =
+  edu22 %>% 
+  group_by(hh_id) %>% 
+  summarise(
+    n_hhm= n(),
+    literate_pct_hh=mean(literate),    
+    edu_hh_level_hh= mean(edu_level),
+    high_edu_pct_hh= mean(high_edu_level)
+  ) %>%  ungroup() %>% 
+  mutate_at(3:5,round,2) %>% left_join(hh_2022)
+
+
+t01 <- education122 %>% t_test(literate_pct_hh  ~ farmers_hh , detailed = T) 
+t02 <- education122 %>% t_test(edu_hh_level_hh ~ farmers_hh , detailed = T) 
+t03 <- education122 %>% t_test(high_edu_pct_hh ~ farmers_hh , detailed = T) 
+
+t_R8 <- rbind(t01,t02,t03) %>% 
+  rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
+  select(.y. ,Ramthal,Outside_Ramthal,t,df,p,conf.low,conf.high)
+
+nice_table(t_R8,title = c("Table R8 | Education","Education among HH members" ),
+           note = c("","[r7] Are they literate?",
+                    "[r8] What is their educational level? (0=NOT literate)"))
+
+
+
 
 
 

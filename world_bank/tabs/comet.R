@@ -32,17 +32,24 @@ dt2020_2024=rbind(dt_24,dt_23,dt_22,dt_21,dt_20)
 rm(dt_24,dt_23,dt_22,dt_21,dt_20,data_2024,data_2023,data_2022,data_2021,data_2020)
 
 
-################# dt2020_2024_accnts  
-dt2020_2024_accnts= # -------------------------------------------   # 5,987 obs.
-  dt2020_2024 %>% dplyr::select(
-  community, electricity_before_comet, account_number) %>% 
-  distinct()   #  ---------------------------------------  # 1,916 obs. accounts
+################# cm_instl ----
+dt2020_2024 %>%  # -----------------------------------------------------# 5,987 obs.
+  dplyr::select(account_number) %>% distinct() %>% #--------------------# 1,916 obs. 
+  filter(!is.na(account_number))  #-------------------------------------# 1,915 accounts
 
-dt2020_2024_accnts[,3] %>% count(account_number) %>% arrange(desc( n ))# 1,916
-dt2020_2024_accnts[,3] %>% distinct() # A tibble: 1,916
-
-dt2020_2024_accnts$meter_number <- dt2020_2024_accnts$account_number
-
+cm_instl  <-
+  dt2020_2024 %>%  # ---------------------------------------------------# 5,987 obs.
+  select(account_number,installation_date,electricity_before_comet) %>% 
+  distinct() %>% #------------------------------------------------------# 1,919 obs. 
+  filter(!is.na(account_number),!is.na(installation_date)) %>% # -------# 1,865  
+  mutate(install_year=year(installation_date)) %>% 
+  mutate(hh_number=as.character(account_number),
+         installation_date=as.Date(installation_date),
+         power_B4=ifelse(electricity_before_comet=="Yes",1,0)
+         )
+  #
+  
+  
 # ___________ paymnt_12_24  ________________________________________________________________ ----
 cometME_pay_12_24 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/comrt_me/cometME_pay_12_24.xlsx")
 names(cometME_pay_12_24)
@@ -79,6 +86,7 @@ paymnt_12_24A <- paymnt_12_24A %>%
 paymnt_12_24A %>% dplyr::select(meter_number) %>% distinct()   # 1,970
 paymnt_12_24A %>% dplyr::select(account_number) %>% distinct()  # 2,005
 
+# בדיקה
 paymntA=paymnt_12_24A %>% select(meter_number, account_number)
   paymntA$account_number[is.na(paymntA$account_number)] <- "NA"
   paymntA$meter_number[is.na(paymntA$meter_number)] <- "NA"
@@ -96,43 +104,93 @@ dt2020_2024_accnts %>% mutate(number=as.character(meter_number)) %>%
   inner_join(paymnt_12_24_meter_number_NAs)
 ## 0 overlap -  33 paymnt_12_24$meter_number doesnt exist in dt2020_2024_accnts
   
-  
 # pay1=
 paymnt_12_24A %>% select(meter_number,date,time) %>% 
   count(meter_number,date)%>% filter(n>1) # A tibble: 3,417
 
 # case 37232660086 37232652125       
 
+# המשך  ----
+
+# paymnt
 paymnt_12_24B <- 
-  paymnt_12_24A %>%  # ------------------------------------------------- 30,814
-  select(-c(SN,receipt_number,Date)) %>% distinct() %>%  # ------------- 30,797
-  
-  
-  filter(TotalAmt !=0)  # ---------------------------------------------- 27,385  
+  paymnt_12_24A %>%  # ---------------------------------------------- 30,814
+  select(meter_number,TotalAmt,kWh,date) %>% # distinct() %>%  # ---  27,345
+  group_by(meter_number ,date) %>%
+  slice(which.max(TotalAmt)) %>% ungroup() %>% # -------------------  26,992
+  filter(TotalAmt>50,TotalAmt<200) # -------------------------------  20,543
 
-
-
-
-
-paymnt_12_24B <- 
-  paymnt_12_24A %>%  # ------------------------------------------------- 30,814
-  select(-c(SN,receipt_number,Date,time)) %>% distinct() %>%  # ------- 27,390
-  filter(TotalAmt !=0)  # --------------------------------------------- 27,385  
-
-# pay2=
-paymnt_12_24B %>% select(meter_number,date) %>% 
-  count(meter_number,date) %>% filter(n>1) # A tibble: 326
+last_day=as.Date(2024-11-21)
 
 paymnt_12_24C <- 
-  paymnt_12_24B %>% 
+    paymnt_12_24B %>%
+    group_by(meter_number) %>%
+    summarise(
+      total_paymnt=n(),
+      earliest_pymnt = min(date),
+      latest_pymnt = max(date),
+      total_amt=sum(TotalAmt),total_kWh=sum(kWh),
+    ) %>%  #  1,724
+  rename(hh_number=meter_number) %>% 
+  inner_join(cm_instl[,-1]) %>% # add DF cm_instl
+  
+  mutate(
+    # days_from_1th_pay=latest_pymnt-earliest_pymnt,
+    # days_from_1th_pay=as.numeric(days_from_1th_pay), 
+    # days_intsl_to_latestD=as.numeric(latest_pymnt-installation_date),
+    days_intsl_to_lastD=as.numeric(as.Date("2024-02-25")-installation_date)) %>% filter(days_intsl_to_lastD>1) %>% 
+    
+  mutate(amt_per_yr=total_amt/(days_intsl_to_lastD/365), 
+        paymntS_per_yr=total_paymnt/(days_intsl_to_lastD/365) )
+
+# STAT ----     
+cm_instl %>%
+  count(install_year) %>% filter(n > 2) %>%
+  ggplot(aes(x = install_year, y = n)) +
+  geom_bar(stat = "identity", fill = "darkgreen") +
+  geom_text(aes(label = n), vjust = -0.5, size = 3, color = "black") +
+  theme_test() +
+  scale_x_continuous(breaks=seq(2012,2023,1))
+
+paymnt_12_24C %>% count(electricity_before_comet) %>% mutate(pct=n/sum(n))
+
+paymnt_12_24C %>% summarise(mean(days_intsl_to_lastD/365))
+                            
+paymnt_12_24C %>% summarise(mean(total_amt),mean(total_paymnt))
+
+paymnt_12_24C %>% summarise(mean(amt_per_yr),mean(paymntS_per_yr))
 
 
-library(lubridate)
-paymnt_12_24[,-1] %>% distinct() %>% mutate(date=as.Date(Date)) %>% 
-  mutate(year = year(date))
+  ggplot(paymnt_12_24C, aes(x = total_paymnt, y = total_amt)) +geom_point()
+  
+  ggplot(paymnt_12_24C, aes(x = amt_per_yr, y = paymntS_per_yr)) +geom_point()+ ylim(0,12)+xlim(15,1200)
+  
+cor(paymnt_12_24C$total_paymnt,paymnt_12_24C$total_amt)
+cor(paymnt_12_24C$amt_per_yr,paymnt_12_24C$paymntS_per_yr)
 
-cm_date %>% group_by(year) %>% count()
-cm_date %>% count(account_number,year)
+library("ggpubr")
+ggscatter(paymnt_12_24C, x = "total_paymnt", y = "total_amt", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson")
+
+ggscatter(paymnt_12_24C, x = "amt_per_yr", y = "paymntS_per_yr", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson")
+
+paymnt_12_24C %>% group_by(power_B4) %>% 
+  summarise(mean(amt_per_yr),mean(paymntS_per_yr) )
+
+
+
+m1 <- lm(amt_per_yr ~ power_B4 , paymnt_12_24C)
+summary(m1)
+sjPlot::tab_model(m1, digits = 4, show.se = T)
+
+m2 <- lm(paymntS_per_yr ~ power_B4 , paymnt_12_24C)
+summary(m2)
+sjPlot::tab_model(m2, digits = 4, show.se = T)
+
+
 
 
 

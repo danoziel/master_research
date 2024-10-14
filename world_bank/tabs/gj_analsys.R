@@ -6,6 +6,21 @@ library(summarytools)
 
 GGRC$m_ccode11 <- read_dta("C:/Users/Dan/OneDrive - mail.tau.ac.il/world_bank/GGRCDATA_20141219_a_1.dta")
 names(GGRC)
+
+############### year_Registration ###########  
+freq(gj1$year_Registration  , report.nas=F, totals=F, cumul=F, headings=F)
+
+yr <- gj1 %>% count(year_Registration) %>% 
+  filter(year_Registration<2014)
+
+ggplot(yr, aes(x = year_Registration, y = n)) +
+  geom_line(color = "green4") +    # Add a line without points
+  scale_x_continuous(breaks = seq(2005, 2013, 1)) +  # Ensure all x-axis values appear
+  labs(title = "Number of MIS Registrations over the Years", 
+       x = "Registrations Year", 
+       y = "Number of Registrations") +
+  theme_minimal()
+
 #### DFs   ################################################################# ####    
 # mis_type       442,456 obs. | Drip & Sprinkler                      ----
 
@@ -18,7 +33,8 @@ gj_village=
   GGRC %>% select(farmervillage,taluka,district) %>% 
   filter(farmervillage != "") %>%
   count(farmervillage,taluka,district) %>%  # 16,194 obs.
-  mutate(villageSI = paste0("V", 100001+row_number()-1)) %>% select(-n)
+  mutate(villageSI = paste0("V", 100001+row_number()-1)) %>% 
+  rename(village_n_hh=n)
 #
 # gj1 <- GGRC    483,692 obs.                             ----
 
@@ -226,13 +242,21 @@ Pdg + ggtitle("Total weeks between registration date")+
 ########  Total Land       ################################################# ####
 
 #### mistype=="Drip"
-rank_TotalLand_D=
-  gj1 %>% filter(mistype=="Drip" ) %>% 
+
+rank_TotalLand_D= gj1 %>% left_join(gj_village[,4:5]) %>% filter(mistype=="Drip" ) %>% 
+# rank_TotalLand_D10= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >10,mistype=="Drip" ) %>% 
+# rank_TotalLand_D20= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >20,mistype=="Drip" ) %>% 
+# rank_TotalLand_D30= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >30,mistype=="Drip" ) %>% 
+
+# rank_TotalLand_S= gj1 %>% left_join(gj_village[,4:5]) %>% filter(mistype=="Sprinkler") %>% 
+# rank_TotalLand_S10= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >10,mistype=="Sprinkler") %>% 
+# rank_TotalLand_S20= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >20,mistype=="Sprinkler") %>% 
+# rank_TotalLand_S30= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >30,mistype=="Sprinkler") %>% 
+
   select(regno, RegistrationDate,villageSI,TotalLand) %>%
   group_by(villageSI) %>% 
   arrange(RegistrationDate) %>% 
-  mutate(rank_date_adopters = row_number()) %>% 
-  ungroup() %>% 
+  mutate(rank_date_adopters = row_number()) %>% ungroup() %>% 
   filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56
   ) %>% 
   group_by(rank_date_adopters)%>% 
@@ -243,25 +267,14 @@ rank_TotalLand_D=
 
 
 #### mistype=="Sprinkler"
-rank_TotalLand_S=
-  gj1 %>% filter(mistype=="Sprinkler" ) %>% 
+rank_TotalLand_S=gj1 %>% filter(mistype=="Sprinkler" ) %>% 
   select(regno, RegistrationDate,villageSI,TotalLand) %>%
-  group_by(villageSI) %>% 
-  arrange(RegistrationDate) %>% 
-  mutate(rank_date_adopters = row_number()) %>% 
-  ungroup() %>% 
-  filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56
+  group_by(villageSI) %>% arrange(RegistrationDate) %>% mutate(rank_date_adopters = row_number()) %>% ungroup() %>% filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56
   ) %>% 
-  group_by(rank_date_adopters)%>% 
-  summarise(n=n(),
-            Total_Land=mean(TotalLand,na.rm = T),
-            SD=sd(TotalLand,na.rm = T),
-            CI95delta= 1.96*(SD/sqrt(n)))
+  group_by(rank_date_adopters)%>% summarise(n=n(),Total_Land=mean(TotalLand,na.rm = T),SD=sd(TotalLand,na.rm = T),CI95delta= 1.96*(SD/sqrt(n)))
 
 # Combine the data frames and create a grouping variable
-combined_data_rank_totalland <- bind_rows(
-  mutate(rank_TotalLand_D, type = "Drip"),
-  mutate(rank_TotalLand_S, type = "Sprinkle"))
+combined_data_rank_totalland <- bind_rows(mutate(rank_TotalLand_D, type = "Drip"),mutate(rank_TotalLand_S, type = "Sprinkle"))
 
 Ptt=
   combined_data_rank_totalland %>%
@@ -284,11 +297,53 @@ Ptt + ylim(2.6,3.55)+xlim(1,30)
 Ptt+ylim(2.25,3.6)+xlim(1,100)
 #
 
-########  Installed area    ################################################ ####
+# Combine 4 data frames and create a grouping variable
+combined_4D_data_rank_TotalLand<- bind_rows(
+  mutate(rank_TotalLand_D, Drip = "All"),
+  mutate(rank_TotalLand_D10, Drip = "10up"),
+  mutate(rank_TotalLand_D20, Drip = "20up"),
+  mutate(rank_TotalLand_D30, Drip = "30up"))
+
+combined_4S_data_rank_TotalLand <- bind_rows(
+  mutate(rank_TotalLand_S, Sprinkler = "All"),
+  mutate(rank_TotalLand_S10, Sprinkler = "10up"),
+  mutate(rank_TotalLand_S20, Sprinkler = "20up"),
+  mutate(rank_TotalLand_S30, Sprinkler = "30up"))
+
+
+TotalLandD=
+  combined_4D_data_rank_TotalLand %>%
+  ggplot(aes(rank_date_adopters, Total_Land, color=Drip)) +geom_line() + theme_light() +
+  ggtitle("Farms' Total Land size")+ylab("Total Land (in Ha)")+xlab("Ranking of MIS adoption date ") +theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
+#Fig.----
+TotalLandD + ylim(2.6,3.55)+xlim(1,30)
+
+TotalLandS=
+  combined_4S_data_rank_TotalLand %>%
+  ggplot(aes(rank_date_adopters, Total_Land, color=Sprinkler)) +geom_line() + theme_light() +
+  ggtitle("Farms' Total Land size")+ylab("Total Land (in Ha)")+xlab("Ranking of MIS adoption date ") +theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
+#Fig.----
+TotalLandS + ylim(2.6,3.55)+xlim(1,30)
+
+
+
+
+
+
+
+
+
+
+
+
+########  land installed MI    ################################################ ####
 
 #### mistype=="Drip"
-rank_misarea_D=
-  gj1 %>% filter(mistype=="Drip" ) %>% 
+rank_misarea_D= gj1 %>% left_join(gj_village[,4:5]) %>% filter(mistype=="Drip" ) %>% 
+# rank_misarea_D10= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >10,mistype=="Drip" ) %>% 
+# rank_misarea_D20= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >20,mistype=="Drip" ) %>% 
+# rank_misarea_D30= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >30,mistype=="Drip" ) %>% 
+  
   select(regno, RegistrationDate,villageSI,TotalLand,misarea) %>%
   group_by(villageSI) %>% 
   arrange(RegistrationDate) %>% 
@@ -320,9 +375,10 @@ rank_misarea_S=
             CI95delta= 1.96*(SD/sqrt(n)))
 
 # Combine the data frames and create a grouping variable
-combined_data_rank_misarea <- bind_rows(
+combined_4_data_rank_misarea <- bind_rows(
   mutate(rank_misarea_D, type = "Drip"),
   mutate(rank_misarea_S, type = "Sprinkle"))
+
 
 Pmisarea=
   combined_data_rank_misarea %>%
@@ -345,6 +401,39 @@ Pmisarea + ylim(1.2,1.7) + xlim(1,30)
 #
 Pmisarea + ylim(1.1,1.85) + xlim(1,100)
 #
+
+# Combine 4 data frames and create a grouping variable
+combined_4D_data_rank_misarea <- bind_rows(
+  mutate(rank_misarea_D, Drip = "All"),
+  mutate(rank_misarea_D10, Drip = "10up"),
+  mutate(rank_misarea_D20, Drip = "20up"),
+  mutate(rank_misarea_D30, Drip = "30up"))
+
+combined_4S_data_rank_misarea <- bind_rows(
+  mutate(rank_misarea_S, Sprinkler = "All"),
+  mutate(rank_misarea_S10, Sprinkler = "10up"),
+  mutate(rank_misarea_S20, Sprinkler = "20up"),
+  mutate(rank_misarea_S30, Sprinkler = "30up"))
+
+misareaD=
+  combined_4D_data_rank_misarea %>%
+  ggplot(aes(rank_date_adopters, irrigated_land_ha, color=Drip)) +geom_line() + theme_light() +
+  ggtitle("Farms' installed area size by Drip")+ylab("Installed area (in Ha)")+xlab("Ranking of MIS adoption date ") +theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
+#Fig.----
+misareaD + ylim(1.2,1.7) + xlim(1,30)
+
+misareaS=
+  combined_4S_data_rank_misarea %>%
+  ggplot(aes(rank_date_adopters, irrigated_land_ha, color=Sprinkler)) +geom_line() + theme_light() +
+  ggtitle("Farms' installed area size by Sprinkler")+ylab("Installed area (in Ha)")+xlab("Ranking of MIS adoption date ") +theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
+#Fig.----
+misareaS + ylim(1.2,1.7) + xlim(1,30)
+
+
+
+
+
+
 
 ######## % Irrigated Land  ###################################### ####
 # The percentage of the area installed in the system out of the total area owned by the farmer
@@ -424,13 +513,13 @@ haversine_distance <- function(lat1, lon1, lat2, lon2) {
 dis= 
   gj1 %>%   
   filter(!is.na (RegistrationDate) ) %>% 
-  select(regno,mistype, RegistrationDate,villageSI ,Latitude,Longitude) %>%
-  group_by(villageSI) %>% 
+  select(regno,mistype, RegistrationDate,c_code01new ,Latitude,Longitude) %>%
+  group_by(c_code01new) %>% 
   arrange(RegistrationDate) %>%
   mutate(rank_date_adopters = row_number()) %>% ungroup() %>% 
   filter(Latitude>20,Latitude<25, Longitude>68.5,Longitude<74.5) %>% 
   #distance_from_1st_farmer
-  group_by(villageSI) %>%
+  group_by(c_code01new) %>%
   mutate(distance = 
            haversine_distance(Latitude[1], Longitude[1], Latitude, Longitude) )%>% 
   ungroup() %>% 

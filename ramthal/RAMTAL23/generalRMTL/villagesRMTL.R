@@ -51,3 +51,23 @@
 villages_list$village_code <- sprintf("%02d", villages_list$village_code)
 village_code
 
+
+
+
+
+
+rmtl_baseline2016 <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_baseline2016.csv")
+a=rmtl_baseline2016 %>%  select(hh_id,A9) %>% filter(A9=="Chinnapur" )
+a=rmtl_baseline2016 %>%  select(hh_id,A7,A9) %>% filter(A9=="Chinnapur" )
+
+
+Irrigation_Midline_Clean_with_Callbacks<- read_dta("~/master_research/DATAs/ramthal_data/Ramthal Midline/Clean Data/Irrigation_Midline_Clean_with Callbacks.dta")
+# A tibble: 1,702 × 7,990  # 1/10/2018
+aa=Irrigation_Midline_Clean_with_Callbacks %>% select(id,a5) %>% filter(a5=="chinnapur" )
+aa=Irrigation_Midline_Clean_with_Callbacks %>% select(id,a5) 
+
+
+
+
+
+
