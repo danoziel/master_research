@@ -17,6 +17,40 @@ library(kableExtra )
 library(tidyverse)
 ----------------------------------------------- # essentials               -----
 
+
+library(labelled)
+
+# Labeling the `gndr` variable with 1 = male and 2 = female
+dt40$gndr <- labelled(
+  dt40$gndr,
+  labels = c("male" = 1, "female" = 2))
+
+# Adding a label for `gndr` variable
+var_label(dt40$gndr) <- "Gender"
+
+# Adding a label for `age` variable
+var_label(dt40$age) <- "Age"
+
+# Adding a label for `edu_hh_head` variable
+var_label(dt40$edu_hh_head) <- "Education"
+
+# Labeling the `caste_01` variable with 1 = high caste and 0 = low caste
+dt40$caste_01 <- labelled(
+  dt40$caste_01,
+  labels = c("high caste" = 1, "low caste" = 0))
+
+# Adding a label for `caste_01` variable
+var_label(dt40$caste_01) <- "Caste"
+
+# If you need to label `in1_out0`, assuming it is part of dt40 and represents project participation:
+dt40$in1_out0 <- labelled(
+  dt40$in1_out0,
+  labels = c("in project" = 1, "outside project" = 0))
+
+# Adding a label for `in1_out0`
+var_label(dt40$in1_out0) <- "In/Out the project"
+
+
 select(where(~!all(is.na(.x)))) 
 
 ############################ t test ###

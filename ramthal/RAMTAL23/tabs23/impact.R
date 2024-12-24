@@ -194,7 +194,7 @@ irri_acre_plotID %>%
 
 
 
-
+# Multiple Linear Regression to measure impact ............................. ----
 
 
 # demography16 -----
@@ -211,11 +211,16 @@ demography16=
 f13=
   rmtl_baseline2016 %>% select(hh_id ,contains(c("F12_year","F13"))) %>% 
   mutate(income_2015= ifelse(is.na(F12_year), F13,ifelse(is.na(F13),F12_year, pmax(F12_year,F13, na.rm = TRUE)))) %>% 
-  select(hh_id,income_2015)
-summary_1_99(f12_f13$bl_yr_income)
-f13$income_2015[f13$income_2015<7000] <- NA
-f13$income_2015[f13$income_2015>1000000] <- NA
-f13$incomeK_2015=f13$income_2015/1000  
+  select(hh_id,income_2015) %>% 
+  mutate(incomeK_2015 = income_2015/1000) %>% 
+  mutate_at(3,round)
+  
+compute_summary_1_99(f13$income_2015)
+
+f13$incomeK_2015[f13$incomeK_2015<7] <- NA
+f13$incomeK_2015[f13$incomeK_2015>=1000] <- NA
+
+
 
 economic16=
   rmtl_baseline2016 %>% 
@@ -236,17 +241,21 @@ land_holding22=
   summarise(total_plots22=n(),total_acre22=sum(acres,na.rm = T)) %>% 
   left_join(hh_2022)
 
-summary_1_99(income_21_22$income_2021)
+summary_1_99(income_21_22$income_2021)  1699240
 
 dt40=
   income_21_22[,c(2, 24,26,27 )] %>% # DF income_21_22 below in this script
   mutate(
-    income_2021=ifelse(income_2021>1091200,NA,income_2021),
     income_2021=income_2021/1000,
-    income_2022_withoutRevenue=income_2022_withoutRevenue/1000,
-    income_2022_withRevenue=income_2022_withRevenue/1000
+    income_2021 = #remove outliers
+      ifelse(income_2021 >= 1400 | income_2021 == 0, NA, income_2021),
+    
+    income_2022=income_2022_withRevenue/1000,
+    income_2022 = #remove outliers
+      ifelse(income_2022 >= 1600 | income_2022 <= 15, NA, income_2022)
   ) %>% 
-  left_join(age_gndr_hh_head) %>% 
+  mutate_at(5,round) %>% 
+  left_join(age_gndr_hh_head) %>%  
   left_join(caste) %>% 
   left_join(land_holding22) %>% 
   left_join( economic16[,c(1:3,10)]
@@ -257,41 +266,139 @@ dt40=
   mutate(income2015_bin = ntile(incomeK_2015, 5)) %>% 
   mutate(income2021_bin = ntile(income_2021 , 5))
 
-
-# # total_acre22 #
+######### total_acre22  ....................................................####
 names(dt40)
 
-M1<-lm(total_acre22  ~ in1_out0 + gndr + age + caste_01, dt40)
-sjPlot::tab_model(M1, digits = 4, show.se = T)
+library(sjPlot)
+library(sjlabelled)
+library(sjmisc)
+library(ggplot2)
 
-M2 <- lm(total_acre22 ~ in1_out0 + gndr + age + caste_01 + total_acre16, dt40)
-sjPlot::tab_model(M2, digits = 4, show.se = T)
+theme_set(theme_sjplot())
 
-dt40 %>% group_by(total_acre22_bin) %>% summarise (mean(total_acre22,na.rm = T))
-dt401=dt40 %>% filter(total_acre22>11)
-M3 <- lm(total_acre22 ~ in1_out0 +gndr + age + caste_01, dt401)
-sjPlot::tab_model(M3, digits = 4, show.se = T)
+### ml
+dt401 <- dt40 %>% 
+  mutate(total_acre22=
+           ifelse(total_acre22>46 | total_acre22 < 0.6 ,NA,total_acre22) )
 
-M4 <- lm(total_acre22 ~ in1_out0 , dt40)
-sjPlot::tab_model(M4, digits = 4, show.se = T)
-#
+M1<-lm(total_acre22  ~ in1_out0 + gndr + age + edu_hh_head + caste_01, dt401)
+summary(M1)
+sjPlot::tab_model(M1, digits = 2, show.se = T)
+sjPlot::plot_model(M1, show.values = TRUE, value.offset = .3)
 
-# income_2021 #
-M1<-lm(income_2021  ~ in1_out0 + gndr + age + caste_01, dt40)
-sjPlot::tab_model(M1, digits = 4, show.se = T)
+### ml + total_acre16
+M2<-lm(total_acre22 ~ in1_out0 + gndr + age + edu_hh_head + caste_01 + total_acre16, dt401)
+sjPlot::tab_model(M2, digits = 2, show.se = T)
 
-M2 <- lm(income_2021 ~ in1_out0 + gndr + age + caste_01 + incomeK_2015, dt40)
-sjPlot::tab_model(M2, digits = 4, show.se = T)
+### total_acre22_bin
+dt40 %>% group_by(total_acre22_bin) %>% 
+  summarise (Landholding=mean(total_acre22,na.rm = T)
+             ) %>% 
+  ggplot(aes(x = total_acre22_bin, y = Landholding)) +
+  geom_line(color = "steelblue2", size = 1) + geom_point() +
+  labs(title = "Average Landholding by Total Acreage Bin",
+    x = "Total Acreage Bin", y = "Average Landholding") +
+  theme_classic()
 
-dt40 %>% group_by(income2021_bin) %>% summarise (mean(income_2021,na.rm = T))
-dt401=dt40 %>% filter(income_2021>187)
-M3 <- lm(income_2021 ~ in1_out0 +gndr + age + caste_01, dt401)
-sjPlot::tab_model(M3, digits = 4, show.se = T)
+### ml total_acre22>11
+dt401B=dt40 %>% filter(total_acre22>10)
+dt401B=dt40 %>% filter(total_acre22<10)
 
-M4 <- lm(income_2021 ~ in1_out0 , dt40)
-sjPlot::tab_model(M4, digits = 4, show.se = T)
+M3 <- lm(total_acre22 ~ in1_out0 +gndr + age + edu_hh_head + caste_01, 
+         dt401B)
+sjPlot::tab_model(M3, digits = 2, show.se = T)
 
 
+
+
+
+######### income_2021  .....................................................####
+
+M1<-lm(income_2021  ~ in1_out0 + gndr + age + edu_hh_head + caste_01, dt40)
+sjPlot::tab_model(M1, digits = 2, show.se = T)
+
+M2 <- lm(income_2021 ~ in1_out0 + gndr + age + edu_hh_head + caste_01 + incomeK_2015, dt40)
+sjPlot::tab_model(M2, digits = 2, show.se = T)
+
+dt40 %>% group_by(income2021_bin) %>% 
+  summarise (`Income in 1K`=mean(income_2021,na.rm = T)) %>% 
+  ggplot(aes(x = income2021_bin, y = `Income in 1K`)) +
+  geom_line(color = "steelblue2", size = 1) + geom_point() +
+  theme_classic()
+
+dt401=dt40 %>% filter(income_2021<187)
+M3a <- lm(income_2021 ~ in1_out0 +gndr + age + edu_hh_head + caste_01, dt401)
+sjPlot::tab_model(M3a, digits = 2, show.se = T,dv.labels ="income_2021<187")
+
+dt402=dt40 %>% filter(income_2021>187)
+M3b <- lm(income_2021 ~ in1_out0 +gndr + age + edu_hh_head + caste_01, dt402)
+sjPlot::tab_model(M3b, digits = 2, show.se = T,dv.labels ="income_2021>187")
+
+# income_2021 DIFF AND DIFF ----
+dff30 <- dt40 %>% 
+  select(hh_id,in1_out0,incomeK_2015,income_2021,income_2022 ) %>% 
+  filter(!is.na(in1_out0))
+
+dff30 <- dt40 %>% 
+  select(hh_id,in1_out0,incomeK_2015,income_2021,income_2022 ) %>% 
+  filter(!is.na(in1_out0)) %>% mutate(gap=income_2021-incomeK_2015)%>% 
+  mutate(
+    incomeK_2015 = ifelse(gap > -10, incomeK_2015, NA),
+    income_2021 = ifelse(gap > -10, income_2021, NA)
+  )
+
+dff30 %>% group_by(in1_out0 ) %>% 
+  summarise(ic2015=mean(incomeK_2015,na.rm =T),
+            ic2021=mean(income_2021,na.rm =T)) %>% 
+  mutate(ic2021-ic2015 )
+
+
+# Reshape dff30 to long format for DiD
+library(tidyr)
+
+dff_long <- dff30 %>%
+  select(-income_2022) %>% 
+  pivot_longer(cols = starts_with("income"), 
+               names_to = "year", 
+               values_to = "income") %>%
+  mutate(time = ifelse(year == "incomeK_2015", 0, 1))  # 0 for 2015, 1 for 2022
+
+# Step 2: Run the DiD model
+did_model <- lm(income ~ in1_out0 * time, data = dff_long)
+
+# Step 3: Summarize Results
+summary(did_model)
+sjPlot::tab_model(did_model, digits = 2, show.se = T,dv.labels ="DiD to annual income")
+
+# Step 4: Calculate mean income by group and time
+avg_income <- dff_long %>%
+  group_by(in1_out0, time) %>%
+  summarise(mean_income = mean(income, na.rm = TRUE)) %>%
+  mutate(group = ifelse(in1_out0 == 1, "In Project", "Out Project (Control)"))
+
+# Step 5: Plot the DiD results
+ggplot(avg_income, aes(x = time, y = mean_income, color = group, group = group)) +
+  geom_line(size = 1) +
+  geom_point(size = 0.5) +
+  labs(
+    x = "Time (0 = Baseline 2015, 1 = Post-treatment 2021)",
+    y = "Average Income",
+    title = "Difference-in-Differences Analysis of Income Change",
+    color = "Group"
+  ) +
+  scale_x_continuous(breaks = c(0, 1), labels = c("2015", "2021")) +
+  scale_color_manual(values = c("In Project" = "dodgerblue2", "Out Project (Control)" = "goldenrod2")) +
+  theme_classic()
+
+
+
+
+
+
+
+
+
+######### yield22_acre .....................................................####
 summary_1_99(yield22_acre$kg_per_acre)
 yield22=
   yield22_acre %>% 
@@ -324,7 +431,7 @@ cp18=croppin_pattern18 %>% group_by(farmers_hh,crops) %>%summarise(prob18=mean(c
 cp18$prob18[cp18$prob18==0] <- 1
 
 cp22=croppin_pattern22 %>% group_by(farmers_hh,crops) %>% summarise(prob22=mean(crop01)*100) %>% mutate_at(3,round)
-# TO PLOT !  Switching to new cp_prob ----
+#        TO PLOT !  Switching to new cp_prob ----
 cp_prob=full_join(cp16,cp18) %>% full_join(cp22) %>% arrange( desc(prob16))
 cp_prob$prob16[is.na(cp_prob$prob16)] <- 0
 cp_prob %>% as.data.frame()
@@ -584,12 +691,6 @@ t01 %>%
 
 
 
-
-
-
-
-
-
 # YIELD		         ----					
 # L49	 What was the total yield [int]	# [Season-Crop]	
 
@@ -597,7 +698,9 @@ attr(rmtl_srvy22$l49_prev_kha_unit_1_1 , "labels")
 ##  1=Kilograms  ##       2=Bags     ##  3=Quintal  ##  4=Ton   ## 
 ##      1 Kg     ##  l49_XX_XX_bag_  ##    100Kg    ##  1000Kg  ##
 
-size_acre <- a_plots_size %>% select(hh_id,plotID,acres) %>% filter(!is.na(acres))
+size_acre <- a_plots_size %>% 
+  select(hh_id,plotID,acres) %>% 
+  filter(!is.na(acres))
 
 yield22_acre <- 
   a_total_yield %>% 
@@ -630,9 +733,13 @@ yield22_acre %>% filter(kg_per_acre>0,kg_per_acre<583) %>%
 ### ttest
 compute_summary(yield22_acre$kg_per_acre)
 
-yield22_acre %>% group_by(season) %>% t_test(kg_per_acre ~ farmers_hh, detailed = T)
+yield22_acre %>% 
+  group_by(season) %>% t_test(kg_per_acre ~ farmers_hh, detailed = T)
 
-t02 <- yield22_acre %>% filter(kg_per_acre>0,kg_per_acre<9670) %>% group_by(season) %>% t_test(kg_per_acre ~ farmers_hh, detailed = T)
+t02 <- yield22_acre %>% 
+  filter(kg_per_acre>0,kg_per_acre<9670) %>% 
+  group_by(season) %>% 
+  t_test(kg_per_acre ~ farmers_hh, detailed = T)
 
 ### Table L49
 t_L49 <- t02%>% 
@@ -666,9 +773,20 @@ inputs_acre_sns22$season[inputs_acre_sns22$season=="kha"] <- "kharif_2021"
 inputs_acre_sns22$season[inputs_acre_sns22$season=="KHA22"] <- "kharif_2022"
 
 # year 2021-2022
-costesD <- costes_seasons_22 %>% filter(season != "KHA22") %>%group_by(farmers_hh,hh_id, inputs) %>%  summarise(inputs_Rs=sum(inputs_Rs,na.rm = T)) %>% ungroup() 
+costesD <- costes_seasons_22 %>% 
+  filter(season != "KHA22") %>%
+  group_by(farmers_hh,hh_id, inputs) %>%  
+  summarise(inputs_Rs=sum(inputs_Rs,na.rm = T)) %>% ungroup() 
 
-inputs_acre_yr22 <-a_plots_crop %>% select(hh_id,season,plotID) %>% distinct() %>% filter(season!="KHA22") %>% left_join(a_plots_size,by=c("hh_id","plotID")) %>% group_by(hh_id) %>% summarise(sum_acre=sum(acres,na.rm = T)) %>% left_join(costesD) %>%mutate(inputs_per_acre=inputs_Rs/sum_acre ) %>% mutate_at(6,round)
+inputs_acre_yr22 <-a_plots_crop %>% 
+  select(hh_id,season,plotID) %>% distinct() %>% 
+  filter(season!="KHA22") %>% 
+  left_join(a_plots_size,by=c("hh_id","plotID")
+            ) %>% 
+  group_by(hh_id) %>% 
+  summarise(sum_acre=sum(acres,na.rm = T)
+            ) %>% left_join(costesD) %>%
+  mutate(inputs_per_acre=inputs_Rs/sum_acre ) %>% mutate_at(6,round)
 
 rm(costesB, costesA)
 
@@ -688,35 +806,6 @@ t2 <-
 L7123 <- rbind(t2,t1)
 nice_table(L7123,title = c("Table L7123 | Inputs", "Cost of equipment, mechanization, fuel and labor in 2021-2022"),
            note = c("[L70-L73] costs of ____","🟩" ))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -800,7 +889,7 @@ nice_table(t_L58,title = c("Table L58 | Improved seeds","% Households using impr
            note = c("[L58] Is it normal or improved seeds?","🟩" ))
 
 
-# ASSET ಆಸ್ತಿ                                                     ----
+# ASSET                                           ----
 assets22 # yesno_assets & total_assets # [1,612 hh, in946/out666] 
 
 vars_e01 <- rmtl_srvy22 %>% select(farmers_hh,hh_id,starts_with("e")) 
@@ -846,7 +935,7 @@ nice_table(t_E,title = c("Table E | Assats ಆಸ್","% Households own assats/ 
            note = c("[E6-E21] How many of this item does the household currently own? (0 if none)","🟨" ))
 
 
-# INCOME ಆದಾಯ                                           ----
+# INCOME                                   ----
 
 vars_f01 <- rmtl_srvy22 %>% select(farmers_hh, hh_id,starts_with("f")) 
 names(vars_f01)
@@ -951,7 +1040,7 @@ nice_table(t_F129,title = c("Table F1.2.9 | External income" ,"family assistance
                     "[F2]Remittances (from permanent migrants)" , 
                     "[F9]Government pension or scheme" ,"🟨" ))
 
-# HOUSEHOLD ROSTER  ಮನೆಯ ರೋಸ್ಟರ್  ----
+# HOUSEHOLD ROSTER  ----
 
 attr(rmtl_srvy22$r3, "labels")
 
@@ -962,7 +1051,7 @@ roster22A=
 rmtl_srvy22 %>% select(hh_id, farmers_hh, r1 )
 rmtl_srvy22 %>% select(hh_id, farmers_hh, starts_with("r3_"))
 
-# Migration  ----
+#        Migration  ----
 migration22=
   rmtl_srvy22 %>% 
   select(hh_id, farmers_hh, starts_with("r26_")) %>% 
@@ -1055,7 +1144,7 @@ nice_table(t_R8,title = c("Table R8 | Education","Education among HH members" ),
 
 
 
-# SOCIAL CAPITAL  ಸಾಮಾಜಿಕ ಬಂಡವಾಳ                 ----
+# SOCIAL CAPITAL    ----
 
 
 social_22= rmtl_srvy22 %>% select(hh_id, farmers_hh, starts_with("h"))

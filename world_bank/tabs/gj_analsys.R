@@ -4,85 +4,78 @@ library(tidyr)
 library(ggplot2)
 library(summarytools)
 
-GGRC$m_ccode11 <- read_dta("C:/Users/Dan/OneDrive - mail.tau.ac.il/world_bank/GGRCDATA_20141219_a_1.dta")
-names(GGRC)
+gj1B %>% count(villageSI) # 16,188
+gj1B %>% count(taluka)    # 227
+gj1B %>% count(district)  # 26
 
-############### year_Registration ###########  
+gj1 %>% count(villageSI) # 14,019
+gj1 %>% count(taluka)    # 227
+gj1 %>% count(district)  # 26
+
+# Table1 & fig.: Number of adopters by year of registration --------------------
+
 freq(gj1$year_Registration  , report.nas=F, totals=F, cumul=F, headings=F)
 
-yr <- gj1 %>% count(year_Registration) %>% 
+yr <- gj1 %>% count(year_Registration)
+yrB <- gj1B %>% count(year_Registration) %>% 
   filter(year_Registration<2014)
 
-ggplot(yr, aes(x = year_Registration, y = n)) +
+yrB   %>% mutate(n=n/1000) %>% 
+  ggplot(aes(x = year_Registration, y = n)) +
   geom_line(color = "green4") +    # Add a line without points
   scale_x_continuous(breaks = seq(2005, 2013, 1)) +  # Ensure all x-axis values appear
   labs(title = "Number of MIS Registrations over the Years", 
        x = "Registrations Year", 
-       y = "Number of Registrations") +
-  theme_minimal()
+       y = "Number of Registrations \n(in thousands)") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(family = "serif"),
+    plot.caption = element_text(family = "serif", hjust = 0),
+    axis.title = element_text(family = "serif")
+  )
+# Figure 1 : Crops distribution -----------------------------------------------
 
-#### DFs   ################################################################# ####    
-# mis_type       442,456 obs. | Drip & Sprinkler                      ----
+crop_ds <- # `ds` is Drip Sprinkler
+#  gj1 %>% 
+  gj1B %>% 
+  filter(!Crop %in% c("","-","NULL" )) %>% 
+  group_by(mistype,Crop) %>% 
+  summarise(n=n()) %>% group_by(mistype) %>%
+  mutate(crop=ifelse(n<1000,"Other",Crop)) %>% 
+  group_by(mistype,crop) %>% summarise(n=sum(n)) %>% 
+  group_by(mistype) %>% 
+  mutate(pct=n/sum(n)) %>% mutate_at(4,round,2)
 
-mis_type=
-  GGRC %>% select(regno, mistype) %>% filter(mistype != "")
+crop_drip <- crop_ds %>% filter(mistype=="Drip")
+crop_sprinkler <- crop_ds  %>% filter(mistype=="Sprinkler")
 
-# gj_village      16,194 obs. | Gujarat villages list and frequency   ----
+# PLOT cropping pattern
+library(treemap)
+plt <- colorRampPalette(c("lightgreen", "darkgreen"))(length(unique(crop_ds$crop)))
+treemap(crop_drip,index = "crop",vSize = "pct",type = "index", palette = plt, title = "")
+treemap(crop_sprinkler,index = "crop",vSize = "n",type = "index", palette = plt, title = "")
 
-gj_village=
-  GGRC %>% select(farmervillage,taluka,district) %>% 
-  filter(farmervillage != "") %>%
-  count(farmervillage,taluka,district) %>%  # 16,194 obs.
-  mutate(villageSI = paste0("V", 100001+row_number()-1)) %>% 
-  rename(village_n_hh=n)
+# Plot the treemap with customized title and color palette
+treemap(
+  crop_treemap,
+  index = "crop",
+  vSize = "n",
+  type = "index",
+  palette = plt,
+  title = "")
 #
-# gj1 <- GGRC    483,692 obs.                             ----
 
-gj11 <- GGRC %>% 
-  select(regno,year_Registration, RegistrationDate,farmername,
-         Latitude,Longitude,
-         farmercaste,FarmerType,Loan,TotalMISCost,
-         TotalLand,misarea,farmervillage,taluka,district,
-         mistype, EnergySource, WaterSourceDetail,
-         "supplier", "RKVY","Crop",49:50
-  ) %>% 
-  mutate(farmer_category=
-           ifelse(FarmerType %in% c("Small Farmer" ,"Marginal Farmer"),"Small.Marginal Farm",
-                  ifelse(FarmerType %in% c("Large Farmer","Medium Farmer","Semi-Medium Farmer"),"Large.Medium Farm",NA))
-  ) %>% 
-  mutate(caste=
-           ifelse(farmercaste =="Others", "high caste",
-                  ifelse(farmercaste %in% c("OBC","ST","SC"),"low caste",NA))) %>% 
-  mutate(mi_pct_land=misarea/TotalLand )
+# Figure 2: Sample composition by order of adoption ----------------------------
 
-
-gj1 <- gj11 %>% left_join(gj_village)
-rm(gj11)
-rm(gj_village)
-
-#
-# date_rank      442,456 obs.                             ----
-#
-# X-axis is the ranking of the farmers on the date of registration - village wise. 
+# X-axis is the ranking of the farmers on the date of registration 
 # X-axis is a sequence from the first farmer in his village to adopt a MIS
-
-date_rank=
-  gj1 %>%   
-  filter(!is.na (RegistrationDate),!is.na(villageSI) ) %>% 
-  select(regno, mistype, RegistrationDate,villageSI )%>%
-  group_by(villageSI) %>% 
-  arrange(RegistrationDate) %>%
-  mutate(rank_date_adopters = row_number(),
-         days_gap = c(NA, diff(RegistrationDate))) %>% ungroup()
-
-library(ggplot2)
 
 # Custom function to format y-axis labels
 custom_label_format <- function(x) {
   ifelse(x >= 1000, paste0(as.integer(x / 1000), "K"), as.character(x))
 }
 
-date_rank %>%
+date_rank_villageWISE %>% # IIRELEVNT FOR TALUKA WISE
   count(rank_date_adopters) %>%
   filter(rank_date_adopters < 51) %>%
   ggplot(aes(x = rank_date_adopters, y = n)) +
@@ -96,17 +89,20 @@ date_rank %>%
   theme(plot.title = element_text(family = "serif"),
         axis.title = element_text(family = "serif"))+
   scale_x_continuous(breaks=seq(1,50,1))
-  
-freq(GGRC$farmercaste )
-freq(gj1$year_Registration  , report.nas=F, totals=F, cumul=F, headings=F)
 
-#### FREQ  first to adopt ################################################## ####
 
-df=date_rank %>% count(rank_date_adopters,mistype) %>%
+
+
+
+
+
+# Figure 3: Sample composition by type of MI adopted ---------------------------
+
+f02=date_rank_villageWISE %>% count(rank_date_adopters,mistype) %>%
   group_by(rank_date_adopters) %>%  mutate(pct=n/sum(n)) %>% 
   ungroup()
 
-Pf=df  %>% 
+Pf02=f02  %>% 
     ggplot(aes(x=rank_date_adopters, y=pct, fill=mistype)) +
     geom_bar(stat="identity" # , width = 1
              )+ theme_light()+ 
@@ -115,221 +111,383 @@ Pf=df  %>%
   ylab("% of rankings")+xlab("Ranking of MIS adoption date ") +
   theme(plot.title = element_text(family = "serif"),
         axis.title = element_text(family = "serif"))
-#Fig.----
-Pf + scale_x_continuous(limits = c(0, 31), breaks = seq(1, 30, 1))
-Pf + scale_x_continuous(limits = c(0, 101), breaks = seq(0, 100, 10))
 
-#
-# crop freq treemap ----
-
-library(treemap)
-
-crop_count= 
-  gj1 %>% 
-  filter(!Crop %in% c("","-","NULL" )) %>% 
-  group_by(mistype,Crop) %>% 
-  summarise(n=n()) %>% group_by(mistype) %>% mutate(N=sum(n)) %>% 
-  ungroup()
-
-crop_drip <- 
-  crop_count %>% filter(mistype=="Drip") %>% 
-  mutate(n/N) %>% mutate_at(5,round,4)
-crop_drip <-crop_drip %>% 
-  mutate(crop=ifelse(n<1000,"Other",Crop)) %>% 
-  group_by(crop) %>% summarise(n=sum(n),pct=n/177747) %>% 
-  mutate_at(3,round,2)
-
-plt <- colorRampPalette(c("lightgreen", "darkgreen"))(length(unique(crop_drip$crop)))
-treemap(crop_drip,index = "crop",vSize = "pct",type = "index", palette = plt, title = "")
-
+# Fig2 ----
+Pf02 + scale_x_continuous(limits = c(0, 31), breaks = seq(1, 30, 1))
+Pf02 + scale_x_continuous(limits = c(0, 101), breaks = seq(0, 100, 10))
 #
 
-crop_sprinkler <- 
-  crop_count %>% filter(mistype=="Sprinkler") %>% 
-  mutate(n/N) %>% mutate_at(5,round,4)
-crop_sprinkler <-crop_sprinkler %>% 
-  mutate(crop=ifelse(n<200,"Other",Crop)) %>% 
-  group_by(crop) %>% summarise(n=sum(n),pct=n/233153)%>% 
-  mutate_at(3,round,2)
-
-plt <- colorRampPalette(c("lightgreen", "darkgreen"))(length(unique(crop_sprinkler$crop)))
-treemap(crop_sprinkler,index = "crop",vSize = "n",type = "index", palette = plt, title = "")
-
-
-
-# Plot the treemap with customized title and color palette
-treemap(
-  crop_treemap,
-  index = "crop",
-  vSize = "n",
-  type = "index",
-  palette = plt,
-  title = "")
-#
-########   Weeks gap      ##################################################### ####
-
+# Figure 4: Time between adoption for drip and sprinkler adopters.......... --------------
 # Time period between systems adoption
 # No. weeks between RegistrationDate farmers
 
-df <- 
-  date_rank %>% group_by(mistype,rank_date_adopters) %>% 
-  mutate(weeksgap=days_gap/7) %>% 
-  summarise(n=n(),
-            weeks_gap=mean(weeksgap,na.rm = T),
-            SD=sd(weeksgap,na.rm = T),
-            CI95delta= 1.96*(SD/sqrt(n))) %>% 
-  filter(rank_date_adopters!=1) %>% 
-  ungroup()
+# Village WISE ----
+# A
+date_rank_V_wise <- gj1 %>%   
+  select(regno, mistype, RegistrationDate,villageSI,TotalLand )%>%
+  filter(!is.na(TotalLand),TotalLand<22, TotalLand>0) %>% 
+  group_by(villageSI,mistype) %>% 
+  arrange(RegistrationDate) %>%
+  mutate( days_gap = c(NA, diff(RegistrationDate))) %>% ungroup()
 
-#_____________
-df %>% ggplot(aes(rank_date_adopters,weeks_gap,color = mistype)) +
-  geom_line(size=1)+ 
-  xlim(2,30)
+# B
+quantile(date_rank_V_wise$days_gap , 0.99985, na.rm = TRUE)
 
+# C
+date_rank_villageWISE <- gj1 %>%   
+  select(regno, mistype, RegistrationDate,villageSI,TotalLand )%>%
+  filter(!is.na(TotalLand),TotalLand<22, TotalLand>0
+  ) %>% 
+  group_by(villageSI,mistype) %>% 
+  arrange(RegistrationDate) %>%
+  mutate(days_gap = c(NA, diff(RegistrationDate))
+          ) %>% 
+  filter(days_gap < 1500 | is.na(days_gap), # remove outliers
+         n() >= 15) %>%                     # rank limit to X-axis
+  mutate(rank_date_adopters =  row_number() ,
+         weeks_gap1=days_gap/7) %>% 
+  group_by(mistype, rank_date_adopters) %>%
+  summarise(first_date = min(RegistrationDate),
+            n=n(),
+            weeks_gap = mean(weeks_gap1, na.rm = TRUE),
+            SD=sd(weeks_gap1,na.rm = T),
+            CI95delta= 1.96*(SD/sqrt(n))) %>% ungroup()
 
-Pg=
-  df %>%
+# PLOT ----
+Pf03 = date_rank_villageWISE %>%
   ggplot(aes(rank_date_adopters, weeks_gap)) +
-  geom_ribbon(data = filter(df, mistype == "Drip"),
-              aes(ymin=weeks_gap-CI95delta, ymax=weeks_gap+CI95delta), fill = "gray60", color = "white") +
-  geom_ribbon(data = filter(df, mistype == "Sprinkler"),
-              aes(ymin=weeks_gap-CI95delta, ymax=weeks_gap+CI95delta), fill = "gray70", color = "white") +
+  geom_ribbon(data = filter(date_rank_villageWISE, mistype == "Drip"),
+              aes(ymin=weeks_gap-CI95delta, ymax=weeks_gap+CI95delta), fill = "gray75", color = "white") +
+  geom_ribbon(data = filter(date_rank_villageWISE, mistype == "Sprinkler"),
+              aes(ymin=weeks_gap-CI95delta, ymax=weeks_gap+CI95delta), fill = "gray80", color = "white") +
   geom_line(aes(color = mistype), size = 1) +
   scale_color_manual(values=c("Drip"="blue4", "Sprinkler"="royalblue1"),name="") +
-  theme_light() +
-  ggtitle("No. weeks between registration date farmers")+ylab("Gap in weeks")+xlab("Ranking of MIS adoption date ") +
+  theme_classic()+
+  ggtitle("No. of weeks between each MIS registration and the previous one [Village wise]")+
+  ylab("Gap in weeks")+xlab("Ranking of MIS adoption date ") +
   theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
 
+# Fig3 ----
+Pf03+ ylim(0,20) + 
+  scale_x_continuous(limits = c(1.5, 15), breaks = seq(2, 15, 1), expand= c(0,0)   )
+#700X300
 
-#Fig.----
-Pg + scale_x_continuous(limits = c(2, 31), breaks = seq(2, 30, 1))
-Pg + xlim(2,30)
+
+
+# taluka WISE  ----
+# A
+date_rank_T_wise <- gj1 %>%   
+  select(regno,TotalLand, mistype, RegistrationDate,taluka )%>%
+  filter(!is.na(TotalLand),TotalLand<22, TotalLand>0) %>% 
+  group_by(taluka,mistype) %>% 
+  arrange(RegistrationDate) %>%
+  mutate(days_gap = c(NA, diff(RegistrationDate) ))
+
+# B
+quantile(date_rank_T_wise$days_gap , 0.99985, na.rm = TRUE)
+
+# C
+date_rank_talukaWISE <- gj1 %>%   
+  select(regno,TotalLand, mistype, RegistrationDate,taluka )%>%
+  filter(!is.na(TotalLand),TotalLand<22, TotalLand>0) %>% 
+  group_by(taluka,mistype) %>% 
+  arrange(RegistrationDate) %>%
+  mutate(days_gap = c(NA, diff(RegistrationDate))
+         ) %>% 
+  filter(days_gap < 870 | is.na(days_gap), # remove outliers
+         n() >= 15) %>%                    
+  mutate(rank_date_10adopters = ceiling(row_number() / 10), # Create groups of 10 observations
+         weeks_gap1=days_gap/7) %>% 
+  group_by(mistype, rank_date_10adopters) %>% # averaging of averages
+  summarize(first_date = min(RegistrationDate),
+            n=n(),
+            weeks_gap = mean(weeks_gap1, na.rm = TRUE),
+            SD=sd(weeks_gap1,na.rm = T),
+            CI95delta= 1.96*(SD/sqrt(n))) %>% ungroup()
+
+# PLOT ----
+Pf032 = date_rank_talukaWISE %>%
+  ggplot(aes(rank_date_10adopters, weeks_gap)) +
+  geom_ribbon(data = filter(date_rank_talukaWISE, mistype == "Drip"),
+              aes(ymin=weeks_gap-CI95delta, ymax=weeks_gap+CI95delta), fill = "gray75", color = "white") +
+  geom_ribbon(data = filter(date_rank_talukaWISE, mistype == "Sprinkler"),
+              aes(ymin=weeks_gap-CI95delta, ymax=weeks_gap+CI95delta), fill = "gray80", color = "white") +
+  geom_line(aes(color = mistype), size = 1) +
+  scale_color_manual(values=c("Drip"="blue4", "Sprinkler"="royalblue1"),name="") +
+  theme_classic()+
+  ggtitle("No. of weeks between each MIS registration and the previous one [Subdistricts wise]")+
+  ylab("Gap in weeks")+xlab("Ranking of MIS adoption date ") +
+  theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
+
+# Fig3 ----
+Pf032+ ylim(0,3) + 
+  scale_x_continuous(limits = c(1, 15), breaks = seq(2, 15, 1), expand= c(0,0))
 #
-Pg + xlim(2,100)
-#
-# accumulated_week_gap ----
-library(patchwork) # To display 2 charts together
-library(hrbrthemes)
+date_rank_talukaWISE %>% mutate(days_gap=weeks_gap*7) %>%  
+  filter(rank_date_10adopters %in% c(2:7 ) )
 
-# A few constants
-coeff <- 5
-weeks <- "#69b3a2"
-acc_weeks <- rgb(0.2, 0.6, 0.9, 1)
 
-date_gap2 <- 
-  date_rank %>% group_by(rank_date_adopters) %>% 
-  filter(rank_date_adopters!=1) %>%
-  summarise(days_gap=mean(days_gap)) %>%
-  mutate(week_gap=days_gap/7) %>% 
-  mutate(accumulated_week_gap = cumsum(week_gap))
 
-Pdg=
-  date_gap2 %>% filter(rank_date_adopters<30) %>%  
-  ggplot( aes(x=rank_date_adopters)) +
-  geom_line( aes(y=week_gap), size=1, color=weeks) + 
-  geom_line( aes(y=accumulated_week_gap / coeff), size=1, color=acc_weeks) +
-  scale_y_continuous(
-    name = "Weeks Gap",
-    sec.axis = sec_axis(~.*coeff, name="Accumulated Weeks Gap")
-  )  + 
-  theme_ipsum() +
-  theme(axis.title.y = element_text(color = weeks, size=13),
-        axis.title.y.right = element_text(color = acc_weeks, size=13))
-#Fig.----
-Pdg + ggtitle("Total weeks between registration date")+
-  scale_x_continuous(breaks=seq(1,30,5))
 
-########  Total Land       ################################################# ####
 
-#### mistype=="Drip"
+# Figure 4: Average land holding size ..................................... -----------------------------------------
 
-rank_TotalLand_D= gj1 %>% left_join(gj_village[,4:5]) %>% filter(mistype=="Drip" ) %>% 
-# rank_TotalLand_D10= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >10,mistype=="Drip" ) %>% 
-# rank_TotalLand_D20= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >20,mistype=="Drip" ) %>% 
-# rank_TotalLand_D30= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >30,mistype=="Drip" ) %>% 
+# villageSI WISE  ----
 
-# rank_TotalLand_S= gj1 %>% left_join(gj_village[,4:5]) %>% filter(mistype=="Sprinkler") %>% 
-# rank_TotalLand_S10= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >10,mistype=="Sprinkler") %>% 
-# rank_TotalLand_S20= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >20,mistype=="Sprinkler") %>% 
-# rank_TotalLand_S30= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >30,mistype=="Sprinkler") %>% 
-
-  select(regno, RegistrationDate,villageSI,TotalLand) %>%
-  group_by(villageSI) %>% 
+# A
+landholding_villageSI <- gj1 %>% 
+  select(regno,mistype, RegistrationDate,villageSI,TotalLand,FarmerType) %>%
+  filter(!is.na(TotalLand),TotalLand<22, TotalLand>=0) %>% 
+  group_by(mistype,villageSI) %>% 
   arrange(RegistrationDate) %>% 
-  mutate(rank_date_adopters = row_number()) %>% ungroup() %>% 
-  filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56
-  ) %>% 
-  group_by(rank_date_adopters)%>% 
+  filter(n() >= 15) %>% 
+  mutate(rank_date_adopters = row_number()) %>% ungroup()
+
+# B
+rank_landholding_villageSI <- landholding_villageSI %>% 
+  group_by(mistype,rank_date_adopters)%>% 
   summarise(n=n(),
             Total_Land=mean(TotalLand,na.rm = T),
             SD=sd(TotalLand,na.rm = T),
-            CI95delta= 1.96*(SD/sqrt(n)))
+            CI95delta= 1.96*(SD/sqrt(n))) %>% ungroup()
+
+# PLOT ----
+Pv=
+  rank_landholding_villageSI %>% 
+  ggplot(aes(x = rank_date_adopters, y = Total_Land, color = mistype, group = mistype)) +
+  geom_line(size = 1) +  # Add lines for both types
+  geom_ribbon(data = filter(rank_landholding_villageSI, mistype == "Drip"), 
+              aes(ymin = Total_Land - CI95delta, ymax = Total_Land + CI95delta), 
+              fill = "gray90", color = "white", alpha = 0.5) +
+  geom_ribbon(data = filter(rank_landholding_villageSI, mistype == "Sprinkler"), 
+              aes(ymin = Total_Land - CI95delta, ymax = Total_Land + CI95delta), 
+              fill = "gray95", color = "white", alpha = 0.5) +
+  labs(title = "Total Land Holding [Village wise]",
+       x = "Adopters ranking by date", 
+       y = "Land Holding (in Ha)") +
+  scale_color_manual(values = c("Drip" = "blue4", "Sprinkler" = "royalblue1"))+
+  theme_classic() +
+  theme(
+    plot.title = element_text(family = "serif"),
+    plot.caption = element_text(family = "serif", hjust = 0),
+    axis.title = element_text(family = "serif")
+  )
+
+#Fig.----
+Pv + ylim(2.6,3.8)+ 
+  scale_x_continuous(breaks= seq(1,15,1), limits= c(1,15), expand= c(0,0))+
+  labs(caption = "The sample includes villages with 15 or more MIS adopters")
+#700X300
+# t-test  ----
+
+tlh <- landholding_villageSI %>%   
+  filter(rank_date_adopters<=15) %>%
+  select(mistype ,rank_date_adopters,TotalLand ) %>% 
+  mutate(rank_date_adopters_1 = 
+           paste0("rank_", rank_date_adopters)) 
 
 
-#### mistype=="Sprinkler"
-rank_TotalLand_S=gj1 %>% filter(mistype=="Sprinkler" ) %>% 
-  select(regno, RegistrationDate,villageSI,TotalLand) %>%
-  group_by(villageSI) %>% arrange(RegistrationDate) %>% mutate(rank_date_adopters = row_number()) %>% ungroup() %>% filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56
+library(rstatix) # ttest "add_significance"
+t12=tlh %>% 
+  filter(rank_date_adopters_1 %in% c("rank_1","rank_2") ) %>% 
+  group_by(mistype) %>% 
+  t_test(TotalLand ~ rank_date_adopters , detailed = T) %>% 
+  rename(rank_1=estimate1,rank_2=estimate2,t=statistic) %>% 
+  select(mistype,rank_1,rank_2,estimate,t,df,p,conf.low,conf.high)
+
+t34=tlh %>% 
+  mutate(rank_date_adopters_2= 
+           ifelse(rank_date_adopters==1,"rank_1","rank_2_15" )) %>% 
+  group_by(mistype) %>% 
+  t_test(TotalLand ~ rank_date_adopters_2 , detailed = T) %>% 
+  rename(rank_1=estimate1,rank_2_15=estimate2,t=statistic) %>% 
+  select(mistype,rank_1,rank_2_15,estimate,t,df,p,conf.low,conf.high)
+
+t5=tlh %>% 
+  mutate(rank_date_adopters_1_2= 
+           ifelse(rank_date_adopters <= 3,"rank_1_2","rank_3_15" )) %>% 
+  group_by(mistype) %>% 
+  t_test(TotalLand ~ rank_date_adopters_1_2 , detailed = T) %>% 
+  rename(rank_1_2=estimate1,rank_3_15=estimate2,t=statistic) %>% 
+  select(mistype,rank_1_2,rank_3_15,estimate,t,df,p,conf.low,conf.high)
+nice_table(t5)
+
+library(rempsyc) # ttest # nice_table
+nice_table(t12)
+nice_table(t34)
+
+#
+# taluka WISE     ----
+
+# A
+landholding_taluka <- gj1 %>%   
+  select(regno,TotalLand, mistype, RegistrationDate,taluka )%>%
+  filter(!is.na(TotalLand),TotalLand<22, TotalLand>0
+         ) %>%
+  group_by(taluka,mistype) %>% 
+  arrange(RegistrationDate) %>%
+  filter(n() >= 15) %>%
+  mutate(rank_date_10adopters=ceiling(row_number()/10) # Create groups of 10 observations
+         ) %>%
+  group_by(mistype, taluka,rank_date_10adopters) %>% # averaging of averages
+  summarise(
+    first_date = min(RegistrationDate),
+    Total_Land = mean(TotalLand, na.rm = TRUE),
+    n = n(),
+    SD=sd(TotalLand,na.rm = T),
+    CI95delta= 1.96*(SD/sqrt(n))) %>% ungroup()
+
+# B
+rank_landholding_taluka <- landholding_taluka %>%   
+  group_by(mistype, rank_date_10adopters) %>% # averaging of averages
+  summarise(
+            first_date = min(first_date),
+            TotalLand = mean(Total_Land, na.rm = TRUE),
+            n = n(),
+            SD=sd(Total_Land,na.rm = T),
+            CI95delta= 1.96*(SD/sqrt(n))) %>% ungroup()
+
+rank_landholding_taluka %>% filter(rank_date_10adopters < 6)
+
+
+#PLOT ----
+Pt=
+  rank_landholding_taluka %>% 
+  ggplot(aes(x = rank_date_10adopters, y = Total_Land, color = mistype, group = mistype)) +
+  geom_line(size = 1) +  # Add lines for both types
+  geom_ribbon(data = filter(rank_landholding_taluka, mistype == "Drip"), 
+              aes(ymin = Total_Land - CI95delta, ymax = Total_Land + CI95delta), 
+              fill = "gray90", color = "white", alpha = 0.5) +  # CI ribbon for "Drip"
+  geom_ribbon(data = filter(rank_landholding_taluka, mistype == "Sprinkler"), 
+              aes(ymin = Total_Land - CI95delta, ymax = Total_Land + CI95delta), 
+              fill = "gray95", color = "white", alpha = 0.5) +  # CI ribbon for "Sprinkler"
+  labs(title = "Total Land Holding [Subdistricts wise]",
+       caption = "The sample includes talukas with 15 or more MIS adopters",
+       x = "Adopters ranking by date", 
+       y = "Total Land (in Ha)") +
+  scale_color_manual(values = c("Drip" = "blue4", "Sprinkler" = "royalblue1"))+
+  theme_classic() +
+  theme(
+    plot.title = element_text(family = "serif"),
+    plot.caption = element_text(family = "serif", hjust = 0),
+    axis.title = element_text(family = "serif")
+  )
+#Fig.----
+Pt + ylim(2.6,3.9)+ 
+  scale_x_continuous(breaks = seq(1, 15, 1), limits = c(1, 15), expand = c(0, 0))
+
+
+# t-test  ----
+
+tlh_T <- landholding_taluka %>%   
+  filter(rank_date_10adopters<=15) %>%
+  select(mistype ,rank_date_10adopters,TotalLand ) %>% 
+  mutate(rank_date_adopters_1 = 
+           paste0("rank_", rank_date_10adopters)) 
+
+
+library(rstatix) # ttest "add_significance"
+t112=tlh_T %>% 
+  filter(rank_date_adopters_1 %in% c("rank_1","rank_2") ) %>% 
+  group_by(mistype) %>% 
+  t_test(TotalLand ~ rank_date_adopters , detailed = T) %>% 
+  rename(rank_1=estimate1,rank_2=estimate2,t=statistic) %>% 
+  select(mistype,rank_1,rank_2,estimate,t,df,p,conf.low,conf.high)
+
+t34=tlh_T %>% 
+  mutate(rank_date_adopters_2= 
+           ifelse(rank_date_adopters==1,"rank_1","rank_2_15" )) %>% 
+  group_by(mistype) %>% 
+  t_test(TotalLand ~ rank_date_adopters_2 , detailed = T) %>% 
+  rename(rank_1=estimate1,rank_2_15=estimate2,t=statistic) %>% 
+  select(mistype,rank_1,rank_2_15,estimate,t,df,p,conf.low,conf.high)
+
+t5=tlh_T %>% 
+  filter(mistype=="Drip") %>% 
+  mutate(rank_date_adopters_1_2= 
+           ifelse(rank_date_adopters <= 3,"rank_1_2","rank_3_15" )) %>% 
+  t_test(TotalLand ~ rank_date_adopters_1_2 , detailed = T) %>% 
+  rename(rank_1_2=estimate1,rank_3_15=estimate2,t=statistic) %>% 
+  select(rank_1_2,rank_3_15,estimate,t,df,p,conf.low,conf.high)
+
+
+library(rempsyc) # ttest # nice_table
+nice_table(t12)
+nice_table(t34)
+
+#
+
+
+
+# FarmerType ----
+rank_villageSI_FarmerType <- gj1 %>% 
+  select(regno,mistype, RegistrationDate,villageSI,TotalLand,FarmerType) %>% 
+  filter(!is.na(TotalLand),TotalLand<22, TotalLand>=0) %>% 
+  mutate(farmer_category=
+           ifelse(FarmerType %in% c("Small Farmer" ,"Marginal Farmer"),
+                  "Small or Marginal Farmer",
+           ifelse(FarmerType%in%c("Medium Farmer","Large Farmer"),
+                         "Medium or Large Farmer",
+                  FarmerType))) %>% 
+  mutate(farmer_land_size=
+           ifelse(FarmerType %in% c("Small Farmer" ,"Marginal Farmer"),
+                  "Up to 2 Ha",
+                  ifelse(FarmerType%in%c("Semi-Medium Farmer"),
+                         "Between 2 and 4 Ha",
+                         "4 Ha and more"))) %>% 
+  group_by(mistype,villageSI) %>% 
+  filter(n() >= 15) %>% 
+  arrange(RegistrationDate) %>% 
+  mutate(rank_date_adopters = row_number()
   ) %>% 
-  group_by(rank_date_adopters)%>% summarise(n=n(),Total_Land=mean(TotalLand,na.rm = T),SD=sd(TotalLand,na.rm = T),CI95delta= 1.96*(SD/sqrt(n)))
-
-# Combine the data frames and create a grouping variable
-combined_data_rank_totalland <- bind_rows(mutate(rank_TotalLand_D, type = "Drip"),mutate(rank_TotalLand_S, type = "Sprinkle"))
-
-Ptt=
-  combined_data_rank_totalland %>%
-  ggplot(aes(rank_date_adopters, Total_Land)) +
-  geom_ribbon(data = filter(combined_data_rank_totalland, type == "Drip"),
-              aes(ymin=Total_Land-CI95delta, ymax=Total_Land+CI95delta), 
-              fill = "gray90", color = "white") +
-  geom_ribbon(data = filter(combined_data_rank_totalland, type == "Sprinkle"),
-              aes(ymin=Total_Land-CI95delta, ymax=Total_Land+CI95delta), 
-              fill = "gray90", color = "white") +
-  geom_line(aes(color = type), size = 1) +
-  scale_color_manual(values=c("Drip"="blue4", "Sprinkle"="royalblue1"),name="") +
-  theme_light() +
-  ggtitle("Farms' total land size")+ylab("Land (in Ha)")+xlab("Ranking of MIS adoption date ") +
-  theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
-
-#Fig.----
-Ptt + ylim(2.6,3.55)+xlim(1,30)
-#
-Ptt+ylim(2.25,3.6)+xlim(1,100)
-#
-
-# Combine 4 data frames and create a grouping variable
-combined_4D_data_rank_TotalLand<- bind_rows(
-  mutate(rank_TotalLand_D, Drip = "All"),
-  mutate(rank_TotalLand_D10, Drip = "10up"),
-  mutate(rank_TotalLand_D20, Drip = "20up"),
-  mutate(rank_TotalLand_D30, Drip = "30up"))
-
-combined_4S_data_rank_TotalLand <- bind_rows(
-  mutate(rank_TotalLand_S, Sprinkler = "All"),
-  mutate(rank_TotalLand_S10, Sprinkler = "10up"),
-  mutate(rank_TotalLand_S20, Sprinkler = "20up"),
-  mutate(rank_TotalLand_S30, Sprinkler = "30up"))
+  group_by(mistype,farmer_land_size,rank_date_adopters)%>% 
+  summarise(n=n(),
+            Total_Land=mean(TotalLand,na.rm = T),
+            SD=sd(TotalLand,na.rm = T),
+            CI95delta= 1.96*(SD/sqrt(n))) %>% 
+  ungroup()
 
 
-TotalLandD=
-  combined_4D_data_rank_TotalLand %>%
-  ggplot(aes(rank_date_adopters, Total_Land, color=Drip)) +geom_line() + theme_light() +
-  ggtitle("Farms' Total Land size")+ylab("Total Land (in Ha)")+xlab("Ranking of MIS adoption date ") +theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
-#Fig.----
-TotalLandD + ylim(2.6,3.55)+xlim(1,30)
-
-TotalLandS=
-  combined_4S_data_rank_TotalLand %>%
-  ggplot(aes(rank_date_adopters, Total_Land, color=Sprinkler)) +geom_line() + theme_light() +
-  ggtitle("Farms' Total Land size")+ylab("Total Land (in Ha)")+xlab("Ranking of MIS adoption date ") +theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
-#Fig.----
-TotalLandS + ylim(2.6,3.55)+xlim(1,30)
+rank_villageSI_FarmerType %>%
+  group_by(farmer_land_size) %>%
+  summarize(
+    min_total_land = min(Total_Land, na.rm = TRUE),
+    max_total_land = max(Total_Land, na.rm = TRUE)
+  )
 
 
+Pf=
+  rank_villageSI_FarmerType %>% 
+#  filter(mistype =="Drip") %>% 
+  filter(mistype =="Sprinkler") %>% 
+  ggplot(aes(x = rank_date_adopters, y = Total_Land, color = farmer_land_size, group = farmer_land_size)) +
+  geom_line(size = 0.85) +  # Add lines for both types
+  geom_ribbon(
+              aes(ymin = Total_Land - CI95delta, ymax = Total_Land + CI95delta), 
+              fill = "gray90", color = "white", alpha = 0.5) +
+ # labs(title = "Drip | Total Land Holding by Farmer Type [Village wise]",
+       labs(title = "Sprinkler | Total Land Holding by Farmer Type [Village wise]",
+       x = "Adopters ranking by date", 
+       y = "Land Holding (in Ha)") +
+  scale_color_manual(values = c("Up to 2 Ha" = "olivedrab2",
+                                "Between 2 and 4 Ha" = "chartreuse3", 
+                                "4 Ha and more" = "forestgreen"))+
+  theme_classic() +
+  theme(legend.title = element_blank(),
+        plot.title = element_text(family = "serif"),
+    plot.caption = element_text(family = "serif", hjust = 0),
+    axis.title = element_text(family = "serif")
+  )
+Pf + ylim(1,7.5)+ 
+  scale_x_continuous(breaks= seq(1,15,1), limits= c(1,15), expand= c(0,0))
 
+rank_villageSI_FarmerType %>% 
+  filter(rank_date_adopters %in%c(1,6)) %>% 
+  filter(mistype=="Drip", farmer_land_size=="4 Ha and more")
 
-
-
+rank_villageSI_FarmerType %>% 
+  filter(rank_date_adopters%in%c(1,3)) %>% 
+  filter(mistype!="Drip", farmer_land_size =="4 Ha and more")
 
 
 
@@ -338,96 +496,165 @@ TotalLandS + ylim(2.6,3.55)+xlim(1,30)
 
 ########  land installed MI    ################################################ ####
 
-#### mistype=="Drip"
-rank_misarea_D= gj1 %>% left_join(gj_village[,4:5]) %>% filter(mistype=="Drip" ) %>% 
-# rank_misarea_D10= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >10,mistype=="Drip" ) %>% 
-# rank_misarea_D20= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >20,mistype=="Drip" ) %>% 
-# rank_misarea_D30= gj1 %>% left_join(gj_village[,4:5]) %>% filter(village_n_hh >30,mistype=="Drip" ) %>% 
-  
-  select(regno, RegistrationDate,villageSI,TotalLand,misarea) %>%
-  group_by(villageSI) %>% 
+# A
+misarea_villageSI <- gj1 %>% 
+  select(regno, RegistrationDate,villageSI,TotalLand,misarea,mistype) %>%
+  filter(!is.na(TotalLand),TotalLand<22, TotalLand>=0) %>% 
+  group_by(mistype,villageSI) %>% 
   arrange(RegistrationDate) %>% 
-  mutate(rank_date_adopters = row_number()) %>% 
-  ungroup() %>% 
-  filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56
-         ) %>% 
-  group_by(rank_date_adopters)%>% 
+  filter(n() >= 15) %>% 
+  mutate(rank_date_adopters = row_number()) %>% ungroup()
+
+# B
+rank_misarea_villageSI <- misarea_villageSI %>% 
+  group_by(mistype,rank_date_adopters)%>% 
   summarise(n=n(),
-            irrigated_land_ha=mean(misarea,na.rm = T),
+            mis_land=mean(misarea,na.rm = T),
             SD=sd(misarea,na.rm = T),
-            CI95delta= 1.96*(SD/sqrt(n)))
+            CI95delta= 1.96*(SD/sqrt(n))) %>% 
+  ungroup()
+
+rank_misarea_villageSI %>% filter(rank_date_adopters < 6)
+
+# PLOT ----
+Pmi=
+  rank_misarea_villageSI %>% 
+  ggplot(aes(x = rank_date_adopters, y = mis_land, color = mistype, group = mistype)) +
+  geom_line(size = 1) +  # Add lines for both types
+  geom_ribbon(data = filter(rank_misarea_villageSI, mistype == "Drip"), 
+              aes(ymin = mis_land - CI95delta, ymax = mis_land + CI95delta), 
+              fill = "gray90", color = "white", alpha = 0.4) +
+  geom_ribbon(data = filter(rank_misarea_villageSI, mistype == "Sprinkler"), 
+              aes(ymin = mis_land - CI95delta, ymax = mis_land + CI95delta), 
+              fill = "gray95", color = "white", alpha = 0.4) +
+  labs(title = "Farms' installed area size by drip or sprinkler [Village wise]",
+       x = "Adopters ranking by date", 
+       y = "Installed MIS land (in Ha)") +
+  scale_color_manual(values = c("Drip" = "blue4", "Sprinkler" = "royalblue2"))+
+  theme_classic() +
+  theme(legend.title = element_blank(),
+    plot.title = element_text(family = "serif"),
+    plot.caption = element_text(family = "serif", hjust = 0),
+    axis.title = element_text(family = "serif")
+  )
 
 
-#### mistype=="Sprinkler"
-rank_misarea_S=
-  gj1 %>% filter(mistype=="Sprinkler" ) %>% 
-  select(regno, RegistrationDate,villageSI,TotalLand,misarea) %>%
-  group_by(villageSI) %>% 
-  arrange(RegistrationDate) %>% 
-  mutate(rank_date_adopters = row_number()) %>% 
-  ungroup() %>% 
-  filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56
-         ) %>% 
-  group_by(rank_date_adopters)%>% 
-  summarise(n=n(),
-            irrigated_land_ha=mean(misarea,na.rm = T),
-            SD=sd(misarea,na.rm = T),
-            CI95delta= 1.96*(SD/sqrt(n)))
 
-# Combine the data frames and create a grouping variable
-combined_4_data_rank_misarea <- bind_rows(
-  mutate(rank_misarea_D, type = "Drip"),
-  mutate(rank_misarea_S, type = "Sprinkle"))
-
-
-Pmisarea=
-  combined_data_rank_misarea %>%
-  ggplot(aes(rank_date_adopters, irrigated_land_ha)) +
-  geom_ribbon(data = filter(combined_data_rank_misarea, type == "Drip"),
-              aes(ymin=irrigated_land_ha-CI95delta, ymax=irrigated_land_ha+CI95delta), 
-              fill = "gray90", color = "white") +
-  geom_ribbon(data = filter(combined_data_rank_misarea, type == "Sprinkle"),
-              aes(ymin=irrigated_land_ha-CI95delta, ymax=irrigated_land_ha+CI95delta), 
-              fill = "gray90", color = "white") +
-  geom_line(aes(color = type), size = 1) +
-  scale_color_manual(values=c("Drip"="blue4", "Sprinkle"="royalblue1"),name="") +
-  theme_light() +
-  ggtitle("Farms' installed area size by drip or sprinkler")+
-  ylab("Irrigated Land (in Ha)")+xlab("Ranking of MIS adoption date ") +
-  theme(plot.title = element_text(family = "serif"),
-        axis.title = element_text(family = "serif"))
 #Fig.----
-Pmisarea + ylim(1.2,1.7) + xlim(1,30)
-#
-Pmisarea + ylim(1.1,1.85) + xlim(1,100)
+Pmi + ylim(1.4,1.8)+ 
+  scale_x_continuous(breaks= seq(1,30,1), limits= c(1,30), expand= c(0,0))
 #
 
-# Combine 4 data frames and create a grouping variable
-combined_4D_data_rank_misarea <- bind_rows(
-  mutate(rank_misarea_D, Drip = "All"),
-  mutate(rank_misarea_D10, Drip = "10up"),
-  mutate(rank_misarea_D20, Drip = "20up"),
-  mutate(rank_misarea_D30, Drip = "30up"))
+# t-test  ----
 
-combined_4S_data_rank_misarea <- bind_rows(
-  mutate(rank_misarea_S, Sprinkler = "All"),
-  mutate(rank_misarea_S10, Sprinkler = "10up"),
-  mutate(rank_misarea_S20, Sprinkler = "20up"),
-  mutate(rank_misarea_S30, Sprinkler = "30up"))
+t7 <- misarea_villageSI %>%   
+  filter(rank_date_adopters<=15) %>%
+  select(mistype ,rank_date_adopters,misarea  ) %>% 
+  mutate(rank_date_adopters_1 = 
+           paste0("rank_", rank_date_adopters)) 
 
-misareaD=
-  combined_4D_data_rank_misarea %>%
-  ggplot(aes(rank_date_adopters, irrigated_land_ha, color=Drip)) +geom_line() + theme_light() +
-  ggtitle("Farms' installed area size by Drip")+ylab("Installed area (in Ha)")+xlab("Ranking of MIS adoption date ") +theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
+
+library(rstatix) # ttest "add_significance"
+t12=t7 %>% 
+  filter(rank_date_adopters_1 %in% c("rank_1","rank_2") ) %>% 
+  group_by(mistype) %>% 
+  t_test(misarea ~ rank_date_adopters , detailed = T) %>% 
+  rename(rank_1=estimate1,rank_2=estimate2,t=statistic) %>% 
+  select(mistype,rank_1,rank_2,estimate,t,df,p,conf.low,conf.high)
+
+
+
+t5=t7 %>% 
+  mutate(rank_date_adopters_3= 
+           ifelse(rank_date_adopters == 1,"rank_1","rank_2_15" )) %>% 
+  group_by(mistype) %>% 
+  t_test(misarea ~ rank_date_adopters_3 , detailed = T) %>% 
+  rename(rank_1=estimate1,rank_2_15=estimate2,t=statistic) %>% 
+  select(mistype,rank_1,rank_2_15,estimate,t,df,p,conf.low,conf.high)
+nice_table(t5)
+
+library(rempsyc) # ttest # nice_table
+nice_table(t12)
+
+
+
+
+# taluka WISE     ----
+
+# A
+misarea_taluka <- gj1 %>%   
+  select(regno,TotalLand, mistype, RegistrationDate,taluka, misarea )%>%
+  filter(!is.na(TotalLand),TotalLand<22, TotalLand>0
+  ) %>%
+  group_by(taluka,mistype) %>% 
+  arrange(RegistrationDate) %>%
+  filter(n() >= 15) %>%
+  mutate(rank_date_10adopters=ceiling(row_number()/10) # Create groups of 10 observations
+  ) %>%
+  group_by(mistype, taluka,rank_date_10adopters) %>% # averaging of averages
+  summarise(
+    first_date = min(RegistrationDate),
+    mis_area = mean(misarea, na.rm = TRUE),
+    n = n(),
+    SD=sd(misarea,na.rm = T),
+    CI95delta= 1.96*(SD/sqrt(n))) %>% ungroup()
+
+# B
+rank_misarea_taluka <- misarea_taluka %>%   
+  group_by(mistype, rank_date_10adopters) %>% # averaging of averages
+  summarise(
+    first_date = min(first_date),
+    MI_area = mean(mis_area, na.rm = TRUE),
+    n = n(),
+    SD=sd(mis_area,na.rm = T),
+    CI95delta= 1.96*(SD/sqrt(n))) %>% ungroup()
+
+rank_misarea_taluka %>% filter(rank_date_10adopters < 6)
+
+
+#PLOT ----
+Pt=
+  rank_misarea_taluka %>% 
+  ggplot(aes(x = rank_date_10adopters, y = MI_area, color = mistype, group = mistype)) +
+  geom_line(size = 1) +  # Add lines for both types
+  geom_ribbon(data = filter(rank_misarea_taluka, mistype == "Drip"), 
+              aes(ymin = MI_area - CI95delta, ymax = MI_area + CI95delta), 
+              fill = "gray90", color = "white", alpha = 0.5) +  # CI ribbon for "Drip"
+  geom_ribbon(data = filter(rank_misarea_taluka, mistype == "Sprinkler"), 
+              aes(ymin = MI_area - CI95delta, ymax = MI_area + CI95delta), 
+              fill = "gray95", color = "white", alpha = 0.5) +  # CI ribbon for "Sprinkler"
+       labs(title = "Farms' installed area size by drip or sprinkler [Subdistricts wise]",
+            x = "Adopters ranking by date", 
+            y = "Installed MIS land (in Ha)") +
+         scale_color_manual(values = c("Drip" = "blue4", "Sprinkler" = "royalblue1"))+
+  theme_classic() +
+  theme(
+    plot.title = element_text(family = "serif"),
+    plot.caption = element_text(family = "serif", hjust = 0),
+    axis.title = element_text(family = "serif")
+  )
+
 #Fig.----
-misareaD + ylim(1.2,1.7) + xlim(1,30)
+Pt + ylim(1.4,1.9)+ 
+  scale_x_continuous(breaks= seq(1,30,1), limits= c(1,30), expand= c(0,0))
 
-misareaS=
-  combined_4S_data_rank_misarea %>%
-  ggplot(aes(rank_date_adopters, irrigated_land_ha, color=Sprinkler)) +geom_line() + theme_light() +
-  ggtitle("Farms' installed area size by Sprinkler")+ylab("Installed area (in Ha)")+xlab("Ranking of MIS adoption date ") +theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
-#Fig.----
-misareaS + ylim(1.2,1.7) + xlim(1,30)
+
+# t-test  ----
+
+t77 <- misarea_taluka %>%   
+  filter(rank_date_10adopters <=15) %>%
+  select(mistype ,rank_date_10adopters ,mis_area  ) %>% 
+  mutate(rank_date_adopters_1 = 
+           paste0("rank_", rank_date_10adopters )) 
+
+library(rstatix) # ttest "add_significance"
+t777=t77 %>% 
+  filter(rank_date_adopters_1 %in% c("rank_1","rank_2") ) %>% 
+  group_by(mistype) %>% 
+  t_test(mis_area ~ rank_date_10adopters  , detailed = T) %>% 
+  rename(rank_1=estimate1,rank_2=estimate2,t=statistic) %>% 
+  select(mistype,rank_1,rank_2,estimate,t,df,p,conf.low,conf.high)
+nice_table(t777)
 
 
 
@@ -441,121 +668,49 @@ misareaS + ylim(1.2,1.7) + xlim(1,30)
 
 df_mi_pct_land= 
   gj1 %>%   
-  filter(!is.na (RegistrationDate),!is.na(villageSI)) %>% 
   select(regno,TotalLand, mistype, RegistrationDate,villageSI,mi_pct_land )%>%
   mutate_at(6,round,4) %>% 
-  group_by(mistype,villageSI) %>% arrange(RegistrationDate) %>%
+  filter(!is.na(TotalLand),TotalLand<22, TotalLand>=0) %>% 
+  group_by(mistype,villageSI) %>% 
+  filter(n() >= 15) %>% 
+  arrange(RegistrationDate) %>%
   mutate(rank_date_adopters = row_number()) %>% 
   ungroup() %>% 
-    filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56
-           ,!is.na(mi_pct_land) ) %>% 
     group_by(mistype,rank_date_adopters)%>% 
     summarise(n=n(),
               pct_ir_land=mean(mi_pct_land,na.rm = T),
               SD=sd(mi_pct_land,na.rm = T),
               CI95delta= 1.96*(SD/sqrt(n)))
-  
 
-df_mi_pct_land %>%  
-  ggplot(aes(rank_date_adopters,pct_ir_land,color = mistype)) +
-  geom_line(size=1)+theme_bw()+
-  scale_color_manual(values=c('blue4','royalblue1'),name="")+  
-  ylim(0,0.8)
+df_mi_pct_land %>% filter(rank_date_adopters<6)
 
-
-P=df_mi_pct_land  %>%
-  ggplot(aes(rank_date_adopters, pct_ir_land)) +
-  geom_ribbon(data = filter(df_mi_pct_land, mistype == "Drip"),
-              aes(ymin=pct_ir_land-CI95delta, ymax=pct_ir_land+CI95delta), 
-              fill = "gray70", color = "white") +
-  geom_ribbon(data = filter(df_mi_pct_land, mistype == "Sprinkler"),
-              aes(ymin=pct_ir_land-CI95delta, ymax=pct_ir_land+CI95delta), 
-              fill = "gray60", color = "white") +
-  geom_line(aes(color = mistype), size = 1) +
-  scale_color_manual(values=c("Drip"="blue4", "Sprinkler"="royalblue1"),name="") +
-  theme_light()+
+#PLOT ----
+Pct=
+  df_mi_pct_land %>% 
+  ggplot(aes(x = rank_date_adopters, y = pct_ir_land, color = mistype, group = mistype)) +
+  geom_line(size = 1) + 
+  geom_ribbon(data = filter(df_mi_pct_land, mistype == "Drip"), 
+              aes(ymin = pct_ir_land - CI95delta, ymax = pct_ir_land + CI95delta), 
+              fill = "gray90", color = "white", alpha = 0.4) +
+  geom_ribbon(data = filter(df_mi_pct_land, mistype == "Sprinkler"), 
+              aes(ymin = pct_ir_land - CI95delta, ymax = pct_ir_land + CI95delta), 
+              fill = "gray95", color = "white", alpha = 0.4) +
   ggtitle("Share of installed system area by drip or sprinkler")+
   ylab("% Installed area")+xlab("Ranking of MIS adoption date ") +
-  theme(plot.title = element_text(family = "serif"),
-        axis.title = element_text(family = "serif"))
-
+  
+  scale_color_manual(values = c("Drip" = "blue4", "Sprinkler" = "royalblue2"))+
+  theme_classic() +
+  theme(legend.title = element_blank(),
+        plot.title = element_text(family = "serif"),
+        plot.caption = element_text(family = "serif", hjust = 0),
+        axis.title = element_text(family = "serif")
+  )
 #Fig.----
-
-P + ylim(0,0.7) + scale_x_continuous(limits = c(1, 31), breaks = seq(1, 30, 1))
-#
-P + ylim(0,0.8) + xlim(1,100)
+Pct + ylim(0.34,0.75)+ 
+  scale_x_continuous(breaks= seq(1,30,1), limits= c(1,30), expand= c(0,0))
 #
 
 
-########  Distance        ############################################################
-
-# Function to calculate distance using Haversine formula
-haversine_distance <- function(lat1, lon1, lat2, lon2) {
-  # Convert latitude and longitude from degrees to radians
-  lat1 <- lat1 * pi / 180
-  lon1 <- lon1 * pi / 180
-  lat2 <- lat2 * pi / 180
-  lon2 <- lon2 * pi / 180
-  
-  # Earth radius in kilometers
-  R <- 6371 
-  
-  # Haversine formula
-  dlon <- lon2 - lon1
-  dlat <- lat2 - lat1
-  a <- sin(dlat/2)^2 + cos(lat1) * cos(lat2) * sin(dlon/2)^2
-  c <- 2 * atan2(sqrt(a), sqrt(1-a))
-  distance <- R * c
-  
-  return(distance) # Distance in kilometers
-}
-
-dis= 
-  gj1 %>%   
-  filter(!is.na (RegistrationDate) ) %>% 
-  select(regno,mistype, RegistrationDate,c_code01new ,Latitude,Longitude) %>%
-  group_by(c_code01new) %>% 
-  arrange(RegistrationDate) %>%
-  mutate(rank_date_adopters = row_number()) %>% ungroup() %>% 
-  filter(Latitude>20,Latitude<25, Longitude>68.5,Longitude<74.5) %>% 
-  #distance_from_1st_farmer
-  group_by(c_code01new) %>%
-  mutate(distance = 
-           haversine_distance(Latitude[1], Longitude[1], Latitude, Longitude) )%>% 
-  ungroup() %>% 
-  filter(distance<5)
-
-df=
-  dis %>% filter(rank_date_adopters!=1) %>% 
-  group_by(mistype,rank_date_adopters)%>% 
-  summarise(n=n(),
-            Distance_Km=mean(distance,na.rm = T),
-            SD=sd(distance,na.rm = T),
-            CI95delta= 1.96*(SD/sqrt(n))) %>% 
-  ungroup()
-
-df %>% 
-  ggplot(aes(rank_date_adopters,Distance_Km, color = mistype )) +
-  geom_line(size=1)
-
-Pd=
-  df %>%
-  ggplot(aes(rank_date_adopters, Distance_Km)) +
-  geom_ribbon(data = filter(df, mistype == "Drip"),
-              aes(ymin=Distance_Km-CI95delta, ymax=Distance_Km+CI95delta), fill = "gray85", color = "white") +
-  geom_ribbon(data = filter(df, mistype == "Sprinkler"),
-              aes(ymin=Distance_Km-CI95delta, ymax=Distance_Km+CI95delta), fill = "gray80", color = "white") +
-  geom_line(aes(color = mistype), size = 1) +
-  scale_color_manual(values=c("Drip"="blue4", "Sprinkler"="royalblue1"),name="") +
-  theme_light() +
-  ggtitle("Farms' Distance from the 1st farmer")+ylab("Distance (in Km)")+xlab("Ranking of MIS adoption date ") +
-  theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
-
-#Fig.----
-Pd+ xlim(2,30)+ylim(0,1.7)
-#
-Pd+ xlim(2,100)+ylim(0,2.1)
-#
 
 ########  Caste           ###########################################################
 
@@ -569,45 +724,82 @@ gj1 %>% filter(!is.na(caste)) %>%
   mutate(prt = n / sum(n) )
 
 
-dfC=
+dfc=
   gj1 %>%   
   select(regno, mistype, RegistrationDate,villageSI,caste) %>%
-  filter(!is.na(RegistrationDate),!is.na(villageSI)) %>%
-  group_by(mistype,villageSI) %>% arrange(RegistrationDate) %>%
+  group_by(mistype,villageSI) %>% 
+  arrange(RegistrationDate) %>%
+  filter(n() >= 15) %>% 
   mutate(rank_date_adopters = row_number()) %>% 
   ungroup() %>% 
   count(mistype,caste,rank_date_adopters) %>% 
   group_by(mistype,rank_date_adopters) %>% 
   mutate(pct_mistype_wise=n/sum(n)) %>% ungroup()
 
-#Fig.----
-dfC %>% 
-  filter(rank_date_adopters<100) %>% 
-  ggplot(aes(x=rank_date_adopters, y=pct_mistype_wise, fill=caste)) +
-  geom_bar(stat="identity", width = 1)+
-  facet_wrap(~mistype,  ncol=1, strip.position = "left")+
+dfc %>% filter( rank_date_adopters<6)
 
-theme_light()+ scale_fill_manual(values=c("#5F6EA0",  "#5F9EA0" ),name="Social Status")+  
-  ggtitle("Social Status HH / Ranked adopters by date")+
-  ylab("% of rankings")+xlab("Ranking of MIS adoption date ") +
-  theme(plot.title = element_text(family = "serif"),
-        axis.title = element_text(family = "serif"))
+#Fig.     ----
 
-
-dfC %>% 
-  filter(rank_date_adopters<30) %>% 
+dfc %>% 
   ggplot(aes(x=rank_date_adopters, y=pct_mistype_wise, fill=caste)) +
   geom_bar(stat="identity")+
   facet_wrap(~mistype,  ncol=1, strip.position = "left")+
   
-  theme_light()+ scale_fill_manual(values=c("#5F6EA0",  "#5F9EA0" ),name="Social Status")+  
-  ggtitle("Social Status HH / Ranked adopters by date")+
+  theme_classic() +
+  scale_fill_manual(values=c("#5F6EA0",  "#5F9EA0" ),name="Social Status")+  
+  ggtitle("Household Social Status by drip or sprinkler [Village wise]")+
   ylab("% of rankings")+xlab("Ranking of MIS adoption date ") +
   theme(plot.title = element_text(family = "serif"),
         axis.title = element_text(family = "serif"))+ 
-  scale_x_continuous(limits = c(1, 31), breaks = seq(1, 30, 1))
+  scale_x_continuous(limits = c(0, 16), breaks = seq(1, 15, 1), expand= c(0,0))
 
-#subcaste
+
+# taluka WISE     ----
+
+# A
+caste_taluka <- gj1 %>%   
+  select(regno,TotalLand, mistype, RegistrationDate,taluka, caste )%>%
+  filter(!is.na(TotalLand),TotalLand<22, TotalLand>0
+  ) %>%
+  group_by(mistype, taluka) %>% 
+  arrange(RegistrationDate) %>%
+  filter(n() >= 15) %>%
+  mutate(rank_date_10adopters=ceiling(row_number()/10) # Create groups of 10 observations
+  ) %>%
+  ungroup() %>% 
+  count(mistype,taluka,rank_date_10adopters,caste) %>% 
+  group_by(mistype,rank_date_10adopters,caste) %>% 
+  summarise(n=sum(n)) %>% 
+  group_by(mistype,rank_date_10adopters) %>% 
+  mutate(pct=n/sum(n)) %>% ungroup()
+
+caste_taluka %>% filter(rank_date_10adopters < 6)
+
+
+#Fig.     ----
+
+caste_taluka %>% 
+  ggplot(aes(x=rank_date_10adopters, y=pct, fill=caste)) +
+  geom_bar(stat="identity")+
+  facet_wrap(~mistype,  ncol=1, strip.position = "left")+
+  
+  theme_classic() +
+  scale_fill_manual(values=c("#5F6EA0",  "#5F9EA0" ),name="")+  
+  ggtitle("Household Social Status by drip or sprinkler [Subdistrict wise]")+
+  ylab("% of rankings")+xlab("Ranking of MIS adoption date ") +
+  theme(plot.title = element_text(family = "serif"),
+        axis.title = element_text(family = "serif"))+ 
+  scale_x_continuous(limits = c(0, 31), breaks = seq(1, 30, 1), expand= c(0,0))
+
+
+
+
+
+
+
+
+
+#subcaste ----
 library(stringr)
 dfC=
   gj1 %>%   
@@ -652,81 +844,219 @@ df <- separate(df, names, into = c("First_Name", "Middle_Name", "Last_Name"), se
 
 
 
-#########  Loan           ################################################################
-#________BAR_______________________________
-df_loan= 
-  gj1 %>%   
-  filter(!is.na (RegistrationDate) ) %>%
+#########  Loan  ............................................         ################################################################
+gj1 %>%   
   select(regno, mistype, RegistrationDate,villageSI,Loan )%>%
-  group_by(villageSI) %>% arrange(RegistrationDate) %>%
+  group_by(mistype,villageSI) %>% 
+  filter(n() >= 30) %>% 
+  arrange(RegistrationDate) %>%
   mutate(rank_date_adopters = row_number()) %>% 
   ungroup() %>% 
-  count(rank_date_adopters,mistype,Loan) %>%
-  
-  group_by(rank_date_adopters) %>%  # Loaners % of rank_date_adopters
-  mutate(pct1=n/sum(n)) %>% ungroup()%>%
-  filter(Loan ==1)
+  count(mistype,Loan)
 
-#Fig.----
-# loan barplot pct1
-df_loan %>%  filter(rank_date_adopters<31) %>% 
-  ggplot(aes(x=rank_date_adopters, y=pct1, fill=mistype)) +geom_bar(stat="identity" )+theme_light()+ scale_fill_manual(values=c( "blue4", "royalblue1"), name = "" )+ggtitle("Share of farms who took a loan")+ylab("% of rankings")+xlab("Ranking of MIS adoption date ") +theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))+scale_x_continuous(limits = c(0, 31), breaks = seq(1, 30, 1))
-
-df_loan %>%  filter(rank_date_adopters<100) %>% 
-  ggplot(aes(x=rank_date_adopters, y=pct1, fill=mistype)) +geom_bar(stat="identity",width = 1 )+theme_light()+ scale_fill_manual(values=c( "blue4", "royalblue1"), name = "" )+ggtitle("Share of farms who took a loan")+ylab("% of rankings")+xlab("Ranking of MIS adoption date ") +theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
-
-
-
-# % of Drip | % of Sprinkler____________________________________________________
-df= 
-  gj1 %>%   
-  filter(!is.na (RegistrationDate) ) %>%
-  select(regno, mistype, RegistrationDate,villageSI,Loan )%>%
-  group_by(villageSI) %>% arrange(RegistrationDate) %>%
+villageSI_loan= 
+  gj1 %>%   filter(mistype!= "Sprinkler") %>%
+  select(regno, RegistrationDate,villageSI,Loan )%>%
+  group_by(villageSI) %>% 
+  filter(n() >= 15) %>% 
+  arrange(RegistrationDate) %>%
   mutate(rank_date_adopters = row_number()) %>%
-  group_by(rank_date_adopters,mistype) %>% 
+  group_by(rank_date_adopters) %>% 
   summarise(n=n(),
             LoanPCT=mean(Loan,na.rm = T),
             SD=sd(Loan,na.rm = T),
+            CI95delta= 1.96*(SD/sqrt(n))) %>% ungroup()
+
+villageSI_loan %>% filter(rank_date_adopters %in% c(1:4))
+
+#Fig.     ----
+villageSI_loan %>%  
+  ggplot(aes(x=rank_date_adopters, y=LoanPCT)) +
+  geom_bar(stat = "identity", fill = "lightblue3") +
+  geom_errorbar(aes(ymin = LoanPCT - CI95delta, ymax = LoanPCT + CI95delta),
+                width = 0.4, color = "gray30") +
+  theme_classic()+ 
+  ggtitle("Drip | Share of farms who took a loan [village wise]")+
+  ylab("Likelihood of taking loan")+xlab("Ranking of MI adoption date ") +
+  theme(plot.title = element_text(family = "serif"),
+        axis.title = element_text(family = "serif"))+
+  ylim(0,0.172)+ 
+  scale_x_continuous(limits = c(0, 16), breaks = seq(1, 15, 1), expand= c(0,0))
+
+# taluka wise ----
+subdistrict_loan= 
+  gj1 %>%   filter(mistype!= "Sprinkler") %>%
+  select(regno, RegistrationDate,taluka,Loan )%>%
+  group_by(taluka) %>% 
+  filter(n() >= 15) %>% 
+  arrange(RegistrationDate) %>%
+  mutate(rank_date_10adopters=ceiling(row_number()/10)
+  ) %>%
+  group_by(rank_date_10adopters) %>% 
+  summarise(n=n(),
+            LoanPCT=mean(Loan,na.rm = T),
+            SD=sd(Loan,na.rm = T),
+            CI95delta= 1.96*(SD/sqrt(n))) %>% ungroup()
+
+
+#Fig.     ----
+subdistrict_loan %>% 
+  ggplot(aes(x = rank_date_10adopters, y = LoanPCT)) +
+  geom_bar(stat = "identity", fill = "lightblue3") +
+  geom_errorbar(aes(ymin = LoanPCT - CI95delta, ymax = LoanPCT + CI95delta),
+                width = 0.4, color = "gray30") +
+  theme_classic() + 
+  ggtitle("Drip | Share of farms who took a loan [Sub-District wise]") +
+  ylab("Likelihood of taking loan") +
+  xlab("Ranking of MI adoption date") +
+  theme(plot.title = element_text(family = "serif"),
+        axis.title = element_text(family = "serif")) +
+  ylim(0,0.172)+ 
+  scale_x_continuous(limits = c(0, 16), breaks = seq(1, 15, 1), expand = c(0, 0))
+#
+
+ 
+#
+
+########  Distance        ############################################################
+
+# Function to calculate distance using Haversine formula
+haversine_distance <- function(lat1, lon1, lat2, lon2) {
+  # Convert latitude and longitude from degrees to radians
+  lat1 <- lat1 * pi / 180
+  lon1 <- lon1 * pi / 180
+  lat2 <- lat2 * pi / 180
+  lon2 <- lon2 * pi / 180
+  
+  # Earth radius in kilometers
+  R <- 6371 
+  
+  # Haversine formula
+  dlon <- lon2 - lon1
+  dlat <- lat2 - lat1
+  a <- sin(dlat/2)^2 + cos(lat1) * cos(lat2) * sin(dlon/2)^2
+  c <- 2 * atan2(sqrt(a), sqrt(1-a))
+  distance <- R * c
+  
+  return(distance) # Distance in kilometers
+}
+
+dis= 
+  gj1 %>%   
+  select(regno,mistype, RegistrationDate,villageSI ,Latitude,Longitude) %>%
+  filter(Latitude>20.25,Latitude<24.5, Longitude>68.75,Longitude<74.15) %>% 
+  
+  group_by(mistype,villageSI) %>% 
+  filter(n() >= 15) %>% 
+  arrange(RegistrationDate) %>% 
+  
+  mutate(rank_date_adopters = row_number()) %>% 
+  group_by(mistype,villageSI) %>% 
+  mutate(distance=haversine_distance(Latitude[1], Longitude[1], 
+                                     Latitude, Longitude) )%>% 
+  ungroup(
+  ) %>% 
+  filter(distance<5) %>% 
+  filter(rank_date_adopters!=1) %>% 
+  group_by(mistype,rank_date_adopters)%>% 
+  summarise(n=n(),
+            Distance_Km=mean(distance,na.rm = T),
+            SD=sd(distance,na.rm = T),
             CI95delta= 1.96*(SD/sqrt(n))) %>% 
   ungroup()
-#
 
 #Fig.----
-# loan barplotc pct2
-df %>%  filter(rank_date_adopters<30) %>% 
-  ggplot(aes(x=rank_date_adopters, y=LoanPCT, fill=mistype)) +geom_bar(stat="identity", position=position_dodge())+theme_light()+ scale_fill_manual(values=c( "blue4", "royalblue1"), name = "" )+ggtitle("Share of farms who took a loan")+ylab("% of rankings")+xlab("Ranking of MIS adoption date ") +theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
 
-df %>%  filter(rank_date_adopters<100) %>% 
-  ggplot(aes(x=rank_date_adopters, y=LoanPCT, fill=mistype)) +geom_bar(stat="identity", position=position_dodge()) +theme_light()+ scale_fill_manual(values=c( "blue4", "royalblue1"), name = "" )+ggtitle("Share of farms who took a loan")+ylab("% of rankings")+xlab("Ranking of MIS adoption date ") +theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
+dis %>% 
+  ggplot(aes(rank_date_adopters,Distance_Km, color = mistype, group = mistype)) +
+  geom_line(size=1)+
+  
+  geom_ribbon(data = filter(dis, mistype == "Drip"), 
+              aes(ymin=Distance_Km-CI95delta, ymax=Distance_Km+CI95delta), 
+              fill = "gray80", color = "white", alpha = 0.4) +
+  geom_ribbon(data = filter(dis, mistype == "Sprinkler"), 
+              aes(ymin=Distance_Km-CI95delta, ymax=Distance_Km+CI95delta), 
+              fill = "gray85", color = "white", alpha = 0.4) +
+  scale_color_manual(values = c("Drip" = "blue4", "Sprinkler" = "royalblue2"))+
+  theme_classic() +
+  ggtitle("Farmer's distance from the previous one [Village wise]")+
+  ylab("Distance (in Km)")+xlab("Ranking of MIS adoption date ") +
+  theme(legend.title = element_blank(),
+        plot.title = element_text(family = "serif"),
+        axis.title = element_text(family = "serif")
+  )+ ylim(1,2.1)+ 
+  scale_x_continuous(breaks= seq(1,30,1), limits= c(1,30), expand= c(0,0))
 #
-#________LINE_______________________________
 
-# loan lineplot
-PLP=
-  df %>%
-  ggplot(aes(rank_date_adopters, LoanPCT)) +
-  geom_ribbon(data = filter(df, mistype == "Drip"),
-              aes(ymin=LoanPCT-CI95delta, ymax=LoanPCT+CI95delta), fill = "gray80", color = "white") +
-  geom_ribbon(data = filter(df, mistype == "Sprinkler"),
-              aes(ymin=LoanPCT-CI95delta, ymax=LoanPCT+CI95delta), fill = "gray85", color = "white") +
-  geom_line(aes(color = mistype), size = 1) +scale_color_manual(values=c("Drip"="blue4", "Sprinkler"="royalblue1"),name="") +
-  theme_light() +
-  ggtitle("Farms' ")+  ylab("% of rankings")+xlab("Ranking of MIS adoption date ") +theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
+# taluka WISE     ----
+
+# A
+dis_taluka <- gj1 %>%   
+  select(regno,mistype, RegistrationDate,taluka ,Latitude,Longitude) %>%
+  filter(Latitude>20.25,Latitude<24.5, Longitude>68.75,Longitude<74.15) %>% 
+
+  group_by(taluka,mistype) %>% 
+  arrange(RegistrationDate) %>%
+  filter(n() >= 15) %>%
+  
+  mutate(distance=haversine_distance(Latitude[1], Longitude[1], 
+                                     Latitude, Longitude) )%>% 
+  mutate(rank_date_10adopters=ceiling(row_number()/10)) %>%
+  
+  group_by(mistype, taluka,rank_date_10adopters) %>% 
+  summarise(Distance = mean(distance, na.rm = TRUE)) %>% ungroup()
+
+# B
+rank_dis_taluka <- dis_taluka %>%   
+  group_by(mistype, rank_date_10adopters) %>% # averaging of averages
+  summarise(
+    Distance_Km = mean(Distance, na.rm = TRUE),
+    n = n(),
+    SD=sd(Distance,na.rm = T),
+    CI95delta= 1.96*(SD/sqrt(n))) %>% ungroup()
+
+
+rank_dis_taluka %>% filter(rank_date_10adopters < 6)
+
 
 #Fig.----
-PLP+xlim(1,30)+ylim(0,0.45)
+
+rank_dis_taluka %>% 
+  ggplot(aes(rank_date_10adopters,Distance_Km, color = mistype, group = mistype)) +
+  geom_line(size=1)+
+  
+  geom_ribbon(data = filter(rank_dis_taluka, mistype == "Drip"), 
+              aes(ymin=Distance_Km-CI95delta, ymax=Distance_Km+CI95delta), 
+              fill = "gray80", color = "white", alpha = 0.4) +
+  geom_ribbon(data = filter(rank_dis_taluka, mistype == "Sprinkler"), 
+              aes(ymin=Distance_Km-CI95delta, ymax=Distance_Km+CI95delta), 
+              fill = "gray85", color = "white", alpha = 0.4) +
+  scale_color_manual(values = c("Drip" = "blue4", "Sprinkler" = "royalblue2"))+
+  theme_classic() +
+  ggtitle("Farmer's distance from the previous one [Sub-District wise]")+
+  ylab("Distance (in Km)")+xlab("Ranking of MIS adoption date ") +
+  theme(legend.title = element_blank(),
+        plot.title = element_text(family = "serif"),
+        axis.title = element_text(family = "serif")
+  )+ ylim(25,75)+ 
+  scale_x_continuous(breaks= seq(1,30,1), limits= c(1,30), expand= c(0,0))
 #
-PLP+xlim(1,100)+ylim(0,0.45)
-#
+
+
+
+
+
+
 
 #### PROB  Irrigation method    ########################################################
+# אחוז המאמצים בכפר הדומים למאמץ הראשון
+# ההסתברות שחקלאי בכפר יאמץ בדומה למאמץ הראשון
 
-prb=
+prb_villageSI=
   gj1 %>% 
   select(regno, RegistrationDate,villageSI,mistype) %>%
-  filter(mistype !="" ) %>% 
   group_by(villageSI) %>%
+  filter(n() >= 15) %>% 
   arrange(RegistrationDate) %>%
   mutate(rank_date_adopters = row_number()) %>% 
   ungroup() %>% 
@@ -734,143 +1064,342 @@ prb=
   mutate(prob = 
            if_else(rank_date_adopters != 1 & mistype == first(mistype), 1, 0)) %>% 
   mutate(prob=ifelse(rank_date_adopters == 1,NA,prob))
-  
-df1=
-  prb %>% 
+
+# PLOT ----
+
+prob_df <- prb_villageSI %>% 
   filter(rank_date_adopters!=1) %>% 
   group_by(rank_date_adopters) %>% 
   summarise(n=n(),
             Mean=mean(prob,na.rm = T),
             SD=sd(prob,na.rm = T),
-            se = SD / sqrt(n),
-            ciMult= qt(.975, n - 1),
-            ci95 = se * ciMult
-            ) 
+            CI95delta= 1.96*(SD/sqrt(n))) %>% ungroup()
 
-Pim=
-  df1 %>% filter(rank_date_adopters<100) %>%
+Pim <- prob_df %>% 
   ggplot(aes(rank_date_adopters, Mean)) +
-  geom_ribbon(aes(ymin=Mean-ci95, ymax=Mean+ci95), fill = "gray80", color = "white") +
+  geom_ribbon(aes(ymin=Mean-CI95delta, ymax=Mean+CI95delta), fill = "gray90", color = "white") +
   geom_line(size = 1, colour = "lightblue4") +  # Change color here
-  theme_light() +
-  ggtitle("Farmers' probability of owen same irrigation method (drip or sprikler) as the 1st farmer")+xlab("Ranking of MIS adoption date ") +ylab("Probability")+
+  theme_classic() +
+  ggtitle("Probability of farmers owning the same irrigation method as the first farmer [Village wise]")+
+  xlab("Ranking of MIS adoption date ") +ylab("Probability")+
   theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
 
 #Fig.----
-Pim
-#
-Pim+xlim(0,30)
-#
+Pim + ylim(.7,0.86)+ 
+  scale_x_continuous(breaks= seq(1,15,1), limits= c(1,15), expand= c(0,0))
+
+prob_df %>% filter(rank_date_adopters %in% c(2,15,30))
+
+
+# prob ----
+
+prb_mis_village <- 
+  prb_villageSI%>%  
+  mutate(mistype_as_1st = mistype[rank_date_adopters == 1]) %>% 
+  group_by(villageSI) %>%
+  mutate(mistype_majority = names(which.max(table(mistype)))) %>%
+  ungroup() %>% 
+  mutate(mistype_majority_as_1st= 
+           ifelse( mistype_as_1st == mistype_majority,1,0))
+
+
+prb_mis_village %>% count(mistype_majority_as_1st) %>% 
+  mutate(total_n = sum(n),pct = (n / total_n))
+  
+# hist - mayjority
+prob_1 <- 
+  prb_mis_village %>%
+  count(villageSI, mistype) %>%
+  group_by(villageSI) %>%
+  mutate(total_n = sum(n),pct = (n / total_n)
+  ) %>% 
+  mutate(majority_pct= ifelse( n == max(n),pct,NA)) %>% 
+  ungroup()
+
+# Filter data for Drip and Sprinkler
+drip_data <- prob_1 %>% filter(mistype == "Drip")
+sprinkler_data <- prob_1 %>% filter(mistype == "Sprinkler")
+
+# Histogram for all villages
+# ggplot(drip_data, aes(x = pct)) +
+#   geom_histogram(binwidth = 0.05, fill = "blue4", color = "black", alpha = 0.7) +
+#   geom_vline(aes(xintercept = mean(pct, na.rm = TRUE)), color = "red3", linetype = "dashed", size = .5) +
+#   annotate( "text", x=mean(drip_data$pct, na.rm = TRUE), y=max(table(cut(drip_data$pct, breaks = 10))), 
+#             label = paste("Av.", round(mean(drip_data$pct, na.rm = TRUE), 2)), color = "red3", hjust = -0.1)+
+#   theme_classic()
+
+hd1=
+  ggplot(drip_data, aes(x = pct)) +
+  geom_histogram(bins = 10, fill = "blue4", color = "black", alpha = 0.7) +
+  theme_classic()
+mean(drip_data$pct)
+
+hs1=
+  ggplot(sprinkler_data, aes(x = pct)) +
+  geom_histogram(bins = 10, fill = "royalblue2", color = "black", alpha = 0.7)+
+  theme_classic()
+mean(sprinkler_data$pct)
+
+library(patchwork)
+hd1+hs1 #700X200
+# Histogram for MI majority_pct 
+hd2=
+  ggplot(drip_data, aes(x = majority_pct)) +
+  geom_histogram(bins = 10, fill = "blue4", color = "black", alpha = 0.7) +
+  theme_classic()
+mean(drip_data$majority_pct,na.rm = T)
+
+# Histogram for Sprinkler
+hs2=
+  ggplot(sprinkler_data, aes(x = majority_pct)) +
+  geom_histogram(bins = 10, fill = "royalblue2", color = "black", alpha = 0.7)+
+  theme_classic()
+mean(sprinkler_data$majority_pct,na.rm = T)
+
+hd2+hs2
+
+
+
+
+
+
+
+
+# AB
+prb_mis_village %>% filter(rank_date_adopters !=1) %>% 
+  group_by(villageSI) %>% 
+  summarise(mn=mean(prob)) %>%
+  summarise(mean_result = mean(mn))
+
+# AC
+prb_mis_village %>% filter(rank_date_adopters !=1) %>% 
+  group_by(prob_mistype) %>% 
+  summarise(MEAN=mean(prob))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# hist - mayjority
+result_15=
+  gj1 %>%
+  count(villageSI, mistype) %>%
+  group_by(villageSI) %>%
+  mutate(total_n = sum(n),percent = (n / total_n)
+  ) %>%  
+  filter(total_n >15, n == max(n)) %>% 
+  group_by(mistype) %>%
+  reframe(pct_v15 = mean(percent, na.rm =T),n_v15=n())
+
+gj1 %>%
+  count(taluka, mistype) %>%
+  group_by(taluka) %>%
+  mutate(total_n = sum(n),percent = (n / total_n)
+  ) %>%  
+  filter(total_n >15, n == max(n)) %>% 
+  group_by(mistype) %>%
+  reframe(pct = mean(percent, na.rm =T),n=n())
+
+# Combine all results into one table
+library(kableExtra)
+
+result_all %>%
+  left_join(result_15, by = "mistype") %>%
+  left_join(result_30, by = "mistype") %>%
+  left_join(result_50, by = "mistype") %>% 
+  mutate(
+    pct_v15 = round(pct_v15, 2),
+    pct_v30 = round(pct_v30, 2),
+    pct_v50 = round(pct_v50, 2),
+    pct_v = round(pct_v, 2)
+  ) %>%
+  kbl() %>%
+  kable_classic() %>%
+  add_header_above(c(" " = 1, 
+                     "All Villages" = 2, 
+                     "Villages of n > 15" = 2, 
+                     "Villages of n > 30" = 2, 
+                     "Villages of n > 50" = 2))
+
+
+
+
+
+
+# LM PROB
+dt=prb_mis_village %>% filter(rank_date_adopters<30)
+M2 <- lm(prob ~ rank_date_adopters + factor(), data = dt)
+sjPlot::tab_model(M2, digits = 4, show.se = T)
+
+
+# taluka wise ----
+
+
+gj1 %>%
+  count(taluka, mistype) %>%
+  group_by(taluka) %>%
+  mutate(total_n = sum(n),percent = (n / total_n)
+  ) %>%  
+  filter(total_n >15, n == max(n)) %>% 
+  group_by(mistype) %>%
+  reframe(pct = mean(percent, na.rm =T),n=n())
+
+
+
 
 #### PROB  MIS supplier         ########################################################
 
-prob_supplier_Drip=
-#prob_supplier_Sprinkler=
-  gj1 %>% 
- filter(mistype =="Drip") %>% 
-#  filter(mistype=="Sprinkler") %>% 
-  select(regno, RegistrationDate,villageSI,supplier) %>%
-  group_by(villageSI) %>% 
+prob_supplier <- gj1 %>% 
+  select(regno, RegistrationDate,villageSI,mistype,supplier) %>%
+  group_by(mistype, villageSI) %>% 
+  filter(n() >= 15) %>% 
   arrange(RegistrationDate) %>%
   mutate(rank_date_adopters = row_number(),
          days_gap = c(NA, diff(RegistrationDate))) %>% 
-  ungroup() %>% 
-  group_by(villageSI) %>%
   mutate(prob = 
            if_else(rank_date_adopters != 1 & supplier == first(supplier), 1, 0)) %>% 
   mutate(prob=ifelse(rank_date_adopters == 1,NA,prob))%>% 
-  group_by(rank_date_adopters) %>% 
+  group_by(mistype, rank_date_adopters) %>% 
   summarise(n=n(),
             IS_prob=mean(prob,na.rm = T),
             SD=sd(prob,na.rm = T),
-            CI95delta= 1.96*(SD/sqrt(n)))
+            CI95delta= 1.96*(SD/sqrt(n))) %>% 
   filter(rank_date_adopters!=1)
 
-# Combine the data frames and create a grouping variable
-df <- 
-  bind_rows(
-  mutate(prob_supplier_Drip, mistype = "Drip"),
-  mutate(prob_supplier_Sprinkler, mistype = "Sprinkler"))
-
-PS=
-  df %>%
-  ggplot(aes(rank_date_adopters, IS_prob)) +
-  geom_ribbon(data = filter(df, mistype == "Drip"),
-              aes(ymin=IS_prob-CI95delta, ymax=IS_prob+CI95delta), fill = "gray80", color = "white") +
-  geom_ribbon(data = filter(df, mistype == "Sprinkler"),
-              aes(ymin=IS_prob-CI95delta, ymax=IS_prob+CI95delta), fill = "gray85", color = "white") +
-  geom_line(aes(color = mistype), size = 1) +
-  scale_color_manual(values=c("Drip"="blue4", "Sprinkler"="royalblue1"),name="") +
-  theme_light() +
-  ggtitle("Farmers' probability of holding the same MIS as the 1st farmer")+xlab("Ranking of MIS adoption date ") +ylab("Probability")+
-  theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
-
+# PLOT ----
+Ps=
+  prob_supplier %>% 
+  ggplot(aes(x = rank_date_adopters, y = IS_prob, color = mistype, group = mistype)) +
+  geom_line(size = 1) + 
+  geom_ribbon(data = filter(prob_supplier, mistype == "Drip"), 
+              aes(ymin = IS_prob - CI95delta, ymax = IS_prob + CI95delta), 
+              fill = "gray80", color = "white", alpha = 0.4) +
+  geom_ribbon(data = filter(prob_supplier, mistype == "Sprinkler"), 
+              aes(ymin = IS_prob - CI95delta, ymax = IS_prob + CI95delta), 
+              fill = "gray85", color = "white", alpha = 0.4) +
+  ggtitle("Farmers' probability of holding the same MIS as the 1st farmer")+
+  xlab("Ranking of MIS adoption date ") +ylab("Probability")+
+  scale_color_manual(values = c("Drip" = "blue4", "Sprinkler" = "royalblue2"))+
+  theme_classic() +
+  theme(legend.title = element_blank(),
+        plot.title = element_text(family = "serif"),
+        axis.title = element_text(family = "serif"))
 #Fig.----
-PS+xlim(1,30)+ylim(0,0.45)
-#
-PS+xlim(1,100)+ylim(0,0.45)
-#
+Ps + ylim(0,.55)+ 
+  scale_x_continuous(breaks= seq(1,30,1), limits= c(1,30), expand= c(0,0))
+
+prob_supplier %>% filter(rank_date_adopters %in% c(2,15,27))
+
+
+
 
 #########  Crop                 ################################################################
-
-prob_crop_Drip=
-#prob_crop_Sprinkler=
-  gj1 %>% 
-  filter(mistype =="Drip") %>% # filter(mistype=="Sprinkler") %>% 
-  select(regno, RegistrationDate,villageSI,Crop) %>%
-  group_by(villageSI) %>% 
+prob_crop <- gj1 %>% 
+  select(regno, RegistrationDate,villageSI,mistype ,Crop) %>%
+  group_by(mistype ,villageSI) %>% 
+  filter(n() >= 15) %>% 
   arrange(RegistrationDate) %>%
-  mutate(rank_date_adopters = row_number()) %>% ungroup() %>% 
-  filter(!Crop %in% c("","-","NULL" )) %>% 
-  group_by(villageSI) %>%
+  mutate(rank_date_adopters = row_number()) %>% 
   mutate(prob = if_else(rank_date_adopters != 1 & Crop == first(Crop), 1, 0)) %>% 
   mutate(prob=ifelse(rank_date_adopters == 1,NA,prob)
-         ) %>% 
-  group_by(rank_date_adopters) %>% 
+  ) %>% 
+  group_by(mistype,rank_date_adopters) %>% 
   summarise(n=n(),
             crp_prob=mean(prob,na.rm = T),
             SD=sd(prob,na.rm = T),
             CI95delta= 1.96*(SD/sqrt(n))) %>% 
-filter(rank_date_adopters!=1)
-
-# Combine the data frames and create a grouping variable
-df <- bind_rows(
-  mutate(prob_crop_Drip, mistype = "Drip"),
-  mutate(prob_crop_Sprinkler, mistype = "Sprinkler"))
-
-PC=
-  df %>%
-  ggplot(aes(rank_date_adopters, crp_prob)) +
-  geom_ribbon(data = filter(df, mistype == "Drip"),
-              aes(ymin=crp_prob-CI95delta, ymax=crp_prob+CI95delta), fill = "gray80", color = "white") +
-  geom_ribbon(data = filter(df, mistype == "Sprinkler"),
-              aes(ymin=crp_prob-CI95delta, ymax=crp_prob+CI95delta), fill = "gray85", color = "white") +
-  geom_line(aes(color = mistype), size = 1) +
-  scale_color_manual(values=c("Drip"="blue4", "Sprinkler"="royalblue1"),name="") +
-  theme_light() +
-  ggtitle("Farmers' probability cultivating the same crop as the 1st farmer")+xlab("Ranking of MIS adoption date ") +ylab("Probability")+
-  theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
-
-#Fig.----
-PC+xlim(1,30)+ylim(0,1)
-#
-PC+xlim(1,100)+ylim(0,1)
-#
+  filter(rank_date_adopters!=1)
 
 
 #Fig.----
-combined_data %>%
-  filter(rank_date_adopters<30) %>% 
-  ggplot(aes(rank_date_adopters, prob_same_1st, color = type)) +
-  geom_line(size = 1) +
-  scale_color_manual(values = c("Drip" = "blue4", "Sprinkle" = "royalblue1")) +
-  theme_light() +
+prob_crop %>% 
+  ggplot(aes(x = rank_date_adopters, y = crp_prob, color = mistype, group = mistype)) +
+  geom_line(size = 1) + 
+  geom_ribbon(data = filter(prob_crop, mistype == "Drip"), 
+              aes(ymin = crp_prob - CI95delta, ymax = crp_prob + CI95delta), 
+              fill = "gray80", color = "white", alpha = 0.4) +
+  geom_ribbon(data = filter(prob_crop, mistype == "Sprinkler"), 
+              aes(ymin = crp_prob - CI95delta, ymax = crp_prob + CI95delta), 
+              fill = "gray85", color = "white", alpha = 0.4) +
+  scale_color_manual(values = c("Drip" = "blue4", "Sprinkler" = "royalblue2"))+
   ggtitle("Farmers' probability cultivating the same crop as the 1st farmer")+
-  ylim(0,1)+  scale_x_continuous(breaks=seq(0,30,5))+
   xlab("Ranking of MIS adoption date ") +ylab("Probability")+
-  theme(plot.title = element_text(family = "serif"),
-        axis.title = element_text(family = "serif"))
+  theme_classic() +
+  theme(legend.title = element_blank(),
+        plot.title = element_text(family = "serif"),
+        axis.title = element_text(family = "serif"))+
+  ylim(.68,.88)+ 
+  scale_x_continuous(breaks= seq(1,15,1), limits= c(1,15), expand= c(0,0))
 
+prob_crop %>% filter(rank_date_adopters %in% c(2,15,27))
+
+
+
+
+# crop freq ----
+
+df <- gj1 %>% 
+  select(regno,RegistrationDate,villageSI, Crop, mistype,taluka) %>%
+  mutate(Crop = case_when(
+    Crop %in% c("BITTER GUARD", "BOTTLE GUARD", "GOURDS", "SPONGE GOURD") ~ "GOURD",
+    Crop %in% c("GRAM", "GREEN GRAM") ~ "GRAM",
+    TRUE ~ as.character(Crop)
+  )) %>% 
+  filter(Crop %in% c (
+    "Banana" , "CASTOR", "CHILLI", "COTTON","GRAM","GROUNDNUT",
+    "MAIZE" , "Mango","Pomogranate", "SUGARCANE","WHEAT","GRAM"
+    )) %>% 
+  group_by(mistype ,villageSI) %>% 
+  filter(n() >= 15) %>% 
+  arrange(RegistrationDate) %>%
+  mutate(rank_date_adopters = row_number()) %>% ungroup() %>% 
+  arrange(villageSI,mistype, rank_date_adopters)
+
+
+df %>% 
+  count(villageSI,mistype, Crop) %>% 
+  group_by(villageSI) %>%
+  mutate(total_n = sum(n),percent = (n / total_n)
+  ) %>%  
+  filter(total_n >15, n == max(n)) %>% 
+  group_by(Crop) %>%
+  reframe(pct_v15 = mean(percent, na.rm =T),n_v15=n())
+
+
+
+
+
+# Crop & MI Type ----
+contingency_table <- table(df$mistype, df$Crop)
+print(contingency_table)
+chisq.test(contingency_table)
+
+df2=df %>%
+  group_by(rank_date_adopters) %>%
+  filter(rank_date_adopters <= 30) %>%
+  count(Crop, mistype) %>%
+  mutate(percent = n / sum(n))
+
+ggplot(df2, aes(x = rank_date_adopters, y = percent, fill = interaction(Crop, mistype)))+
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  labs(title = "Crop-MI Dominance Among Early Adopters",
+       x = "Village", y = "Percentage", fill = "Crop & MI Type")
 
 
 
@@ -924,7 +1453,7 @@ quantile(GGRC$misarea , 0.99, na.rm = TRUE)
 
 MIS_Cost=
   gj1 %>%
-  select(regno, RegistrationDate, mistype, c_code01new, villageSI,misarea, TotalMISCost) %>%
+  select(regno, RegistrationDate, mistype, villageSI,misarea, TotalMISCost) %>%
   filter(!is.na(TotalMISCost), TotalMISCost < 497012, misarea != 0) %>%
   mutate(MISCost_per_ha= TotalMISCost/misarea )
 

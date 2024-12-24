@@ -96,7 +96,6 @@ but_ramthal %>% count(farmers_hh) %>% mutate(grp=c(946,666 )) %>% mutate(n/grp)
 
 
 
-# 2️⃣Why do farmers use the DIS to a low extent?----
 #
 #_____DF_Socioeconomic ___________________ [economic16]       ----
 
@@ -140,90 +139,91 @@ summary_1_99(economic16$total_acre)
 summary_1_99(economic16$total_plots)
 
 # remove outlyres
-economic16$total_acre[economic16$total_acre>40] <- NA
-economic16$total_plots[economic16$total_plots>7] <- NA
+economic16$total_acre16[economic16$total_acre16>50] <- NA
+economic16$total_plots16[economic16$total_plots16>8] <- NA
 
-#_____DF_education _______________________ [education16]      ----
+write.csv(economic16, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/economic16.csv", row.names=FALSE)
+
+
+#DF education_age_gndr_2016 _______________________ []      ----
 #   
 # C5	What is their relationship to the head of household?
-# C7	What is their educational level? (0=NOT literate)
+# C7	What is their educational level? 1-6
+C3_gndr=rmtl_baseline2016 %>% select(hh_id, starts_with("C3_")) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to= "gendar") %>% 
+  mutate(id_member = gsub("C3_", "C_", id_member))
+
+c4= rmtl_baseline2016 %>% select(hh_id,starts_with("C4_" ) ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "age")
+c4$id_member <- sub("^C4_(\\d{1,2})","C_\\1",c4$id_member )
 
 c5= rmtl_baseline2016 %>% select(hh_id,starts_with("C5" ),-contains("_os_") ) %>% 
   pivot_longer(!hh_id, names_to = "id_member", values_to = "hh_member")
 c5$id_member <- sub("^C5_(\\d{1,2})","C_\\1",c5$id_member )
 
+c6= rmtl_baseline2016 %>% select(hh_id,starts_with("C6" ),-contains("_os_") ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "literate")
+c6$id_member <- sub("^C6_(\\d{1,2})","C_\\1",c6$id_member )
+
 c7= rmtl_baseline2016 %>% select(hh_id, starts_with("C7"), -ends_with("_bin") ) %>% 
   pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level")
 c7$id_member <- sub("^C7_(\\d{1,2})","C_\\1",c7$id_member )
 
+ed = 
+  full_join(c5,c4) %>% full_join(c6) %>% full_join(c7) %>% full_join(C3_gndr) %>% 
+  filter(!is.na(age))
+  
+ed$hh_member[ed$hh_member<0 ] <- 800
+ed$hh_member[is.na(ed$hh_member)] <- 1000
 
-#literate=educated  hh_literacyPrt=prt_educated
-edu = 
-  full_join(c5,c7)%>%  # full_join(c6)-- "educated" var instead
-  filter(!is.na(hh_member)) %>% 
-  mutate(educated=ifelse(is.na(edu_level),0 ,ifelse(edu_level == -999 ,0,1) )) %>% 
-  mutate(edu_hh_head = 100)
-edu$edu_level[is.na(edu$edu_level)] <- 0                         
-edu$edu_hh_head=ifelse( edu$hh_member==1,edu$edu_level,NA )
-rm(c5,c7)
+ed$age[ed$age==0] <- 45
+ed$edu_level[ed$edu_level<0] <- NA
 
-# HH with one head
-edu1 = edu %>% filter(!is.na(edu_hh_head)) %>% count(hh_id) %>%filter(n==1) %>% left_join(edu)
+# add col "hh_head"
+#   HH with more then one head- the older = will be the HH head
+#   HH no head- the low member + the older = will be the HH head
+edu <- 
+  ed %>%
+  group_by(hh_id) %>%
+  mutate( count_hh_member_1 = sum(hh_member == 1, na.rm = TRUE)) %>% 
+  mutate(hh_haed=ifelse(hh_member ==1 & count_hh_member_1 ==1,1,
+                        ifelse(count_hh_member_1 %in% c(0,2,3) & id_member =="C_1" ,1,NA )
+        ) ) %>%ungroup() 
 
-# HH with more then one head & without head
-edu2 = edu %>%left_join(edu1[,1:2] %>% distinct()) %>% filter(is.na(n)) %>% select(-n)
-edu2$edu_hh_head=ifelse(edu2$id_member=="C_1", edu2$edu_level, NA )
+# DF  hh_haed_2016
+hh_haed_2016= edu %>%
+  filter(hh_haed ==1) %>% 
+  select(hh_id, id_member, age, edu_level, gendar ) %>% 
+  rename(hh_haed_age=age,hh_haed_edu_level=edu_level,hh_haed_gendar=gendar)
+hh_haed_2016$hh_haed_edu_level[is.na(hh_haed_2016$hh_haed_edu_level)] <- 0
+write.csv(hh_haed_2016, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/hh_haed_2016.csv", row.names=FALSE)
 
-# edu1 + edu2 [8,129 × 7]
-Edu =  edu1 %>% select(-n) %>% rbind(edu2)
-Edu$edu_level[Edu$edu_level==-999] <- NA
-Edu$high_edu= ifelse(Edu$edu_level %in% c(4,5,6),1,0 )
-Edu$edu_level_CAT= ifelse(Edu$edu_level %in% c(1,2),1,ifelse(Edu$edu_level == 3,2,ifelse(Edu$edu_level %in% c(4,5,6),3,0)  )) 
 
-Edu %>% freq(edu_level_CAT)
-Edu %>% freq(edu_level)
-
-education16 =
-  Edu %>% 
-  group_by(hh_id) %>% 
+educ = edu %>% 
   mutate(
-    total_hh_members= n(),
-    edu_level_hh= mean(edu_level),
-    high_edu_pct_hh= mean(high_edu),
-    educated_pct_hh=mean(educated),
-    edu_level_hh_CAT=mean(edu_level_CAT) 
-                      ) %>% 
-  select(hh_id, edu_hh_head,edu_level_hh,edu_level_hh_CAT, high_edu_pct_hh, educated_pct_hh) %>% 
-  filter(!is.na( edu_hh_head )) %>% ungroup() %>% 
-  mutate(edu_hh_head_01=ifelse(edu_hh_head==0,0,1)) %>%    # edu_hh_head_01
-  mutate_at(3:6,round,2)
+    educated_6th=ifelse(edu_level >=2 & literate ==1,1,0),
+    educated_PUC=ifelse(edu_level >=3 & literate ==1,1,0), # Grade 11th and above
+    educated_UG=ifelse(edu_level >=3 & literate ==1,1,0))
+
+# DF education_age_gndr_2016  ----
+education_age_gndr_2016 =
+  educ %>% 
+  group_by(hh_id) %>% 
+  summarise(
+    edu_level_hh= mean(edu_level, na.rm = TRUE),
+    literate_hh_pct=mean(literate, na.rm = TRUE),
+    educated_6th_pct_hh= mean(educated_6th, na.rm = TRUE),
+    educated_PUC_pct_hh=mean(educated_PUC, na.rm = TRUE),
+    educated_UG_pct_hh=mean(educated_UG, na.rm = TRUE)
+    ) %>% 
+  full_join(hh_haed_2016)
+
   
+write.csv(education_age_gndr_2016, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/education_age_gndr_2016.csv", row.names=FALSE)
+rm(edu, educ, ed,c4,c5,c6,c7)
 
+economic16 education_age_gndr_2016
 
-# this DF is index which C_ is the hh head
-  head_of_hh= Edu %>% select(hh_id, id_member, edu_hh_head) %>% 
-  filter(!is.na(edu_hh_head)) %>% mutate(hh_head_id=1)
-  
-rm(edu, edu1, edu2)
-
-
-#_____DF_Age Gendar ______________________ [age_gndr_hh_head] ----
-head_of_hh
-
-C3_gndr=rmtl_baseline2016 %>% select(hh_id, starts_with("C3_")) %>% pivot_longer(!hh_id, names_to = "id_member", values_to= "gndr") %>% mutate(id_member = gsub("C3_", "C_", id_member))
-C4_age= rmtl_baseline2016 %>% select(hh_id, starts_with("C4_")) %>% pivot_longer(!hh_id, names_to = "id_member", values_to = "age") %>% mutate(id_member = gsub("C4_", "C_", id_member))
-
-age_gndr=inner_join(C3_gndr,C4_age) %>% left_join(head_of_hh) %>% filter(!is.na(hh_head_id)) %>% select(hh_id,gndr,age,edu_hh_head)
-
-age_gndr_hh_head <- age_gndr %>%
-  mutate(age_cat = cut(age, breaks = c(0, 19, 29, 39, 49, 59, 100), 
-                       labels = c(1, 2, 3, 4, 5, 6),
-                       right = FALSE, include.lowest = TRUE)) %>% 
-  mutate(age_bin = ntile(age, 5))
-
-
-#stat
-age_gndr_hh_head %>% inner_join(rmtl_In_groups) %>% group_by(age_bin ) %>%  summarise(mean(infrstr_17_21),n=n())
 
 #_____DF_Social __________________________ [caste]            ----
 
@@ -246,7 +246,7 @@ caste = caste2 %>% select(hh_id, caste_01, caste_4321)
 rm(caste1,caste2)
 #
 
-
+DF
 #_____DF_Information _____________________ [info]             ----
 #### knowledge about irrigation
 # I3	Do you know any farmer in your village who uses it?
@@ -897,6 +897,13 @@ detach(rmtl_baseline2016)
 
 summary_1_99(economic16$total_acre)
 quantile(economic16$total_acre, 0.99, na.rm = TRUE)
+
+# BINS
+age_gndr <- age_gndr %>%
+  mutate(age_cat = cut(age, breaks = c(0, 19, 29, 39, 49, 59, 100), 
+                       labels = c(1, 2, 3, 4, 5, 6),
+                       right = FALSE, include.lowest = TRUE)) %>% 
+  mutate(age_bin = ntile(age, 5))
 
 
 # Function to compute summary statistics

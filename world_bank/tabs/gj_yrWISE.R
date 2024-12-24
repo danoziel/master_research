@@ -1,23 +1,14 @@
 
 
 
-############### year_Registration ###
-freq(GGRC$year_Registration  , report.nas=T, totals=F, cumul=F, headings=F)
 
-gj1 <- gj11 %>% filter(year_Registration != 2014)
 
-gj1 %>% 
-  count(year_Registration) %>% 
-  ggplot(aes(x = year_Registration, y = n)) +
-  geom_line(color = "green4") +    # Add a line without points
-  scale_x_continuous(breaks = seq(2005, 2013, 1)) +  # Ensure all x-axis values appear
-  labs(title = "Number of MIS Registrations over the Years", 
-       x = "Registrations Year", 
-       y = "Number of Registrations") +
-  theme_minimal()
 
-### ### ### ### ###
 
+
+
+
+#### TotalLand<13.88, TotalLand>0.56
 gj1   # A tibble: 441,700 × 26
 gj1 %>% filter(!is.na(TotalLand)) # A tibble: 418,835 × 26
 gj1 %>% filter(TotalLand<13.88, TotalLand>0.56) # A tibble: 410,303 × 26
@@ -30,11 +21,11 @@ gj1 %>% filter(TotalLand<13.88, TotalLand>0.56,
 
 
 # TotalLand group_by(year_Registration) ----
-TotalLand_YR= 
+TotalLand_YR <- 
   gj1 %>%  
-  select(regno,year_Registration,c_code01new,TotalLand,mistype) %>%
-  filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56
-  ) %>% 
+#  gj1B %>%  
+  select(regno,year_Registration,villageSI,TotalLand,mistype) %>%
+  filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56) %>% 
   group_by(mistype,year_Registration)%>% 
   summarise(n=n(),
             Total_Land=mean(TotalLand,na.rm = T),
@@ -51,36 +42,32 @@ TotalLand_YR %>%
   geom_ribbon(data = filter(TotalLand_YR, type == "Sprinkler"), 
               aes(ymin = Total_Land - CI95delta, ymax = Total_Land + CI95delta), 
               fill = "gray95", alpha = 0.5) +  # CI ribbon for "Sprinkler"
- # facet_wrap(~ type, ncol = 1) +  # Separate plots, one per type, arranged vertically
   labs(title = "Total Land Holding over Years by Irrigation Type",
        x = "Year of Registration", 
        y = "Total Land (in Ha)") +
   scale_x_continuous(breaks = seq(2005, 2013, 1)) +
-  scale_color_manual(values = c("Drip" = "blue4", "Sprinkler" = "royalblue1")) +  # Set line colors
-  theme_minimal()+
+  scale_color_manual(values = c("Drip" = "blue4", "Sprinkler" = "royalblue1"))+
+  theme_classic() +
   theme(plot.title = element_text(family = "serif"),axis.title = element_text(family = "serif"))
 
 
-TotalLand_YR= 
-  gj1 %>%  
-  select(regno,year_Registration,c_code01new,TotalLand,mistype) %>%
-  filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56,
-         year_Registration>=2007
-  ) %>% 
-  group_by(mistype,year_Registration)%>% 
-  summarise(n=n(),Total_Land=mean(TotalLand,na.rm = T),SD=sd(TotalLand,na.rm = T),CI95delta= 1.96*(SD/sqrt(n))) %>% 
-  rename(type=mistype)
 
-TotalLand_2013= 
-  gj1 %>%  
+######### 2013 land holding Sprinkler
+gj1 %>%  
   select(regno,year_Registration,,TotalLand,mistype) %>%
   filter(!is.na(TotalLand),
          mistype=="Sprinkler",
          year_Registration==2013) %>% 
   arrange(desc(TotalLand))
 
+######### 2013 land holding
+gj1B %>%  
+  select(regno,year_Registration,,TotalLand,mistype) %>%
+  filter(!is.na(TotalLand),
+         year_Registration==2005) %>% 
+  arrange(desc(TotalLand))
 
-##
+######### -
 
 
 
@@ -97,7 +84,7 @@ gj1 %>%
 ##
 misarea_D= 
   gj1 %>% filter(mistype=="Drip" ) %>%   
-  select(regno, RegistrationDate,year_Registration,c_code01new,misarea,TotalLand) %>%
+  select(regno, RegistrationDate,year_Registration,villageSI,misarea,TotalLand) %>%
   filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56
   ) %>% 
   group_by(year_Registration)%>% 
@@ -108,7 +95,7 @@ misarea_D=
 ##
 misarea_S=
   gj1 %>% filter(mistype=="Sprinkler" ) %>% 
-  select(regno, RegistrationDate,year_Registration,c_code01new,misarea, TotalLand) %>%
+  select(regno, RegistrationDate,year_Registration,villageSI,misarea, TotalLand) %>%
   filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56
   ) %>% 
   group_by(year_Registration)%>% 
@@ -180,7 +167,7 @@ haversine_distance <- function(lat1, lon1, lat2, lon2) {
 dis= 
   gj1 %>%   
   filter(!is.na (RegistrationDate) ) %>% 
-  select(regno,mistype,year_Registration, RegistrationDate, c_code01new ,Latitude,Longitude) %>%
+  select(regno,mistype,year_Registration, RegistrationDate, villageSI ,Latitude,Longitude) %>%
   group_by(year_Registration) %>% 
   arrange(RegistrationDate) %>%
   filter(Latitude>20,Latitude<25, Longitude>68.5,Longitude<74.5) %>% 
@@ -222,7 +209,7 @@ df %>%
 
 # TotalLand group_by(year_Registration) ----
 rank_TotalLand_D= gj1 %>% filter(mistype=="Drip" ) %>%   
-  select(regno, RegistrationDate,year_Registration,c_code01new,TotalLand) %>%
+  select(regno, RegistrationDate,year_Registration,villageSI,TotalLand) %>%
   filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56
   ) %>% 
   group_by(year_Registration)%>% 
@@ -232,7 +219,7 @@ rank_TotalLand_D= gj1 %>% filter(mistype=="Drip" ) %>%
             CI95delta= 1.96*(SD/sqrt(n)))
 
 rank_TotalLand_S=gj1 %>% filter(mistype=="Sprinkler" ) %>% 
-  select(regno, RegistrationDate,year_Registration,c_code01new,TotalLand) %>%
+  select(regno, RegistrationDate,year_Registration,villageSI,TotalLand) %>%
   filter(!is.na(TotalLand),TotalLand<13.88, TotalLand>0.56
   ) %>% 
   group_by(year_Registration)%>% 

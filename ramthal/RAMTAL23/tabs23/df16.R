@@ -28,70 +28,180 @@ library(summarytools)
 # C5	What is their relationship to the head of household?
 # C6	Are they literate?
 # C7	What is their educational level?
-C5=rmtl_baseline2016[,c(1,grep("^C5_[1-9]",names(rmtl_baseline2016)))]  
-C5[C5>1] <- NA
-C5 %>% select(where(~!all(is.na(.x))))
 
-edu1=rmtl_baseline2016[,c(1,grep("^C5_[1-9]|^C7_[1-9]",names(rmtl_baseline2016)))] %>% select(-ends_with("bin"))%>% mutate(edu_head_hh=NA ) 
+#
+#_____DF_Socioeconomic ___________________ [economic16]       ----
 
-edu1$edu_head_hh <- ifelse(edu1$C5_1 == 1, edu1$C7_1, edu1$edu_head_hh)
-edu1$edu_head_hh <- ifelse(edu1$C5_2 == 1, edu1$C7_2, edu1$edu_head_hh)
-edu1$edu_head_hh <- ifelse(edu1$C5_3 == 1, edu1$C7_3, edu1$edu_head_hh)
-edu1a <-
-  edu1 %>% 
-  mutate(edu_head_hh=
-           ifelse(C5_1==1,C7_1,ifelse(C5_3 == 1, C7_3,ifelse(C5_4 == 1, C7_4,ifelse(C5_5 == 1,C7_5,ifelse(C5_6 == 1, C7_6,ifelse(C5_7 == 1, C7_7,ifelse(C5_8 == 1, C7_8, ifelse(C5_9 == 1, C7_9,ifelse(C5_10 == 1,C7_10,ifelse(C5_11== 1, C7_11,ifelse(C5_13 == 1, C7_13, ifelse(C5_16 == 1,C7_16,NA)))))))))))))
+# bpl_card AND official_assistance
+# B8	Does this household have a BPL ration card?
+# B9	In the last 5 years, has the household received any assistance from the municipality/government/gram panchayat? (NOT including ration card)
+rmtl_baseline2016 %>% select(contains(c( "B8","B9")))
+# B1	Is this housing constructed with pucca, semi-pucca, or kutcha materials?1Pucca House/ 2Semi Pucca House/ 3Kutcha House
+# D2	How many acres (guntas) of land does your household currently own?
+# D3	How many plots of land does your household currently own?
+rmtl_baseline2016 %>% select(contains(c( "B1","D2" ,"D3")))
+# F12	Total (Rs.)
+# F13	According to what you indicated, your total HH income is Rs. [     ].
+# F14	What is you income expectation in 2 years from now? (Rs.)		
+
+f13=
+  rmtl_baseline2016 %>% select(hh_id ,contains(c("F12_year","F13"))) %>% 
+  mutate(income_2015= ifelse(is.na(F12_year), F13,ifelse(is.na(F13),F12_year, pmax(F12_year,F13, na.rm = TRUE)))) %>% 
+  select(hh_id,income_2015)
+summary_1_99(f12_f13$bl_yr_income)
+f13$income_2015[f13$income_2015<7000] <- NA
+f13$income_2015[f13$income_2015>1000000] <- NA
+f13$incomeK_2015=f13$income_2015/1000  
 
 
-vars_02=
+economic16=
   rmtl_baseline2016 %>% 
-  select(hh_id,A22, #caste
-         A23, #caste category
-         F13,# total HH income
-         B9) %>% # In the last 5 years, has the household received any assistance
-  rename(income_2016= F13) 
-
-# 1	General Category |2 Other Backward Caste |3 Scheduled Caste |4 Scheduled Tribe
-vars_02 %>%# filter(A23 !="4" | F13 < 500000) %>%
-  mutate(caste_cat=ifelse(A23=="1","GC",ifelse(A23 %in% c("2","3","4"),"OBC/SC/ST",""))
-  ) %>% group_by(in1_out0,caste_cat) %>% count() %>% 
-  group_by(in1_out0) %>% mutate(prc=n/sum(n))
+  select(hh_id, D2 ,D3, B1,B8,B9) %>% 
+  rename(bpl_card=B8,official_assistance=B9,
+         total_plots=D3, total_acre=D2) %>%   #[total_acre | total_plots] 
+  mutate(total_acre_bin = ntile(total_acre, 5)) %>% 
+  mutate(housing_str01=ifelse(B1==1,1,0)) %>% 
+  mutate(housing_str321=ifelse(B1==1,3,ifelse(B1==3,1,2))) %>% 
+  select(-B1) %>% 
+  left_join(f13) %>% 
+  mutate(income2015_bin = ntile(incomeK_2015, 5))
 
 
-# income_2016
-library(rstatix)
-ic02=
-  vars_02 %>% group_by(HH_project) %>%
-  get_summary_stats(income_2016, type = "mean_sd") %>% 
-  mutate_at(4:5,round) # (column ,round ,digits)
+# Summary stat
+summary_1_99(economic16$total_acre)
+summary_1_99(economic16$total_plots)
 
-# T_TEST
-test02 <- vars_02 %>% t_test(income_2016 ~ HH_project, detailed = F) %>% add_significance()
+# remove outlyres
+economic16$total_acre16[economic16$total_acre16>50] <- NA
+economic16$total_plots16[economic16$total_plots16>8] <- NA
 
-library(rempsyc)
-nice_table(test02[c(6:9)])
+write.csv(economic16, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/economic16.csv", row.names=FALSE)
 
 
+#DF education_age_gndr_2016 _______________________ []      ----
+#   
+# C5	What is their relationship to the head of household?
+# C7	What is their educational level? 1-6
+C3_gndr=rmtl_baseline2016 %>% select(hh_id, starts_with("C3_")) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to= "gendar") %>% 
+  mutate(id_member = gsub("C3_", "C_", id_member))
 
-# OLS linear regression
-library(jtools)
-library(huxtable)
-lmm5 <- lm(income_2016 ~ HH_project, data = vars_02)
-summary(lmm5)
-summ(lmm5)
+c4= rmtl_baseline2016 %>% select(hh_id,starts_with("C4_" ) ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "age")
+c4$id_member <- sub("^C4_(\\d{1,2})","C_\\1",c4$id_member )
 
-# plot for OLS linear regression
-plot_summs(lmm5, inner_ci_level = .9)
-plot_summs(lmm5, plot.distributions = TRUE, inner_ci_level = .9)
+c5= rmtl_baseline2016 %>% select(hh_id,starts_with("C5" ),-contains("_os_") ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "hh_member")
+c5$id_member <- sub("^C5_(\\d{1,2})","C_\\1",c5$id_member )
 
-# table for OLS linear regression
-library(sjPlot)
-tab_model(lmm5, show.se = TRUE)
-tab_model(lmm5, collapse.ci = TRUE, show.se = TRUE)
+c6= rmtl_baseline2016 %>% select(hh_id,starts_with("C6" ),-contains("_os_") ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "literate")
+c6$id_member <- sub("^C6_(\\d{1,2})","C_\\1",c6$id_member )
+
+c7= rmtl_baseline2016 %>% select(hh_id, starts_with("C7"), -ends_with("_bin") ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level")
+c7$id_member <- sub("^C7_(\\d{1,2})","C_\\1",c7$id_member )
+
+ed = 
+  full_join(c5,c4) %>% full_join(c6) %>% full_join(c7) %>% full_join(C3_gndr) %>% 
+  filter(!is.na(age))
+
+ed$hh_member[ed$hh_member<0 ] <- 800
+ed$hh_member[is.na(ed$hh_member)] <- 1000
+
+ed$age[ed$age==0] <- 45
+ed$edu_level[ed$edu_level<0] <- NA
+
+# add col "hh_head"
+#   HH with more then one head- the older = will be the HH head
+#   HH no head- the low member + the older = will be the HH head
+edu <- 
+  ed %>%
+  group_by(hh_id) %>%
+  mutate( count_hh_member_1 = sum(hh_member == 1, na.rm = TRUE)) %>% 
+  mutate(hh_haed=ifelse(hh_member ==1 & count_hh_member_1 ==1,1,
+                        ifelse(count_hh_member_1 %in% c(0,2,3) & id_member =="C_1" ,1,NA )
+  ) ) %>%ungroup() 
+
+# DF  hh_haed_2016
+hh_haed_2016= edu %>%
+  filter(hh_haed ==1) %>% 
+  select(hh_id, id_member, age, edu_level, gendar ) %>% 
+  rename(hh_haed_age=age,hh_haed_edu_level=edu_level,hh_haed_gendar=gendar)
+hh_haed_2016$hh_haed_edu_level[is.na(hh_haed_2016$hh_haed_edu_level)] <- 0
+write.csv(hh_haed_2016, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/hh_haed_2016.csv", row.names=FALSE)
+
+
+educ = edu %>% 
+  mutate(
+    educated_6th=ifelse(edu_level >=2 & literate ==1,1,0),
+    educated_PUC=ifelse(edu_level >=3 & literate ==1,1,0), # Grade 11th and above
+    educated_UG=ifelse(edu_level >=3 & literate ==1,1,0))
+
+# DF education_age_gndr_2016  ----
+education_age_gndr_2016 =
+  educ %>% 
+  group_by(hh_id) %>% 
+  summarise(
+    edu_level_hh= mean(edu_level, na.rm = TRUE),
+    literate_hh_pct=mean(literate, na.rm = TRUE),
+    educated_6th_pct_hh= mean(educated_6th, na.rm = TRUE),
+    educated_PUC_pct_hh=mean(educated_PUC, na.rm = TRUE),
+    educated_UG_pct_hh=mean(educated_UG, na.rm = TRUE)
+  ) %>% 
+  full_join(hh_haed_2016)
+
+
+write.csv(education_age_gndr_2016, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/education_age_gndr_2016.csv", row.names=FALSE)
+rm(edu, educ, ed,c4,c5,c6,c7)
+
+economic16 education_age_gndr_2016
+
+
+#_____DF_Social __________________________ [caste]            ----
+
+# a21	What is your religion?	#	rmtl_baseline2016 %>% count(A21)
+# a22 What is your caste? # rmtl_baseline2016 %>% count(A22) / rmtl_baseline2016$A22_os
+# a23 Which caste category does this fall under?
+
+caste1= rmtl_baseline2016 %>% select(hh_id,A21, A22,A22_os,A23)
+caste1 %>% count(A23)
+
+# 1 General Category # 2 Other Backward Caste # 3 Scheduled Caste # 4 Scheduled Tribe
+caste1$A23[caste1$A23 %in% c("","-777","-999")] <- NA
+caste2=caste1%>%
+  mutate(caste_01=ifelse(A23=="1",1,                # General Category
+                         ifelse(A23 %in% c("2","3","4"),0 ,# OBC/SC/ST
+                                NA))) %>% 
+  rename(caste_4321=A23) %>% 
+  mutate(caste_cat=ifelse(caste_01=="1","GC",
+                   ifelse(caste_01 %in% c("2","3","4"),
+                   "OBC/SC/ST","")))
+         
+
+caste = caste2 %>% select(hh_id, caste_01, caste_4321)
+rm(caste1,caste2)
+#
+
+# DF economic16 education_age_gndr_2016 caste ------
+
+demographic_vars_2016 <- 
+  left_join(economic16,education_age_gndr_2016) %>% 
+  left_join(caste)
+write.csv(demographic_vars_2016, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/demographic_vars_2016.csv", row.names=FALSE)
+
+
+
+
+
+
+
+
+
+
+
 
 ####### INCOME tab #######             ----
-
-
 
 # NET income earned by household members in the past 12 months.       				
 incom16= rmtl_baseline2016 %>% select(hh_id ,contains(c("F")))
@@ -107,9 +217,7 @@ rmtl_baseline2016 %>% select(contains(c("F1_s","F2_s"))) %>% freq()
 f1_f2=rmtl_baseline2016 %>% select(contains(c("F1_","F2_")))
 summary(f1_f2)
 
-
 ####### F3-F12 not include income from seasonal or permanent migrants.
-
 f3_f13=
   rmtl_baseline2016 %>% 
   select(starts_with (c("F"))) %>% select(contains(c("_s"))) %>% freq()

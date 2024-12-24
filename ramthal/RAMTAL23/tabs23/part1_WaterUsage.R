@@ -17,6 +17,8 @@ rmtl_srvy22 %>% select(farmers_hh,hh_id,mm2) %>% count(farmers_hh,mm2)
 #| 4Ganga kalyana 2in 4out
 
 #🟦  mm4 Infrastructure               ----
+
+#🟣 MID22 
 mm4 <- 
   rmtl_srvy22 %>% select(farmers_hh,hh_id,mm4) %>% 
   left_join(hh_2022) %>%   
@@ -32,7 +34,58 @@ table_wi= wi1 %>%
   select(estimate1,,estimate2,statistic,df,p,conf.low,conf.high) %>% 
   rename(`Project farms`=estimate1,`No Project farms`=estimate2,t=statistic) 
 nice_table(table_wi, title = c("Table mm4", "Fraction of HH with infrastructure installed"))
-           
+
+#🟠 MIDELINE 2018
+
+Y2018=rmtl_midline2018 %>%  
+  select(hh_id,in1_out0)
+
+# 1Yes / 2No / -999 Don't know
+
+#| i16 # Is your land taking part in the Ramthal project?"
+
+#[17,15 are plot wise]
+#| i17 # Has any drip irrigation pipes been laid on top of the field
+#       (Small black pipes laid over the ground and used for drip irrigation)
+#| i15.a	# Were you offered irrigation water -Y/N
+#| I15.b	# If yes, Did you use water offered
+#| I15.c	# If yes, When did you start using the water
+
+i16.17.15ab <- Irrigation_Midline_Clean_with_Callbacks %>% 
+  select(id, i16, 
+         matches("^i17_\\d+$"), 
+         matches("^i15_A"), 
+         matches("^i15_B")) %>%
+  mutate(
+    across(-id, ~ if_else(. == "2", "", .)),
+    i16 = as.integer(ifelse(i16==1, 1,0)),
+    i17 = as.integer(if_any(starts_with("i17_"), ~ . == "1")),
+    i15a = as.integer(if_any(starts_with("i15_A"), ~ . == "1")),
+    i15b = as.integer(if_any(starts_with("i15_B"), ~ . == "1"))
+  ) %>%
+  select( id,i16,i17,i15a,i15b) %>% 
+  rename(i_infr=i17, i_offered_water=i15a,i_use_water=i15b )
+
+i15c <- Irrigation_Midline_Clean_with_Callbacks %>%
+  select(id, matches("^i15_C_yyyy")) %>%
+  rowwise() %>%
+  mutate(i15c=max(c_across(starts_with("i15_C_yyyy")), na.rm = TRUE))%>%
+  ungroup() %>% 
+  mutate(start_use_water=ifelse(i15c %in% c("2017","2018"),1,0 )) %>%
+  select( id,start_use_water )
+
+wI2018 <- inner_join(i16.17.15ab,i15c ) %>% rename(hh_id =id)
+
+wi2018 <- Y2018 %>% 
+  filter(!is.na(in1_out0)) %>% 
+  left_join(wI2018)
+
+
+wi2018 %>% count(in1_out0,i_infr) %>% mutate(pct = n / sum(n), .by = in1_out0)
+wi2018 %>% count(in1_out0,i_offered_water) %>% mutate(pct = n / sum(n), .by = in1_out0)
+wi2018 %>% count(in1_out0,i_use_water) %>% mutate(pct = n / sum(n), .by = in1_out0)
+wi2018 %>% count(in1_out0,start_use_water) %>% mutate(pct = n / sum(n), .by = in1_out0)
+
 
 #🟩  L7  ir source                    -----
 
