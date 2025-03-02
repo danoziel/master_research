@@ -490,73 +490,105 @@ S1 %>% mutate(prt2=prt2*100) %>%
 
 ####### HH%_IR 2016-2021 ----
 
+#| 2016       basline
+
+#| 2017-2018  midline
+
+#| 2018-2019  midline22
+#| 2019-2020  midline22
+#| 2020-2021  midline22
+
+#| 2021-2022  midline22
+
+# irrigation_2022      ----
+
 ###### 2021 ir data [survey of 2022] # ir22_2021
 ir22_2021 <-  
-  a_irri_rain_method %>% filter(season != "KHA22") %>%  select( hh_id ,irri_method) %>% distinct() %>% 
+  a_irri_rain_method %>%  select( hh_id ,irri_method) %>% distinct() %>% 
   group_by(hh_id)  %>%
   mutate(hh_6methods = ifelse("drip" %in% irri_method , "drip", ifelse(any(irri_method  == "furrows"), "furrows",ifelse(any(irri_method  == "flood"), "flood",ifelse(any(irri_method  == "sprinkler"), "sprinkler",ifelse(any(irri_method  == "hose"), "hose","rain"))))) ) %>%
-  ungroup() %>% select(hh_id,hh_6methods) %>% distinct() %>% 
-  mutate(hh_irri=ifelse(hh_6methods=="rain",0,1),
-         hh_drip=ifelse(hh_6methods=="drip",1,0)) %>% left_join(hh_2022)%>% mutate(year_ir=2021) %>% 
-  select(year_ir,farmers_hh,hh_id,hh_6methods,hh_irri,hh_drip )
+  ungroup() %>% select(hh_id,hh_6methods) %>% distinct() #%>% 
+  # mutate(hh_irri=ifelse(hh_6methods=="rain",0,1),
+  #        hh_drip=ifelse(hh_6methods=="drip",1,0)) %>% left_join(hh_2022)%>% mutate(year_ir=2021) %>% 
+  # select(year_ir,farmers_hh,hh_id,hh_6methods,hh_irri,hh_drip )
 
-ir22_2021 %>%  group_by(farmers_hh) %>% summarise(mean(hh_irri))
-ir22_2021 %>%  group_by(farmers_hh) %>% summarise(mean(hh_drip))
-t1= ir22_2021 %>%  t_test(hh_drip~farmers_hh,detailed=T )%>% select(2:3,9:13)
-t11=ir22_2021 %>% t_test(hh_irri~farmers_hh,detailed=T )%>% select(2:3,9:13)
+irrigation_2022 <- 
+  ir22_2021 %>% 
+  rename(ir_method_2022=hh_6methods  ) %>%
+  mutate(ir_use_2022  =ifelse(ir_method_2022=="rain",0,1),
+         drip_use_2022=ifelse(ir_method_2022=="drip",1,0))
 
-###### 2017 ir data [survey of 2018] # ir18_2017
-ir18_2017 <- 
-  ml18_irri_methods %>% rename(hh_6methods=irri_method,hh_irri=irri  ) %>%
-  mutate(hh_irri=ifelse(hh_6methods=="rain",0,1),
-         hh_drip=ifelse(hh_6methods=="drip",1,0)) %>% 
-  mutate(year_ir=2017) %>% 
-  select(year_ir,farmers_hh,hh_id,hh_6methods,hh_irri,hh_drip )
+# irrigation_2018_2020 ----
 
-ir18_2017 %>%  group_by(farmers_hh) %>% summarise(mean(hh_irri))
-ir18_2017 %>%  group_by(farmers_hh) %>% summarise(mean(hh_drip))
-t2= ir18_2017 %>% t_test(hh_drip~farmers_hh,detailed=T )%>% select(2:3,9:13)
-t22=ir18_2017 %>% t_test(hh_irri~farmers_hh,detailed=T )%>% select(2:3,9:13)
+ir_18_20 <- 
+  rmtl_srvy22 %>% select(farmers_hh,hh_id, starts_with("l48a_y"),-contains("other")) %>% 
+  pivot_longer(cols = -c(farmers_hh,hh_id),names_to = "observation",  values_to = "irri_method") %>% 
+  separate(observation, into = c("L48a","y" ,"year_ir","crop15"), sep = "_") %>% 
+  mutate(year_ir =as.numeric(year_ir),year_ir=year_ir+2000) %>% 
+  mutate(irri_method=ifelse(is.na(irri_method),0,irri_method)) %>% 
+  group_by(hh_id,year_ir) %>% 
+  mutate(
+    ir_method = ifelse(3 %in% irri_method , "drip", 
+                  ifelse(any(irri_method  == 2), "furrows",
+                  ifelse(any(irri_method  == 1), "flood",
+                  ifelse(any(irri_method  == 4), "sprinkler",
+                  ifelse(any(irri_method  == 6), "hose","rain"))))) 
+    ) %>%  #  filter(hh_id %in% c(103257,105832))
+  select(farmers_hh,hh_id,ir_method,year_ir) %>% distinct() %>% ungroup() %>% 
+  mutate(ir_use=ifelse(ir_method=="rain",0,1),
+         drip_use=ifelse(ir_method=="drip",1,0))
 
-###### 2018-19-20 ir data [survey of 2022] # ir22_2018_2020
-ir22_2018_2020 %>%  group_by(farmers_hh,year_ir) %>% summarise(mean(hh_irri))
-ir22_2018_2020 %>%  group_by(farmers_hh,year_ir) %>% summarise(mean(hh_drip))
-t3=ir22_2018_2020%>%  group_by(year_ir) %>% t_test(hh_drip~farmers_hh,detailed=T )%>% select(1,3:4,10:14)
-t33=ir22_2018_2020%>%  group_by(year_ir) %>% t_test(hh_irri~farmers_hh,detailed=T )%>% select(1,3:4,10:14)
-
-# t_test drip
-rbind(t1,t2) %>% mutate(year_ir=c(2021,2017)) %>% select(year_ir,everything() ) %>% 
-  rbind(t3) %>% arrange(desc(year_ir)) %>%  mutate_at(2:8,round,2) %>% kbl() %>% kable_styling()
-
-# t_test ir
-rbind(t11,t22) %>% mutate(year_ir=c(2021,2017)) %>% select(year_ir,everything() ) %>% 
-  rbind(t33) %>% arrange(desc(year_ir)) %>%  mutate_at(2:8,round,2) %>% kbl() %>% kable_styling()
-
-
-# what prt of hh irri and drip over the years 2017-2021
-ir_17_21 <- 
-  rbind(ir18_2017,ir22_2018_2020,ir22_2021) %>%
-  group_by(farmers_hh,hh_id) %>% 
-  summarise(hh_irri=sum(hh_irri) , hh_drip=sum(hh_drip)) %>% 
-  mutate(hh_irri=ifelse(hh_irri==0,0,1), hh_drip=ifelse(hh_drip==0,0,1) ) %>% ungroup()
-
-ir_17_21 %>% group_by(farmers_hh) %>% summarise(mean(hh_irri),mean(hh_drip))
-ir_17_21 %>% right_join(hh_2022)%>% group_by(farmers_hh) %>% summarise(mean(hh_irri),mean(hh_drip))
-t4= ir_17_21 %>% t_test(hh_drip~farmers_hh,detailed=T )%>% select(2:3,9:13)
-t44=ir_17_21 %>% t_test(hh_irri~farmers_hh,detailed=T )%>% select(2:3,9:13)
-
-t4%>% mutate_at(1:7,round,2) %>% kbl() %>% kable_styling()
-t44%>% mutate_at(1:7,round,2) %>% kbl() %>% kable_styling()
+irrigation_2018_2020 <- 
+  ir_18_20 %>% select(-farmers_hh) %>% 
+  pivot_wider(
+    names_from = year_ir, 
+    values_from = c(ir_method,drip_use, ir_use),
+    names_glue = "{.value}_{year_ir}" )
 
 
-# is ir_17_21 and mm5 overlap
-ir_17_21 %>% count(hh_drip)
-rmtl_srvy22 %>% select(hh_id,mm5) %>% inner_join(ir_17_21) %>% 
-  mutate(ol=mm5+hh_drip) %>% count(ol)
+# irrigation_2017      ----
 
-rbind(ir18_2017,ir22_2018_2020,ir22_2021) %>% 
-  filter(hh_drip==1) %>% count(farmers_hh,hh_id ) %>% count(farmers_hh,n) %>% 
-  mutate(prt=ifelse(farmers_hh=="inside_ramthal", nn/261,nn/57))
+# ###### [survey of 2018]
+# ir18_2017 <- 
+#   ml18_irri_methods %>% rename(hh_6methods=irri_method,hh_irri=irri  ) %>%
+#   mutate(hh_irri=ifelse(hh_6methods=="rain",0,1),
+#          hh_drip=ifelse(hh_6methods=="drip",1,0)) %>% 
+#   mutate(year_ir=2017) %>% 
+#   select(year_ir,farmers_hh,hh_id,hh_6methods,hh_irri,hh_drip )
+
+irrigation_2017 <- 
+  ml18_irri_methods %>% 
+  rename(ir_method_2017=irri_method  ) %>%
+  mutate(ir_use_2017  =ifelse(ir_method_2017=="rain",0,1),
+         drip_use_2017=ifelse(ir_method_2017=="drip",1,0),
+         in_project= ifelse(farmers_hh=="outside_ramthal",0,1)) %>%  
+  select(-irri,-farmers_hh)
+
+# irrigation_BL        ----
+
+irrigation_BL <- 
+  bl_ir_method %>% # IN  df16.R
+  rename(
+    ir_method_BL=ir_method_name,
+    drip_use_BL=drip_use,
+    ir_use_BL=ir_use) %>% 
+  select(-farmers_hh,-irri_method_2016)
+
+# irrigation_BL_to_22  ----
+
+irrigation_BL_to_22 <- 
+  full_join(irrigation_2022,
+            irrigation_2018_2020) %>% 
+  full_join(irrigation_2017) %>% 
+  full_join(irrigation_BL)
+  
+
+
+
+
+
+
+
 
 ####### HH%_IR 2021-22 SEASONs ----
 
@@ -586,10 +618,10 @@ ir_season_bl <-
   bl_irri_acre_plot %>% 
   ungroup() %>% select(farmers_hh,hh_id, season,irri_method ) %>% distinct() %>% 
   mutate(hh_6methods =  ifelse(irri_method == 3, "drip",
-                        ifelse(irri_method  == 2, "furrows",
-                        ifelse(irri_method  == 1, "flood",
-                        ifelse(irri_method  == 4, "sprinkler",
-                        ifelse(irri_method %in% c(5,6), "hose","rain"))))) ) %>% 
+                               ifelse(irri_method  == 2, "furrows",
+                                      ifelse(irri_method  == 1, "flood",
+                                             ifelse(irri_method  == 4, "sprinkler",
+                                                    ifelse(irri_method %in% c(5,6), "hose","rain"))))) ) %>% 
   mutate(hh_irri=ifelse(hh_6methods == "rain" , 0, 1)) %>% 
   mutate(hh_drip=ifelse(hh_6methods == "drip" , 1 ,0) ) %>% 
   select(-farmers_hh) %>% right_join(hh_2022)
@@ -622,7 +654,7 @@ m20%>% filter(!is.na(mw2)) %>% select(farmers_hh,hh_id,ends_with("2018")) %>%
 #* [mw1a] If Yes, in which year did you first make use of the water?
 #* [mw1b] In what season did you use it in that year?
 # [mw1c] If No, Why? | IN part2_why.R 
-  
+
 #* [mw4] Are you still making use of the water from the project to irrigate your land?
 #* [mw4a] If Yes, in what season?
 #* [mw4b] If No or Sometimes- What was the last year you use of the water?
@@ -646,25 +678,25 @@ m52 %>% group_by(in1_out0,m52) %>% summarise(n=n())
 
 
 
-  
+
 rmtl_srvy22 %>% select(mm5,mm9,mm10) %>% 
   filter(mm9>-1,!is.na(mm5)) %>% 
   count(mm5,mm9) %>% 
   group_by(mm5) %>%mutate(pct=n/sum(n)) %>% 
   group_by(mm9) %>% 
   mutate(sum_pct=sum(pct)) %>% mutate(percent=pct/sum_pct) %>% 
-
-
-
-
-
-
-
-
-
-
-
-## ADDING BASELINE DATA  Caste & income ploting----
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  ## ADDING BASELINE DATA  Caste & income ploting----
 library(haven)
 baseline_2016 <- read_dta("~/master_research/DATAs/ramthal_data/baseline_survey_2016/CMF_RAMTHAL_IRRIGATION_18 Aug 2016 - cleaned.dta")
 
@@ -676,9 +708,9 @@ baseline_2016 <- read_dta("~/master_research/DATAs/ramthal_data/baseline_survey_
 
 c_i=
   rmtl_baseline2016 %>% select(hh_id,A22, #caste
-                           A23, #caste category
-                           F13,# total HH income
-                           B9)# In the last 5 years, has the household received any assistance
+                               A23, #caste category
+                               F13,# total HH income
+                               B9)# In the last 5 years, has the household received any assistance
 
 B9=
   c_i %>%
@@ -689,8 +721,8 @@ caste_incom=
   c_i %>%
   filter(A23 !="4" | F13 < 500000) %>%
   mutate(caste_cat = ifelse(A23=="1","GC",
-                     ifelse(A23=="2","Other BC",
-                     ifelse(A23== c("3","4"),"SC/ST","")))
+                            ifelse(A23=="2","Other BC",
+                                   ifelse(A23== c("3","4"),"SC/ST","")))
   ) %>% 
   rename(id_srvy=Id, income_2016= F13) %>% 
   mutate(id_srvy=as.character(id_srvy))
@@ -712,7 +744,7 @@ income_test= caste_incom_water %>% mutate(mm5=as.character(mm5),mm4=as.character
 
 income_test$mm4 [income_test$mm4 == 1] <- "1.IS" #  Irrigation System installed
 income_test$mm4 [income_test$mm4 == 0] <- "2.NIS" # No Irrigation System
-  
+
 income_test$mm5 [income_test$mm5 == 1] <- "1a.UW" # use water
 income_test$mm5 [income_test$mm5 == 0] <- "1b.NUW" # no use water
 income_test$mm5 [is.na(income_test$mm5)] <- "2. NIS" # No Irrigation System
@@ -766,7 +798,7 @@ a_rmtl_srvy22 %>% count (mm5,m62a) %>% mutate(nu=n*.0108991825613079)
 # F9	Government pension or scheme
 a_rmtl_srvy22 %>% count (mm5,f9) %>% mutate(nu=n*.0108991825613079)
 
-  
+
 names(caste_incom_water)
 # bar plot Water usage by caste ----
 caste_water <- 

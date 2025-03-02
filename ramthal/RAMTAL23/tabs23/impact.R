@@ -6,422 +6,6 @@ library(rstatix) # ttest "add_significance"
 library(rempsyc) # ttest # nice_table
 library(kableExtra )
 
-# Share of farmers cultivated sorghum
-# Share of farmers cultivated Bengal gram
-# Share of farmers cultivated sunflower
-# 
-# Cultivated area (acres)  
-# Share of area cultivated
-#
-# Actual sorghum yields (q/acre)
-# Actual bengal gram yields (q/acre)
-
-# Share of farmers used irrigation
-
-# Operational expenses (Rs./Acre cultivated)
-
-#|🟡rmtl_baseline2016 🟠rmtl_midline2018 🟣rmtl_srvy22
-
-
-
-# LAND HOLDING     ----
-land_holding=
-  a_plots_size %>% 
-  filter(!plotStatus %in% c("1","6")) %>% 
-  group_by(hh_id) %>% 
-  summarise(total_num_plots=n(),total_acre=sum(acres,na.rm = T)) %>% left_join(hh_2022)
-
-compute_summary <- function(x) {
-  data.frame(
-    Count = length(x),
-    Mean = mean(x),
-    Median = median(x),
-    SD = sd(x),
-    P01 = quantile(x, 0.01),
-    P99 = quantile(x, 0.99),
-    Min = min(x),
-    Max = max(x)
-  )
-}
-
-library(rstatix)
-
-land_holding %>% group_by(farmers_hh) %>% summarize(across(total_acre, compute_summary))
-#  total of 99% obs ARE total_acre<38 
-land_holding_99= land_holding %>% filter(total_acre<39)
-
-land_holding_99 %>% ggplot(aes(x=total_acre,fill=farmers_hh))+ geom_histogram(alpha=0.5)+scale_fill_manual(values=c( "#E69F00","skyblue"))
-land_holding_99 %>% t_test(total_acre  ~ farmers_hh , detailed = T) %>% select(2:3,9:13)
-
-
-
-
-
-
-
-
-# CULTIVATED LAND ----
-
-
-cultivated_land=
-  land_holding %>% 
-  left_join(a_irri_rain_method) %>% # filter(hh_id==101046)
-  left_join(a_plots_size[,c(1:2,7)]) %>% 
-  select(hh_id, season, plotID, irri_method,acres) %>% distinct() %>% 
-  group_by(season ,hh_id) %>% 
-  summarise(total_acre=sum(acres,na.rm = T)) %>% 
-  right_join (full_seasons) %>% 
-  mutate(total_acre=ifelse(is.na(total_acre),0,total_acre)) %>%
-  ungroup()
-
-quantile(cultivated_land$total_acre, 0.99)
-
-cultivated_land %>%
-  filter(total_acre<30.8)%>% group_by(season) %>%  
-  t_test(total_acre  ~ farmers_hh , detailed = T)%>% 
-  mutate_at(c(3:4,10:14) ,round,2) %>%
-  mutate(CI = paste0("[", conf.low, ", ", conf.high, "]")) %>% 
-  select(season ,estimate1, estimate2, statistic,p,df,CI) %>%  
-  kbl() %>% kable_paper()
-
-
-
-
-# Gross Cropped Area # year 2022
-cultivated_land_2022 =
-  land_holding %>% 
-  left_join(a_irri_rain_method) %>% # filter(hh_id==101046)
-  left_join(a_plots_size[,c(1:2,7)]) %>% 
-  select(hh_id, season, plotID, irri_method,acres) %>% distinct() %>% 
-  group_by(hh_id) %>% 
-  summarise(total_acre=sum(acres,na.rm = T)) %>%
-  left_join(hh_2022) %>% ungroup()
-cultivated_land_2022 %>% summarize(across(total_acre, compute_summary))
-cultivated_land_2022_99= cultivated_land_2022 %>% filter(total_acre<77.5)
-
-cultivated_land_2022_99 %>% t_test(total_acre  ~ farmers_hh , detailed = T)%>% select(2:3,9:13) %>% mutate_at(2:7,round,2) %>% kbl() %>% kable_paper()
-
-# Gross Cropped Area
-land_holding_99 %>% 
-  inner_join(cultivated_land_2022_99,by = join_by(hh_id,farmers_hh,in1_out0)) %>% 
-  mutate(gca=total_acre.y/total_acre.x )
-
-
-
-
-
-
-
-
-
-
-# IRRIGATED LAND   ----
-
-irrigated_land= 
-  a_irri_rain_method %>% # filter(hh_id==101046)
-  left_join(a_plots_size[,c(1:2,7)]) %>% 
-  select(hh_id, season, plotID, irri_method,acres) %>% distinct() %>% 
-  group_by(hh_id, season, plotID) %>% 
-  mutate(hh_6methods =  ifelse("drip" %in% irri_method , "drip", ifelse(any(irri_method  == "furrows"), "furrows",ifelse(any(irri_method  == "flood"), "flood",ifelse(any(irri_method  == "sprinkler"), "sprinkler",ifelse(any(irri_method  == "hose"), "hose","rain"))))) ) %>% 
-  select(hh_id, season, plotID, hh_6methods,acres) %>% distinct() %>% 
-  left_join(hh_2022) %>% 
-  mutate(acre_ir=ifelse(hh_6methods =="rain",0,acres),
-         acre_drip=ifelse(hh_6methods =="drip",acres,0)) %>% 
-  group_by(farmers_hh,season ,hh_id) %>% 
-  summarise(acre_ir=sum(acre_ir,na.rm = T),
-            acre_drip=sum(acre_drip,na.rm = T)) %>% ungroup()
-
-irrigated_land %>% group_by(season) %>%  t_test(acre_drip  ~ farmers_hh , detailed = T)
-irrigated_land %>% group_by(season) %>%  t_test(acre_ir  ~ farmers_hh , detailed = T)
-
-## calculate the 99th percentile [$P99]
-# irrigated_land %>% summarize(across(acre_drip, compute_summary))
-# irrigated_land %>% summarize(across(acre_ir , compute_summary))
-# 
-# irrigated_land_99_acre_drip <- irrigated_land %>% filter(acre_drip < 3.97)
-# irrigated_land_99_acre_ir <- irrigated_land %>% filter(acre_ir < 12.2)
-# 
-# irrigated_land_99_acre_drip %>% group_by(season) %>%  t_test(acre_drip  ~ farmers_hh , detailed = T) #📌
-# irrigated_land_99_acre_ir %>% group_by(season) %>%  t_test(acre_ir  ~ farmers_hh , detailed = T)
-#### The results are in unreasonable numbers ### ### ### ###
-
-
-# irrigated_land WITHOUT 0s
-irrigated_land %>% filter(acre_ir!=0) %>% group_by(season, farmers_hh) %>%
-  summarise(mean(acre_drip),mean(acre_ir))
-
-
-
-# prt_ir=
-irri_acre_plotID <- #  [HH-season-plot] # md # irrigation_drip_plot 
-  a_irri_rain_method %>% # [1,578 hh_id] # [6,740 rows]
-  select( hh_id ,season ,plotID ,irri_method) %>% distinct() %>%  # [6,242]
-  group_by(hh_id , season, plotID)  %>%  # make it  ONE irri method for ONE plot 
-  mutate(hh_6methods =  ifelse("drip" %in% irri_method , "drip", ifelse(any(irri_method  == "furrows"), "furrows",ifelse(any(irri_method  == "flood"), "flood",ifelse(any(irri_method  == "sprinkler"), "sprinkler",ifelse(any(irri_method  == "hose"), "hose","rain"))))) ) %>%
-  ungroup() %>% select(hh_id, season, plotID ,hh_6methods) %>% distinct() %>% 
-  left_join(a_plots_size[,c(1:2,7)])  %>% 
-  mutate(plot_irrigated=ifelse(hh_6methods == "rain",0,1)) %>%
-  mutate(acre_irrigate=ifelse(plot_irrigated ==1,acres,0 )) %>% 
-  mutate(acre_drip=ifelse(hh_6methods =="drip", acres,0) ) %>% 
-  left_join(hh_2022 )  
-
-
-irri_acre_plotID %>%group_by(hh_id ,season, farmers_hh) %>% summarise(acres=sum(acres)) 
-
-irri_acre_plotID %>%
-  group_by(hh_id ,season, farmers_hh) %>% 
-  summarise(cult=sum(acres),ir=sum(acre_irrigate),drip=sum(acre_drip)) %>% 
-  #  filter(ir != 0) %>% results for ONLY irrigate HH
-  mutate(prt_ir.cult= ir/cult, prt_drip.cult=drip/cult,prt_drip.ir=ifelse(drip>0,drip/ir,NA)) %>% 
-  group_by(season, farmers_hh) %>% 
-  summarise(
-    prt_ir.cult= mean(prt_ir.cult), 
-    prt_drip.cult=mean(prt_drip.cult),
-    prt_drip.ir=mean(prt_drip.ir,na.rm = T))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Multiple Linear Regression to measure impact ............................. ----
-
-
-# demography16 -----
-### DFs `age_gndr_hh_head` & `caste` from "Part2_why.R"
-
-demography16=
-  rmtl_In_groups %>% 
-  select(hh_id, in1_out0 , south1_north0 , a5 ) %>% 
-  left_join(age_gndr_hh_head) %>%  # gndr # age
-  left_join(caste)
-
-
-# ECONOMOIC ----
-f13=
-  rmtl_baseline2016 %>% select(hh_id ,contains(c("F12_year","F13"))) %>% 
-  mutate(income_2015= ifelse(is.na(F12_year), F13,ifelse(is.na(F13),F12_year, pmax(F12_year,F13, na.rm = TRUE)))) %>% 
-  select(hh_id,income_2015) %>% 
-  mutate(incomeK_2015 = income_2015/1000) %>% 
-  mutate_at(3,round)
-  
-compute_summary_1_99(f13$income_2015)
-
-f13$incomeK_2015[f13$incomeK_2015<7] <- NA
-f13$incomeK_2015[f13$incomeK_2015>=1000] <- NA
-
-
-
-economic16=
-  rmtl_baseline2016 %>% 
-  select(hh_id, D2 ,D3, B1,B8,B9) %>% 
-  rename(bpl_card=B8,official_assistance=B9,
-         total_plots16=D3, total_acre16=D2) %>%   #[total_acre | total_plots] 
-  mutate(total_acre_bin = ntile(total_acre16, 5)) %>% 
-  mutate(housing_str01=ifelse(B1==1,1,0)) %>% 
-  mutate(housing_str321=ifelse(B1==1,3,ifelse(B1==3,1,2))) %>% 
-  select(-B1) %>% 
-  left_join(f13) %>% 
-  mutate(income2015_bin = ntile(incomeK_2015, 5))
-
-land_holding22=
-  a_plots_size %>% 
-  filter(!plotStatus %in% c("1","6")) %>% 
-  group_by(hh_id) %>% 
-  summarise(total_plots22=n(),total_acre22=sum(acres,na.rm = T)) %>% 
-  left_join(hh_2022)
-
-summary_1_99(income_21_22$income_2021)  1699240
-
-dt40=
-  income_21_22[,c(2, 24,26,27 )] %>% # DF income_21_22 below in this script
-  mutate(
-    income_2021=income_2021/1000,
-    income_2021 = #remove outliers
-      ifelse(income_2021 >= 1400 | income_2021 == 0, NA, income_2021),
-    
-    income_2022=income_2022_withRevenue/1000,
-    income_2022 = #remove outliers
-      ifelse(income_2022 >= 1600 | income_2022 <= 15, NA, income_2022)
-  ) %>% 
-  mutate_at(5,round) %>% 
-  left_join(age_gndr_hh_head) %>%  
-  left_join(caste) %>% 
-  left_join(land_holding22) %>% 
-  left_join( economic16[,c(1:3,10)]
-             ) %>% 
-  mutate(total_acre16_bin = ntile(total_acre16, 5)) %>% 
-  mutate(total_acre22_bin = ntile(total_acre22, 5)
-         ) %>% 
-  mutate(income2015_bin = ntile(incomeK_2015, 5)) %>% 
-  mutate(income2021_bin = ntile(income_2021 , 5))
-
-######### total_acre22  ....................................................####
-names(dt40)
-
-library(sjPlot)
-library(sjlabelled)
-library(sjmisc)
-library(ggplot2)
-
-theme_set(theme_sjplot())
-
-### ml
-dt401 <- dt40 %>% 
-  mutate(total_acre22=
-           ifelse(total_acre22>46 | total_acre22 < 0.6 ,NA,total_acre22) )
-
-M1<-lm(total_acre22  ~ in1_out0 + gndr + age + edu_hh_head + caste_01, dt401)
-summary(M1)
-sjPlot::tab_model(M1, digits = 2, show.se = T)
-sjPlot::plot_model(M1, show.values = TRUE, value.offset = .3)
-
-### ml + total_acre16
-M2<-lm(total_acre22 ~ in1_out0 + gndr + age + edu_hh_head + caste_01 + total_acre16, dt401)
-sjPlot::tab_model(M2, digits = 2, show.se = T)
-
-### total_acre22_bin
-dt40 %>% group_by(total_acre22_bin) %>% 
-  summarise (Landholding=mean(total_acre22,na.rm = T)
-             ) %>% 
-  ggplot(aes(x = total_acre22_bin, y = Landholding)) +
-  geom_line(color = "steelblue2", size = 1) + geom_point() +
-  labs(title = "Average Landholding by Total Acreage Bin",
-    x = "Total Acreage Bin", y = "Average Landholding") +
-  theme_classic()
-
-### ml total_acre22>11
-dt401B=dt40 %>% filter(total_acre22>10)
-dt401B=dt40 %>% filter(total_acre22<10)
-
-M3 <- lm(total_acre22 ~ in1_out0 +gndr + age + edu_hh_head + caste_01, 
-         dt401B)
-sjPlot::tab_model(M3, digits = 2, show.se = T)
-
-
-
-
-
-######### income_2021  .....................................................####
-
-M1<-lm(income_2021  ~ in1_out0 + gndr + age + edu_hh_head + caste_01, dt40)
-sjPlot::tab_model(M1, digits = 2, show.se = T)
-
-M2 <- lm(income_2021 ~ in1_out0 + gndr + age + edu_hh_head + caste_01 + incomeK_2015, dt40)
-sjPlot::tab_model(M2, digits = 2, show.se = T)
-
-dt40 %>% group_by(income2021_bin) %>% 
-  summarise (`Income in 1K`=mean(income_2021,na.rm = T)) %>% 
-  ggplot(aes(x = income2021_bin, y = `Income in 1K`)) +
-  geom_line(color = "steelblue2", size = 1) + geom_point() +
-  theme_classic()
-
-dt401=dt40 %>% filter(income_2021<187)
-M3a <- lm(income_2021 ~ in1_out0 +gndr + age + edu_hh_head + caste_01, dt401)
-sjPlot::tab_model(M3a, digits = 2, show.se = T,dv.labels ="income_2021<187")
-
-dt402=dt40 %>% filter(income_2021>187)
-M3b <- lm(income_2021 ~ in1_out0 +gndr + age + edu_hh_head + caste_01, dt402)
-sjPlot::tab_model(M3b, digits = 2, show.se = T,dv.labels ="income_2021>187")
-
-# income_2021 DIFF AND DIFF ----
-dff30 <- dt40 %>% 
-  select(hh_id,in1_out0,incomeK_2015,income_2021,income_2022 ) %>% 
-  filter(!is.na(in1_out0))
-
-dff30 <- dt40 %>% 
-  select(hh_id,in1_out0,incomeK_2015,income_2021,income_2022 ) %>% 
-  filter(!is.na(in1_out0)) %>% mutate(gap=income_2021-incomeK_2015)%>% 
-  mutate(
-    incomeK_2015 = ifelse(gap > -10, incomeK_2015, NA),
-    income_2021 = ifelse(gap > -10, income_2021, NA)
-  )
-
-dff30 %>% group_by(in1_out0 ) %>% 
-  summarise(ic2015=mean(incomeK_2015,na.rm =T),
-            ic2021=mean(income_2021,na.rm =T)) %>% 
-  mutate(ic2021-ic2015 )
-
-
-# Reshape dff30 to long format for DiD
-library(tidyr)
-
-dff_long <- dff30 %>%
-  select(-income_2022) %>% 
-  pivot_longer(cols = starts_with("income"), 
-               names_to = "year", 
-               values_to = "income") %>%
-  mutate(time = ifelse(year == "incomeK_2015", 0, 1))  # 0 for 2015, 1 for 2022
-
-# Step 2: Run the DiD model
-did_model <- lm(income ~ in1_out0 * time, data = dff_long)
-
-# Step 3: Summarize Results
-summary(did_model)
-sjPlot::tab_model(did_model, digits = 2, show.se = T,dv.labels ="DiD to annual income")
-
-# Step 4: Calculate mean income by group and time
-avg_income <- dff_long %>%
-  group_by(in1_out0, time) %>%
-  summarise(mean_income = mean(income, na.rm = TRUE)) %>%
-  mutate(group = ifelse(in1_out0 == 1, "In Project", "Out Project (Control)"))
-
-# Step 5: Plot the DiD results
-ggplot(avg_income, aes(x = time, y = mean_income, color = group, group = group)) +
-  geom_line(size = 1) +
-  geom_point(size = 0.5) +
-  labs(
-    x = "Time (0 = Baseline 2015, 1 = Post-treatment 2021)",
-    y = "Average Income",
-    title = "Difference-in-Differences Analysis of Income Change",
-    color = "Group"
-  ) +
-  scale_x_continuous(breaks = c(0, 1), labels = c("2015", "2021")) +
-  scale_color_manual(values = c("In Project" = "dodgerblue2", "Out Project (Control)" = "goldenrod2")) +
-  theme_classic()
-
-
-
-
-
-
-
-
-
-######### yield22_acre .....................................................####
-summary_1_99(yield22_acre$kg_per_acre)
-yield22=
-  yield22_acre %>% 
-  mutate(kg_per_acre=ifelse(kg_per_acre>9670.14,NA,kg_per_acre)) %>%
-  filter(season !="kharif_2022" ) %>%
-  group_by(hh_id) %>% 
-  summarise( 
-    kg_2021_22=sum(kg_season,na.rm = T),
-    kg_per_acre_2021_22=sum(kg_per_acre,na.rm = T),
-    cult_acre_2021_22=sum(acre ,na.rm = T)) %>%
-  left_join(age_gndr_hh_head) %>% 
-  left_join(caste) %>%
-  left_join(hh_2022)
-  
-
-M1<-lm(kg_2021_22  ~ in1_out0 + gndr + age + caste_01, yield22)
-sjPlot::tab_model(M1, digits = 4, show.se = T)
-
-
-
-
-
-
 # CROPPING PATTERN                                ----
 
 cp16=croppin_pattern16 %>% group_by(farmers_hh,crops) %>% summarise(prob16=mean(crop01)*100) %>% mutate_at(3,round)
@@ -653,7 +237,7 @@ L56 <- rmtl_srvy22 %>% select(farmers_hh,hh_id, starts_with( "L56"))
 
 
 yield_prt_season <- 
-  yield_prt %>% 
+  yield_prt %>%  # in DF_22.R
   group_by(hh_id,farmers_hh,season) %>% 
   summarise(prt_sold=mean(prt_sold),prt_stored=mean(prt_stored),
             prt_consum=mean(prt_consum),prt_lost=mean(prt_lost)) %>% 
@@ -698,55 +282,59 @@ attr(rmtl_srvy22$l49_prev_kha_unit_1_1 , "labels")
 ##  1=Kilograms  ##       2=Bags     ##  3=Quintal  ##  4=Ton   ## 
 ##      1 Kg     ##  l49_XX_XX_bag_  ##    100Kg    ##  1000Kg  ##
 
+
+### names(crops_yield_2022) ####
 size_acre <- a_plots_size %>% 
   select(hh_id,plotID,acres) %>% 
   filter(!is.na(acres))
 
-yield22_acre <- 
-  a_total_yield %>% 
-  group_by(farmers_hh,hh_id,season,plotID) %>% 
-  summarise(kg_plot=sum(kg_crop)) %>% 
-  left_join(size_acre) %>% 
-  group_by(farmers_hh,hh_id,season) %>% 
-  summarise(kg_season=sum(kg_plot ),
-            acre=sum(acres),
-            kg_per_acre=kg_season/ acre)
+crops_yield_22A <- 
+  plots_crop_2022 %>% 
+  left_join(a_total_yield) %>% 
+  left_join(size_acre) %>%
+  select(hh_id, season, plotID, crop_name,acres ,kg_crop) %>% 
+  filter(crop_name %in% c("Toor", "Bengal gram", "Greengram", 
+                           "Sorghum (jowar)", "Sunflower", "Chillies"),
+         season !="kharif_2022") %>%
+  group_by(hh_id, season, plotID) %>% 
+  mutate(ncrop=n(), acres=acres/ncrop) %>% 
+  ungroup() %>% select(-ncrop)
 
-compute_summary(yield22_acre$kg_per_acre)
+crops_yield_22B <- crops_yield_22A %>% 
+  group_by(crop_name,hh_id ) %>% 
+  summarise( acres=sum(acres,na.rm = T),
+             kg_crop=sum(kg_crop,na.rm = T),
+             kg_per_acre= kg_crop/acres) %>% ungroup() %>% 
+  filter(kg_per_acre>0) %>% 
+  arrange(hh_id)
+
+crops_yield_2022 <- crops_yield_22B %>% 
+  left_join(rmtl_16_18_22_sample %>% select(hh_id,sample) ) %>% 
+  rename(in_project=sample)%>% mutate(year=2022)
+
+# crops_yield_2022 %>%
+#   group_by(crop_name, in_project) %>%
+#   summarise(  maxV=max(kg_per_acre, na.rm = TRUE),
+#               q99 = quantile(kg_per_acre, 0.99, na.rm = TRUE),
+#               median = quantile(kg_per_acre, 0.5, na.rm = TRUE),
+#     .groups = "drop" )
+# 
+# crops_yield_2022 %>% group_by(crop_name) %>% 
+#   t_test(kg_per_acre ~ in_project, detailed = T)
 
 
-### fig.
-yield22_acre %>% filter(kg_per_acre>0,kg_per_acre<583) %>% 
-  ggplot(aes(x=kg_per_acre, color=season ,fill=farmers_hh)) +
-  geom_histogram( color="#e9ecef", alpha=0.5, position = 'identity') +
-  scale_fill_manual(values=c("skyblue", "#E69F00")) +
-  theme_light() +
-  facet_wrap(~season)+ 
-  labs(x = "Kg crop per acre",y = "total HH",title = "Fig. L49 | Crop yield per acre by season (in Kg)")+
-  theme(text = element_text(family = "serif", size = 12),
-          legend.position = c(.99, .99),
-        legend.title=element_blank(),
-          legend.justification = c("right", "top"),
-          legend.box.just = "right",
-          legend.margin = margin(1,1,1,1))
-        
-### ttest
-compute_summary(yield22_acre$kg_per_acre)
+### names(crops_yield_2016) ####
 
-yield22_acre %>% 
-  group_by(season) %>% t_test(kg_per_acre ~ farmers_hh, detailed = T)
 
-t02 <- yield22_acre %>% 
-  filter(kg_per_acre>0,kg_per_acre<9670) %>% 
-  group_by(season) %>% 
-  t_test(kg_per_acre ~ farmers_hh, detailed = T)
 
-### Table L49
-t_L49 <- t02%>% 
-  rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
-  select(season,Ramthal,Outside_Ramthal,n1,n2,estimate,conf.low,conf.high,t,df,p) 
-nice_table(t_L49,title = c("Table L49 | Crop yield", "Crop yield per acre by season (in Kg)"),
-           note = c("[L49] What was the total yield [int]","🟩" ))
+
+
+
+
+
+
+
+
 
 
 

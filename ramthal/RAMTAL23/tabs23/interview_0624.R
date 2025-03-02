@@ -452,7 +452,6 @@ s_23_24 <-
   mutate(year=as.numeric(year))
 
 
-  
 df <- 
   left_join(s2023,s2024) %>% 
   left_join(s_23_24) %>% 
