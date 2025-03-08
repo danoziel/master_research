@@ -275,69 +275,6 @@ t01 %>%
 
 
 
-# YIELD		         ----					
-# L49	 What was the total yield [int]	# [Season-Crop]	
-
-attr(rmtl_srvy22$l49_prev_kha_unit_1_1 , "labels") 
-##  1=Kilograms  ##       2=Bags     ##  3=Quintal  ##  4=Ton   ## 
-##      1 Kg     ##  l49_XX_XX_bag_  ##    100Kg    ##  1000Kg  ##
-
-
-### names(crops_yield_2022) ####
-size_acre <- a_plots_size %>% 
-  select(hh_id,plotID,acres) %>% 
-  filter(!is.na(acres))
-
-crops_yield_22A <- 
-  plots_crop_2022 %>% 
-  left_join(a_total_yield) %>% 
-  left_join(size_acre) %>%
-  select(hh_id, season, plotID, crop_name,acres ,kg_crop) %>% 
-  filter(crop_name %in% c("Toor", "Bengal gram", "Greengram", 
-                           "Sorghum (jowar)", "Sunflower", "Chillies"),
-         season !="kharif_2022") %>%
-  group_by(hh_id, season, plotID) %>% 
-  mutate(ncrop=n(), acres=acres/ncrop) %>% 
-  ungroup() %>% select(-ncrop)
-
-crops_yield_22B <- crops_yield_22A %>% 
-  group_by(crop_name,hh_id ) %>% 
-  summarise( acres=sum(acres,na.rm = T),
-             kg_crop=sum(kg_crop,na.rm = T),
-             kg_per_acre= kg_crop/acres) %>% ungroup() %>% 
-  filter(kg_per_acre>0) %>% 
-  arrange(hh_id)
-
-crops_yield_2022 <- crops_yield_22B %>% 
-  left_join(rmtl_16_18_22_sample %>% select(hh_id,sample) ) %>% 
-  rename(in_project=sample)%>% mutate(year=2022)
-
-# crops_yield_2022 %>%
-#   group_by(crop_name, in_project) %>%
-#   summarise(  maxV=max(kg_per_acre, na.rm = TRUE),
-#               q99 = quantile(kg_per_acre, 0.99, na.rm = TRUE),
-#               median = quantile(kg_per_acre, 0.5, na.rm = TRUE),
-#     .groups = "drop" )
-# 
-# crops_yield_2022 %>% group_by(crop_name) %>% 
-#   t_test(kg_per_acre ~ in_project, detailed = T)
-
-
-### names(crops_yield_2016) ####
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # INPUTS                           ----
 # costs of  [__].   Season wise
 # L70 irrigation equipment  #  L71 Mechanization  #  L72 Fuel  #  L73 Labor

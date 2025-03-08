@@ -339,6 +339,9 @@ cultBIND %>%
 
 #    DiD           -----
 #     DiD reg to acre_drip / acre_ir / acre_cult  HH as FE 
+library(readr)
+rmtl_InOut <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_InOut.csv")
+
 df4 <- 
   cultBIND %>% left_join(treatment) %>% 
   mutate(inProject_Post = in_project * Post) %>% 
@@ -349,10 +352,7 @@ df4 <-
 
 df4_kharif <- df4 %>% filter(season =="kharif" )
 df4_rabi <- df4 %>% filter(season == "rabi" ) 
-df4a_kharif <- df4 %>% filter(season =="kharif" )%>% 
-  filter(!is.na(distance_km),around_boundary==1,south1_north0==1)
-df4a_rabi <- df4 %>% filter(season == "rabi" ) %>% 
-  filter(!is.na(distance_km),around_boundary==1,south1_north0==1)
+
 
 # library(lfe)
 did_model_df4 <-  # acre_drip acre_ir acre_cult
@@ -365,7 +365,7 @@ summary(did_model_df4)
 sjPlot::tab_model(did_model_df4 ,  show.se = T,digits = 5, show.stat  = F )
 
 
-# OLS reg Gross Cropped Area (GCA)
+# Gross Cropped Area (GCA) / Cropping_Intensity
 df_gca <- 
   cultBIND %>% 
   select( hh_id,acre_cult,land_holding,Post, Year) %>%   
@@ -382,20 +382,28 @@ df_gca <-
   left_join(
     rmtl_InOut %>% select(hh_id,distance_km,around_boundary,south1_north0))
 
+df_gcaA <- df_gca 
 
-df_GCA = df_gca %>% 
-  filter(!is.na(distance_km),around_boundary==1,south1_north0==1,Year==2022)
+df_gcaA %>% 
+  left_join(treatment)%>%
+  select(hh_id,Year, in_project,gca, Cropping_Intensity) %>% 
+  pivot_longer(
+    cols = c(gca, Cropping_Intensity),
+    names_to = "land",
+    values_to = "value"
+  ) %>% group_by(Year,land, in_project) %>% 
+  summarise (N=n(),Mean=mean(value,na.rm = T)) %>% ungroup() %>% 
+  kableExtra:: kable()
 
-lm_GCA <-  # gca  Cropping_Intensity
-  lm(gca  ~ in_project + Post + inProject_Post + 
+  # library(lfe)
+did_gcaA <-  # gca Cropping_Intensity
+  felm(gca  ~ in_project + Post + inProject_Post + 
          hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + 
          housing_str321 + job_income_sourceS +govPnsin_scheme +rent_property +
          total_livestock + total_farm_equipments | hh_id, # Adding fixed effects
-       data = df4_rabi)
-summary(did_model_df4)
-sjPlot::tab_model(did_model_df4 ,  show.se = T,digits = 5, show.stat  = F )
-
-a_plots_size[,1]
+       data = df_gcaA)
+summary(did_gcaA)
+sjPlot::tab_model(did_gcaA ,  show.se = T,digits = 5, show.stat  = F )
 
 
 #### Share of area cultivated (%) ----
@@ -442,21 +450,83 @@ summary(did_model_df4)
 sjPlot::tab_model(did_model_df4 ,  show.se = T,digits = 5, show.stat  = F )
 
 
+#### YIELD		         ----					
+
+# yield_per_acre_2022
+yield_22A <- 
+  plots_crop_2022 %>% 
+  left_join(a_total_yield) %>% 
+  left_join(a_plots_size %>% 
+              select(hh_id,plotID,acres)) %>%
+  select(hh_id, season, plotID, crop_name,acres ,kg_crop) %>% 
+  group_by(hh_id, season, plotID) %>% 
+  mutate(total_crop_in_plot=n(), 
+         acre_crop=acres/total_crop_in_plot) %>% 
+  ungroup()
+
+yield_22B <- yield_22A %>% 
+  mutate(season = sub("_.*", "", season)) %>% 
+  group_by(season ,hh_id ) %>% 
+  summarise( acres=sum(acres ,na.rm = T),
+             kg_crop=sum(kg_crop,na.rm = T)) %>% 
+  group_by(season ,hh_id ) %>% 
+  reframe(kg_per_acre= kg_crop/acres) %>% ungroup() %>% 
+  filter(kg_per_acre>0)
+
+yield_per_acre_2022 <- yield_22B %>% 
+  mutate(Post=1,Year=2022)
+
+# yield_per_acre_2015
+# remove Toor to Kharif
+crop15 <- BL_2015_16_crop_IRsource_IRmethod %>% 
+  select(hh_id,season, plot_num,crop_num , crop_code) %>% 
+  rename(plotID = plot_num)%>%
+  mutate(crop_num = str_replace(crop_num, "_", "") %>%
+           tolower())
+  
+
+yield_per_acre_2015 <- bl_yield %>% ungroup() %>% 
+  left_join(crop15) %>% 
+  mutate(seasonII=ifelse(crop_code==9,"kharif",season)) %>% 
+  mutate(season=ifelse(is.na(seasonII),season,seasonII)) %>% 
+  mutate(season = sub("_.*", "", season)) %>% 
+  group_by(season ,hh_id ) %>% 
+  summarise(acre=sum(crop_acre ,na.rm = T),
+             kg=sum(kg_crop,na.rm = T)) %>% 
+  group_by(season ,hh_id ) %>% 
+  reframe(kg_per_acre= kg/acre) %>% ungroup()%>% 
+  filter(kg_per_acre != Inf) %>% 
+  mutate(Post=0,Year=2015)
+  
+#    summary stat  ----
+yield_per_acre <- rbind(yield_per_acre_2015,yield_per_acre_2022)
+hist(yield_per_acre$kg_per_acre)
+max(yield_per_acre$kg_per_acre)
+quantile(yield_per_acre$kg_per_acre, 0.99)
+quantile(yield_per_acre$kg_per_acre , 0.995)
+
+yield_per_acre$kg_per_acre <- ifelse(yield_per_acre$kg_per_acre > 15300 , NA, yield_per_acre$kg_per_acre)
+
+yield_per_acre %>% 
+  left_join(treatment)%>%
+  pivot_longer(
+    cols = c(kg_per_acre),
+    names_to = "land",
+    values_to = "value"
+  ) %>% group_by(Year,season,land, in_project) %>% 
+  summarise (N=n(),Mean=mean(value,na.rm = T)) %>% ungroup() %>% 
+  kableExtra:: kable()
+
+
+
+
 # Crop yield Traditional crops (Kg/acre)
 
 
-a_total_yield
 
-# Crop yield Rabi (Kg/acre)
 
-plots_crop_yield_2022 %>% 
-  filter(season=="rabi_2021_22") %>% 
-  
 
-# Crop yield Kharif (Kg/acre)
 
-plots_crop_yield_2022 %>% 
-  filter(season=="kharif_2021")
 
 # Lost yield Rabi (Kg/acre)
 # Lost yield Kharif (Kg/acre)

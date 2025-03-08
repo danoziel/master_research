@@ -1,3 +1,9 @@
+
+
+
+R.version.string
+
+
 # IMPORT csv dta files ----
 
 write.csv(L7_source_irri, file ="C:/Users/Dan/Documents/master_research/DATAs/data_master/data_saptari/Master_HH_N.csv", row.names=FALSE)

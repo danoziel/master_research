@@ -564,6 +564,18 @@ write.csv(BL5Y_IRsource_IRmethod, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/
 # [D24] crops planted                  || bl_crop_plot_3s         ----
 # What crops are planted on this plot? Mark all that apply (Perennial crops will be listed in 2 seasons)
 
+d24 <- 
+  rmtl_baseline2016 %>% 
+  select(hh_id,starts_with( "d24_"), -ends_with("_0") ) %>% select(-contains("os_")) %>% 
+  mutate_at(vars(-hh_id), as.character) %>% 
+  pivot_longer(-hh_id, names_to = "scp", values_to = "crop_code") %>% 
+  mutate(crop_code=as.numeric(crop_code)) %>% 
+  filter(crop_code>0) %>% 
+  separate(scp, into = c("prefix1", "number1", "prefix2", "number2", "number3"), sep = "_") %>%
+  select(-prefix2,-prefix1) %>% 
+  unite("season_cropNUM_plot", number1:number3, sep = "_", remove = TRUE)
+
+
 # Checking where there is an "other"
 D24_os <- rmtl_baseline2016 %>% 
   select(hh_id,starts_with( "D24_") )%>% 
@@ -747,13 +759,54 @@ bl28_irri_plot_season <-
 
 rm(D28_1,D28_2,D28_3)
 
-
+#### YIELD		         ----					
 # [D29]	What was the total yield? (Quintals)      || bl_crop_yield  ----
-
 D29_a <- 
   rmtl_baseline2016 %>% select(hh_id, starts_with("D29") )
 
 D29_a[1,] %>% select(where(~ !all(is.na(.))))
+
+d29 <- 
+  rmtl_baseline2016 %>% 
+  select(hh_id, starts_with("D29"), -ends_with("_0") ) %>% 
+  pivot_longer(-hh_id, names_to = "scp", values_to = "yield_bl") %>% 
+  filter(yield_bl>0) %>% 
+  separate(scp, into = c("prefix1", "number1", "prefix2", "number2", "number3"), sep = "_") %>%
+  select(-prefix2,-prefix1) %>% 
+  unite("season_croplot_plot", number1:number3, sep = "_", remove = TRUE)
+
+# [D30]	In what terms is the yield defined?	
+      # 1 Quintals in total (the whole plot)
+      # 2	Quintals/acre
+      # 3	Quintals/gunta
+
+d30 <- 
+  rmtl_baseline2016 %>% 
+  select(hh_id, starts_with("D30"), -ends_with("_0") ) %>% 
+  pivot_longer(-hh_id, names_to = "scp", values_to = "yield_defined") %>% 
+  filter(yield_defined>0) %>% 
+  separate(scp, into = c("prefix1", "number1", "prefix2", "number2", "number3"), sep = "_") %>%
+  select(-prefix2,-prefix1) %>% 
+  unite("season_croplot_plot", number1:number3, sep = "_", remove = TRUE)
+
+inner_join(d24,d29 ) %>% left_join(d30) %>% filter(is.na(yield_defined ))
+d_index <- inner_join(d24,d29 ) %>% left_join(d30)
+d_index$yield_defined <- ifelse(is.na(d_index$yield_defined),1,d_index$yield_defined)
+d_index %>% count(yield_defined)
+
+
+d2930 <- 
+  left_join(d29,d30) %>% 
+  mutate(yield_defined=ifelse(is.na(yield_defined),1, yield_defined)) %>% 
+
+  left_join(bl6_plotAcre %>% select(-farmers_hh) )
+
+
+# D29_a <- 
+#   rmtl_baseline2016 %>% select(hh_id, starts_with("D29") )
+# 
+# D29_a[1,] %>% select(where(~ !all(is.na(.))))
+
 
 D29_a <- 
   rmtl_baseline2016 %>% 
@@ -765,26 +818,44 @@ D29_a <-
     crop_num = str_extract(season_crop_plot, "(?<=D29_\\d_yield_)(\\d)(?=_)"),  # Extracts the crop number (2nd digit)
     plotID = str_extract(season_crop_plot, "(?<=D29_\\d_yield_\\d_)(\\d+)")  # Extracts the plotID (3rd digit)
   )
-D29_a %>% count(season)
-BL_2015_16_crop_IRsource_IRmethod %>% count(season)
+# D29_a %>% count(season)
+# BL_2015_16_crop_IRsource_IRmethod %>% count(season)
 D29_a$season[D29_a$season==1] <- "rabi_2015_16"
 D29_a$season[D29_a$season==2] <- "kharif_2015"
 D29_a$season[D29_a$season==3] <- "rabi_2014_15"
-
-D29_a %>% count(crop_num )
+# D29_a %>% count(crop_num )
 D29_a$crop_num <- paste0("crop", D29_a$crop_num)
-
-D29_a %>% count(plotID)
+# D29_a %>% count(plotID)
 D29_a$plotID <- ifelse(nchar(D29_a$plotID) == 1, paste0("plot_0", D29_a$plotID), paste0("plot_", D29_a$plotID))
 
+BL_plotAcre <- bl6_plotAcre %>% select(-farmers_hh) %>% rename(plotID =plot_num )
 
-D29_b <- D29_a %>% 
-  select(hh_id, season, plotID, crop_num, yield) %>% 
+D29_b <- 
+  D29_a %>% 
+  separate(season_crop_plot, into = c("prefix1", "number1", "prefix2", "number2", "number3"), sep = "_") %>%
+  select(-prefix2,-prefix1) %>% 
+  unite("season_croplot_plot", number1:number3, sep = "_", remove = TRUE) %>% 
+  left_join(d30) %>% 
+  left_join(BL_plotAcre ) %>%
+  group_by(hh_id,season,plotID ) %>% 
+  mutate(total_crop_in_plot=n(),crop_acre=plot_acre/total_crop_in_plot)
+  
+bl_yield <- D29_b %>% 
   mutate(kg_crop=yield*100) %>% 
-  left_join( )
-  group_by()
+  mutate(kg_crop=ifelse(yield_defined==2,kg_crop*plot_acre,kg_crop)
+         ) %>% 
+  filter(kg_crop>0 )
   
 
+  
+
+  
+  
+  
+  
+  
+  
+  
 
 
 
@@ -810,12 +881,6 @@ BL_2015_16_crop_IRsource_IRmethod <-
               select(hh_id, plot_num,irri_method) ) 
 
 write.csv(BL_2015_16_crop_IRsource_IRmethod, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/BL_2015_16_crop_IRsource_IRmethod.csv", row.names=FALSE)
-
-
-
-
-
-
 
 
 ######################    essantials    ----
