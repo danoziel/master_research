@@ -3,19 +3,72 @@
 
 
 list_plots= # list plot_survey_1-10
-  a_rmtl_srvy22 %>% 
-  select(id,plot_1,plot_survey_1, 19,22, 29,32 ,39,42 ,49,52, 59,62, 69,72, 79,82,
+  rmtl_srvy22 %>% 
+  select(hh_id,plot_1,plot_survey_1, 19,22, 29,32 ,39,42 ,49,52, 59,62, 69,72, 79,82,
          plot_9,plot_survey_9, plot_10, plot_survey_10)
 
 
 
 library(tidyverse)
-library(rgdal)
+library(sf)
 
-ramthal_east <- 
-  readOGR("~/master_research/DATAs/ramthal_data/project_map/villages" ,"Ramthal_East")
-rmtl_gis = ramthal_east
+ramthal_border <- st_read("~/master_research/DATAs/ramthal_data/project_map/ramthal_border.shp")
+ramthal_border <- st_set_crs(ramthal_border, 32643)  # Replace 32643 with your actual CRS if it's UTM or similar
+ramthal_border_utm <- st_transform(ramthal_border, crs = 32643)
+ggplot(data = ramthal_border_utm) + geom_sf() +theme_minimal()
 
+one_south_in <- st_read("~/master_research/DATAs/ramthal_data/project_map/New folder/1 south-in.shp")
+
+
+
+
+ramthal_east <- st_read("~/master_research/DATAs/ramthal_data/project_map/villages/Ramthal_East.shp")
+Ramthal_East=ramthal_east
+plot(Ramthal_East)
+
+# Set the correct CRS manually if not recognized correctly
+Ramthal_East <- st_set_crs(Ramthal_East, 32643)  # Replace 32643 with your actual CRS if it's UTM or similar
+
+# Transform the data to UTM Zone 43N (EPSG:32643)
+Ramthal_East_utm <- st_transform(Ramthal_East, crs = 32643)
+
+# Check the bounding box again
+st_bbox(Ramthal_East_utm)
+
+# Plotting with tmap
+tm_shape(Ramthal_East_utm) + 
+  tm_borders()
+
+# Plotting with ggplot
+ggplot(data = Ramthal_East_utm) +
+  geom_sf() +
+  theme_minimal()
+
+
+############# Generate centroids in UTM CRS
+centroids_utm <- st_centroid(Ramthal_East_utm)
+
+# Plot the centroids
+plot(centroids_utm, main = "Centroids of Polygons in UTM CRS")
+plot(centroids_utm["layer"], col = "black", pch = 19, main = "Centroids of Polygons in UTM CRS")
+
+ggplot(Ramthal_East_utm) +
+# ggplot(data = centroids_utm) +
+  geom_sf(aes(color = layer), size = 3) +   # Set color based on 'layer' and control dot size
+  theme_minimal() +
+  ggtitle("Centroids of Polygons in UTM CRS")
+
+land_map <- Ramthal_East_utm %>% left_join(rd_land_2022 %>% rename(id=hh_id))
+# land_map <- centroids_utm %>% left_join(rd_land_2022 %>% rename(id=hh_id))
+
+ggplot(land_map) +
+  geom_sf(aes(fill = DI),color="gray50") +
+  theme_minimal() +
+  ggtitle("land_map DI") +
+  scale_fill_gradient(low = "lightblue", high = "blue4", na.value = "white")
+
+
+# OLD CODE ----
 glimpse(rmtl_gis)
 
 plot(rmtl_gis)

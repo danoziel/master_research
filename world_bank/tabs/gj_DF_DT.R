@@ -65,6 +65,37 @@ gj01=
          Longitude , Latitude, #: 243,098
   ) 
 
+# vars-locations, Machine learning AFEKA Collage  ..........................----
+micro_irrigation_locations_gujarat=  
+  GGRC_filtered %>%  #: 442,456
+  select(regno,
+         RegistrationDate,
+         Longitude , Latitude, #: 243,098
+         # mistype,
+         # misarea,
+         # TotalLand,           
+  ) %>% filter(!is.na(Longitude)) %>% 
+  rename(
+    plot_uid =regno,
+    irrigation_date =RegistrationDate ,
+    # irrigation_type = mistype ,
+    # area_installed_irrigation= misarea,
+    # area_cultivated= TotalLand,
+    longitude = Longitude , latitude = Latitude,
+         )
+
+# Save the data frame as a CSV file
+write.csv(micro_irrigation_locations_gujarat, "micro_irrigation_locations_gujarat.csv", row.names = FALSE)
+write_xlsx(micro_irrigation_locations_gujarat, "micro_irrigation_locations_gujarat.xlsx")
+write_json(micro_irrigation_locations_gujarat, "micro_irrigation_locations_gujarat.json")
+# Get the current working directory
+getwd()
+# Set the working directory to a specific path (replace with your desired path)
+setwd("C:/Users/Dan/OneDrive - mail.tau.ac.il/")
+
+
+
+
 # vars just for descriptiv statistics  .....................................----
 GGRC_filtered %>% 
   select(regno,TotalMISCost,WaterSourceDetail, EnergySource)

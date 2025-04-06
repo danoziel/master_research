@@ -595,46 +595,7 @@ irrigation_BL_to_22 <-
 ir_season_2021_21 <-
   a_irri_rain_method %>% select(season, hh_id ,irri_method) %>% distinct() %>% 
   group_by(season,hh_id)  %>%
-  mutate(hh_6methods = ifelse("drip" %in% irri_method , "drip", ifelse(any(irri_method  == "furrows"), "furrows",ifelse(any(irri_method  == "flood"), "flood",ifelse(any(irri_method  == "sprinkler"), "sprinkler",ifelse(any(irri_method  == "hose"), "hose","rain"))))) ) %>%
-  ungroup() %>% select(season,hh_id,hh_6methods) %>% distinct() %>% 
-  mutate(hh_irri=ifelse(hh_6methods=="rain",0,1),
-         hh_drip=ifelse(hh_6methods=="drip",1,0)) %>% left_join(hh_2022)%>%
-  select(season,farmers_hh,hh_id,hh_6methods,hh_irri,hh_drip )
-
-ir_season_2021_21 %>%  group_by(season,farmers_hh) %>% summarise(mean(hh_irri))
-ir_season_2021_21 %>%  group_by(season,farmers_hh) %>% summarise(mean(hh_drip))
-t5= ir_season_2021_21 %>%  group_by(season) %>% t_test(hh_drip~farmers_hh,detailed=T )%>% select(1,3:4,5,10:14)
-t55=ir_season_2021_21 %>%  group_by(season) %>% t_test(hh_irri~farmers_hh,detailed=T )%>% select(1,3:4,5,10:14)
-
-rbind(t5,t55) %>% mutate_at(c(2:3,5:9),round,2) %>% 
-  unite("ci" , conf.low, conf.high, sep = ",") %>%
-  mutate(ci = paste0("[",ci, "]")) %>% 
-  kbl() %>% kable_styling()
-
-####### HH%_IR Baseline SEASONs ----
-
-
-ir_season_bl <- 
-  bl_irri_acre_plot %>% 
-  ungroup() %>% select(farmers_hh,hh_id, season,irri_method ) %>% distinct() %>% 
-  mutate(hh_6methods =  ifelse(irri_method == 3, "drip",
-                               ifelse(irri_method  == 2, "furrows",
-                                      ifelse(irri_method  == 1, "flood",
-                                             ifelse(irri_method  == 4, "sprinkler",
-                                                    ifelse(irri_method %in% c(5,6), "hose","rain"))))) ) %>% 
-  mutate(hh_irri=ifelse(hh_6methods == "rain" , 0, 1)) %>% 
-  mutate(hh_drip=ifelse(hh_6methods == "drip" , 1 ,0) ) %>% 
-  select(-farmers_hh) %>% right_join(hh_2022)
-
-ir_season_bl %>%  group_by(season,farmers_hh) %>% summarise(mean(hh_irri))
-ir_season_bl %>%  group_by(season,farmers_hh) %>% summarise(mean(hh_drip))
-t6= ir_season_bl %>%  group_by(season) %>% t_test(hh_drip~farmers_hh,detailed=T )%>% select(1,3:4,5,10:14)
-t66=ir_season_bl %>%  group_by(season) %>% t_test(hh_irri~farmers_hh,detailed=T )%>% select(1,3:4,5,10:14)
-
-rbind(t6,t66) %>% mutate_at(c(2:3,5:9),round,2) %>% 
-  unite("ci" , conf.low, conf.high, sep = ",") %>%
-  mutate(ci = paste0("[",ci, "]")) %>% 
-  kbl() %>% kable_styling()
+  mutate(hh_6methods = ifelse("dri %>% %>% )
 
 
 # SEASON USAGE ----

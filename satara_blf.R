@@ -203,6 +203,11 @@ df_pest_prob_long %>%
   geom_text(aes(label = paste0(round(percentage), "%")), vjust = -0.5)
 
 
+
+
+
+
+
 # Did you consult with anyone else before coming to the BLF Center? ----
 consultation_prob_1 <- BLF_Interact_Final %>%
   select(msg_consultation_another_farmer:msg_consultation_BLF_Vendor ) 
@@ -253,10 +258,27 @@ BLF_Interact_Final %>% count(want_msg_consultation) %>%
 
 
 # Calculate the average farm size for each experience group
+land$farm_acre2= as.numeric(land$farm_acre2)
+# hist(land$farm_acre2)
+unique(land$farm_acre2)
+
 land %>%
-  mutate(farm_acre=as.numeric(farm_acre2)) %>% 
+  filter(!is.na(farm_acre2)) %>%
   group_by(farmer_experience) %>%
-  summarise(avg_farm_size = mean(farm_acre))
+  summarise(avg_farm_size = mean(farm_acre2, na.rm = TRUE))
+
+# Check unique values in farm_acre2
+unique(land$farm_acre2)
+
+land %>%
+  filter(farm_acre2!=5100) %>% 
+  mutate(farm_acre = as.numeric(farm_acre2)) %>%
+  filter(!is.na(farm_acre)) %>% # Remove rows with NA values in farm_acre
+  group_by(farmer_experience) %>%
+  summarise(avg_farm_size = mean(farm_acre, na.rm = TRUE))
+
+
+
 
 
 

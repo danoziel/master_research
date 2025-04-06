@@ -342,7 +342,7 @@ caste %>% filter(!is.na(caste_cat)) %>%
   inner_join(rmtl_In_groups) %>% 
   group_by(hh_drip_yrs_17_21 ,caste_cat) %>% 
   count()%>% group_by(hh_drip_yrs_17_21) %>%  mutate(n/sum(n)
-                                                     ) %>% 
+  ) %>% 
   ggplot() + aes(x = hh_drip_yrs_17_21, fill = factor(caste_cat)) +
   geom_bar(position = "fill")+ coord_flip()+
   scale_fill_manual(values=c("#999999", "#E69F00", "#56B4E9"))
@@ -415,13 +415,13 @@ t3= economic16 %>%  filter(total_plots<7) %>%
 ###  income                                  ttest & lm   ----
 
 # NET income earned by household members in the past 12 months.       				
- # F1	Income sent by seasonal migrating household members	
- # F2	Remittances (from permanent migrants)
+# F1	Income sent by seasonal migrating household members	
+# F2	Remittances (from permanent migrants)
 
- # Do you earn any income from this source? (Y/N)	
+# Do you earn any income from this source? (Y/N)	
 rmtl_baseline2016 %>% select(contains(c("F1_s","F2_s"))) %>% freq()
 
- # How much earned in past month? # How much earned in 2015?
+# How much earned in past month? # How much earned in 2015?
 f1_f2=rmtl_baseline2016 %>% select(contains(c("F1_","F2_")))
 summary(f1_f2)
 
@@ -489,10 +489,10 @@ e2016B=e2016B %>%
          yn_farm_equipments=E10_1+E11_1+E12_1+E13_1) %>% inner_join(rmtl_In_groups)
 
 ast2016= 
-
-model <- lm(hh_drip_yrs_17_21 ~ E6_1+E7_1+E8_1+E9_1+E10_1+E11_1+E12_1+E13_1+E15_1+E16_1+E18_1 , e2016B)
+  
+  model <- lm(hh_drip_yrs_17_21 ~ E6_1+E7_1+E8_1+E9_1+E10_1+E11_1+E12_1+E13_1+E15_1+E16_1+E18_1 , e2016B)
 summary(model)
-        
+
 
 t05 <- assets22 %>% t_test(own_farm_equipments ~ farmers_hh , detailed = T) 
 t06 <- assets22 %>% t_test(total_farm_equipments ~ farmers_hh , detailed = T) 
@@ -506,13 +506,13 @@ nice_table(t_E,title = c("Table E | Assats ಆಸ್","% Households own assats/ 
 
 # [ 2 ] Information                          lm           ----
 #### knowledge about irrigation
-   # I2	Have you ever seen it working in a field?
-   # I3	Do you know any farmer in your village who uses it?
+# I2	Have you ever seen it working in a field?
+# I3	Do you know any farmer in your village who uses it?
 #### Demonstration plots
-   # I24	Have you ever gone to visit them?
+# I24	Have you ever gone to visit them?
 #### training
-   # I34	Have you attended any of the trainings organized by the implementers of the project?
-  
+# I34	Have you attended any of the trainings organized by the implementers of the project?
+
 rmtl_baseline2016 %>%  select(contains(c("I2","I3","I24","I34")))
 rmtl_baseline2016 %>%  select(hh_id, I2 , I3 , I24 , I34 ) %>% freq()
 
@@ -558,7 +558,7 @@ D12 =D12 %>%  mutate(ir_before= rowSums(.[names(.)[2:10]], na.rm = T)) %>%
   select(hh_id,ir_before)
 
 source_n_ir= inner_join(D20,D12)
-  
+
 # [ 3 ] Pipeline infrastructure status       ----
 # 3.1 DIS's first use                        stat         ----
 
@@ -594,9 +594,9 @@ vars_irri %>% group_by(hh_irrigated ,mw4) %>% count() %>% group_by(hh_irrigated 
 # 3.2 Maintenance                            ----
 # 3.3 Damages                                lm           ----
 ###
-  # m35  What is the status of the main pipe coming into your land ?	# 1	Works | 2=Damaged
-  # m35b How long has the main pipes been damaged?		[months/years]
-  # m35c What is the status of the laterals?	1	Works, laid in the field | 2=OK, but in storage | 3=Damaged
+# m35  What is the status of the main pipe coming into your land ?	# 1	Works | 2=Damaged
+# m35b How long has the main pipes been damaged?		[months/years]
+# m35c What is the status of the laterals?	1	Works, laid in the field | 2=OK, but in storage | 3=Damaged
 
 rmtl_srvy22 %>% select(hh_id, contains("m35") )
 m35=rmtl_srvy22 %>% select(hh_id, m35, m35b_month, m35b_year, m35c )
@@ -633,8 +633,14 @@ sjPlot::tab_model(m2, digits = 4, show.se = T)
 #| 
 rmtl_srvy22$mm10
 
+rmtl_srvy22 %>% 
+  select(farmers_hh,hh_id,starts_with("mm10") ) %>%
+  filter(!is.na(mm10), farmers_hh=="inside_ramthal") %>%  
+  count(mm10) %>% mutate(N=sum(n),pct=n/N)
+
 mm10 <- 
-  rmtl_srvy22 %>% select(farmers_hh,hh_id,starts_with("mm10") ) %>%filter(!is.na(mm10)) %>% 
+  rmtl_srvy22 %>% select(farmers_hh,hh_id,starts_with("mm10") ) %>%
+  filter(!is.na(mm10)) %>% 
   mutate(yes=1) %>% 
   pivot_wider(names_from = mm10, values_from = yes) %>% 
   pivot_longer(!c(farmers_hh,hh_id ), names_to = "mm10_ans", values_to = "yesno") %>% 

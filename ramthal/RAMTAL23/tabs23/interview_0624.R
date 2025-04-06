@@ -13,6 +13,10 @@ rmtl_interviews_june24 <-
     Ramthal Data/rmtl_interviews_june24.xlsx", 
               sheet = "clean_df")
 
+library(readxl)
+rmtl_why_not_use_2024 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_why_not_use_2024.xlsx", 
+                                    sheet = "why no use")
+
 ro_dt <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/
                     rmtl_interviews_june24.xlsx", 
                     sheet = "ro_dt", col_names = FALSE)
@@ -538,47 +542,123 @@ Cat_drip_freq %>%
 # [10] "farmers_B4_u"  ========================================================
 
 # SAMPLE 2024
+
 freq(rmtl_2024$farmers_B4_u, cumul = FALSE)
 
+far_outlet <- 
+  rmtl_2024 %>% 
+  select(hh_id,farmers_B4_u) %>% 
+  filter(!is.na(farmers_B4_u)) %>% 
+  mutate(
+    farmers_B4_u = ifelse(farmers_B4_u=="dont_know",1000,farmers_B4_u),
+    farmers_B4_u=as.numeric(farmers_B4_u) )
+
+far_outlet_II <- far_outlet %>% 
+  count(farmers_B4_u) %>% mutate(N=sum(n), pct=n/N) %>% 
+  arrange(farmers_B4_u) %>% 
+  select(farmers_B4_u, n, pct)
+# library(kableExtra)
+as.data.frame(t(far_outlet_II)) %>% 
+  mutate(V18=ifelse(V18==1000,"DontKnow",V18)) %>% 
+  kable() %>% kable_minimal()
+
+
 # Categorize farmers_B4_u
-farmers_to_filter <- rmtl_2024 %>% 
-  select(hh_id,farmers_B4_u,drip_1use_2useOwmDrip,total_years_of_use,
-         tap_cut_by_, irri_jain_flood) %>% 
+far_outlet_II %>%
   mutate(
     farmers_B4_u_cat = case_when(
-      farmers_B4_u %in% "dont_know" ~ "Don't know",
-      !is.na(as.numeric(farmers_B4_u)) & as.numeric(farmers_B4_u) >= 1 & as.numeric(farmers_B4_u) <= 3 ~ "Close to filter [1-3]",
-      !is.na(as.numeric(farmers_B4_u)) & as.numeric(farmers_B4_u) >= 4 ~ "Far from filter [4 onwards]",
-      TRUE ~ NA_character_
-    )
+      farmers_B4_u == 1000 ~ "Dont Know",
+      farmers_B4_u >= 1 & farmers_B4_u <= 3 ~ "Close to water outlet [Position 1-3]",
+      farmers_B4_u >= 4 ~ "Far from water outlet [Position 4 onwards]",
+      TRUE ~ NA)
   ) %>%
-  filter(!is.na(farmers_B4_u_cat)) 
-
-farmers_to_filter %>% 
-  filter(!is.na(farmers_B4_u_cat )) %>% 
-  count(farmers_B4_u_cat ) %>% mutate(N=sum(n), pct=n/sum(n))
+  group_by(farmers_B4_u_cat) %>% 
+  reframe(n=sum(n)) %>% 
+  mutate(N=sum(n), pct=n/N)
 
 
+
+#pct flooding farmers on position on waterline |||||||||
+freq(rmtl_2024$irri_jain_flood, cumul = FALSE)
+
+far_outlet_flood <- 
+  rmtl_2024 %>% 
+  select(hh_id,farmers_B4_u,irri_jain_flood) %>% 
+  filter(!is.na(farmers_B4_u)) %>% 
+  mutate(
+    irri_jain_flood= ifelse(is.na(irri_jain_flood),0,irri_jain_flood),
+    farmers_B4_u = ifelse(farmers_B4_u=="dont_know",1000,farmers_B4_u),
+    farmers_B4_u=as.numeric(farmers_B4_u) 
+  ) %>% 
+  mutate(
+    farmers_B4_u_cat = case_when(
+      farmers_B4_u == 1000 ~ "Dont Know",
+      farmers_B4_u >= 1 & farmers_B4_u <= 3 ~ "Close to water outlet [Position 1-3]",
+      farmers_B4_u >= 4 ~ "Far from water outlet [Position 4 onwards]",
+      TRUE ~ NA))
+
+far_outlet_flood %>% 
+  count(farmers_B4_u_cat, irri_jain_flood) %>%
+  group_by(farmers_B4_u_cat) %>% 
+  mutate(N=sum(n), pct=n/N) %>%  ungroup() %>% 
+  filter(irri_jain_flood == 1) %>% 
+  select(farmers_B4_u_cat, n,pct ) %>% arrange(desc(pct))
+
+#pct first_farmer_nerative farmers on position on waterline ||||||
+close_to_outlet = rmtl_why_not_use_2024 %>% 
+  rename(hh_id=...1) %>% 
+  select(hh_id,first_farmer_nerative)
+
+position_and_1stF_nerative <- 
+  far_outlet %>% 
+  mutate(hh_id=as.character(hh_id)) %>% 
+  left_join(close_to_outlet) %>% 
+  count(farmers_B4_u,first_farmer_nerative) %>% 
+  group_by(farmers_B4_u) %>% 
+  mutate(N=sum(n), pct=n/N) %>% ungroup() %>% 
+  filter(first_farmer_nerative== 1) %>% 
+  select(farmers_B4_u, n,N, pct)
+# library(kableExtra)
+as.data.frame(t(position_and_1stF_nerative)) %>% 
+  mutate(V18=ifelse(V18==1000,"DontKnow",V18)) %>% 
+  kable() %>% kable_minimal()
 
 # SURVEY 2023 ................................................................
-#[MM9] How many farmers are there between you and the valve/pipeline?
 
+# MM10 : Has it ever happened to you that farmers 'before' you have used up a lot
+rmtl_srvy22$mm10
+rmtl_srvy22 %>% 
+  select(farmers_hh,hh_id,starts_with("mm10") ) %>%
+  filter(!is.na(mm10), farmers_hh=="inside_ramthal") %>%  
+  count(mm10) %>% mutate(N=sum(n),pct=n/N)
+
+
+
+
+#[MM9] How many farmers are there between you and the valve/pipeline?
+# only mm4=Yes were asked Qs mm9 mm10
 
 # location_on_pipe
-distance_from_filter <- rmtl_srvy22 %>% 
-  select(hh_id,mm4,mm9) %>% 
+distance_from_filter <- 
+  rmtl_srvy22  %>% 
+  filter(farmers_hh=="inside_ramthal",
+         !is.na(mm9)) %>% 
+  select(hh_id,mm9) %>% 
   mutate(location_on_pipe= mm9+1) %>% 
-  inner_join(rmtl_In
+  inner_join(rmtl_InOut
              ) %>% 
-  mutate(
-    location_on_pipe_cat = case_when(
-      location_on_pipe < 0  ~ "Don't know",
-      location_on_pipe >= 1 & location_on_pipe <= 3 ~ "Close to filter [1-3]",
-      location_on_pipe >= 4 ~ "Far from filter [4 onwards]",
-      TRUE ~ NA_character_ )  ) %>%
-  filter(!is.na(location_on_pipe)) 
+  select(hh_id,location_on_pipe,drip_use,ir_use) %>%
+  mutate(location_on_pipe = ifelse(location_on_pipe== -998,1000,location_on_pipe)) %>% 
+  count(location_on_pipe) %>% mutate(N=sum(n), pct=n/N) %>% 
+  select(location_on_pipe, pct,n)
 
-freq(distance_from_filter$location_on_pipe_cat, cumul = FALSE)
+
+as.data.frame(t(distance_from_filter)) %>% 
+  mutate( V29=ifelse( V29==1000,"DontKnow", V29)) %>% 
+  kable() %>% kable_minimal()
+
+
+
   
   
 # SAMPLE 2024 IN 2023  ........................................................
@@ -595,6 +675,7 @@ inner_join(distance_from_filter,farmers_to_filter) %>%
 # CROSS location on pipe with irrigation
 # SAMPLE 2024
 
+
 # drip/ not drip
 farmers_to_filter %>% 
   filter(!is.na(farmers_B4_u_cat )) %>% 
@@ -603,6 +684,7 @@ farmers_to_filter %>%
   mutate(N = sum(n), pct = paste0(round((n / sum(n)) * 100, 0), "%")) %>%
   arrange(desc(drip_1use_2useOwmDrip)) %>% 
   kable() %>% kable_minimal()
+
 
 # flood/not flood
 farmers_to_filter %>% 
