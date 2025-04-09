@@ -284,7 +284,7 @@ water_source %>%
 df12_sugarcane %>%
   select(ir_method, "ir_source_own_or_public")
 
-#     irrigation times  .................................................. ----
+#     irrigation_pattern  .................................................. ----
 
 irrigation_pattern <- 
   df12_sugarcane %>% 

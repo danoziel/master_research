@@ -1,5 +1,3 @@
-
-library(readxl)
 library(dplyr)
 
 library(readr)
@@ -551,27 +549,6 @@ ggplot(avg_usage_by_cefr, aes(x = english_CERF_level, y = avg_usage)) +
   theme_minimal()
 
 
-# avg_usage_by_generation
-avg_usage_by_generation <-  df_en_AI %>%
-  rename(usage = participation_rate) %>%
-  filter(!is.na(Generation)) %>%
-  group_by(uid, Generation) %>%
-  summarise(total_usage = sum(usage, na.rm = TRUE), .groups = "drop") %>%
-  group_by(Generation) %>%
-  summarise(
-    avg_usage = mean(total_usage, na.rm = TRUE),
-    n_students = n(),
-    .groups = "drop"
-  )
-ggplot(avg_usage_by_generation, aes(x = Generation, y = avg_usage)) +
-  geom_col(fill = "darkorange") +
-  geom_text(aes(label = round(avg_usage, 1)), vjust = -0.5, size = 4) +
-  labs(
-    title = "Average App Usage per Student by Generation",
-    x = "Generation",
-    y = "Average Valid Sessions"
-  ) +
-  theme_minimal()
 
 
 
