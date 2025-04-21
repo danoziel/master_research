@@ -1,6 +1,4 @@
-library(dplyr)
-library(haven)
-library(tidyr)
+ 
 
 library(rstatix) # ttest "add_significance"
 library(rempsyc) # ttest # nice_table
