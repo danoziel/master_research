@@ -21,12 +21,14 @@ english_learning_ai=Copy_of_english_learning_ai_cleanDF %>%
     fearAI= threat_challenge
   )
 english_learning_ai$Post_course <- ifelse(english_learning_ai$Timestamp== "pre_course",0,1 )
+english_learning_ai$sector01 <- ifelse(english_learning_ai$sector_2 == "arab",1,0 )
+
 rm(Copy_of_english_learning_ai_cleanDF)
 
 names(english_learning_ai)
 
 
-############ t-tests self_efficacy    ####
+### 1 ######### t-tests self_efficacy     ####
 
 df_self_efficacy <- english_learning_ai%>% 
   select(Timestamp, self_efficacy_1:self_efficacy_4)
@@ -53,7 +55,7 @@ library(rempsyc)
 nice_table(t_test_self_efficacy)
 
 
-############ t-tests threat_challenge ####
+### 2 ######### t-tests threat_challenge  ####
 
 df_fear_AIchallenge <- english_learning_ai%>% 
   select(Timestamp, threat_challenge_1:threat_challenge_13)
@@ -78,7 +80,7 @@ t_test_threat_challenge <- data.frame(
 nice_table(t_test_threat_challenge)
 
 
-############ t-tests self_image      ####
+### 3 ######### t-tests self_image        ####
 
 # Perform t-tests for each threat_challenge variable
 t_test_results <- lapply(paste0("self_image_", 1:10), function(var) {
@@ -101,7 +103,7 @@ nice_table(t_test_self_image)
 
 
 
-###########  cor_matrix   ########
+####### ####  cor_matrix               ########
 self_image_vars <- paste0("self_image_", 1:10)
 self_efficacy_vars <- paste0("self_efficacy_", 1:4)
 fearAI_cat_vars <- c("fearAI_1","fearAI_2","fearAI_3","fearAI")
@@ -156,7 +158,7 @@ datatable(cor_df, options = list(pageLength = 5, autoWidth = TRUE))
 
 
 
-########### multiple regression  ###########
+#### reg ####### multiple regression      ###########
 
 self_image_vars
 self_efficacy_vars
@@ -172,67 +174,119 @@ library(sjPlot)
 # self_efficacy Predictor for fearAI
 
 m1 <- lm(fearAI_1 ~ self_efficacy + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 m2 <- lm(fearAI_2 ~self_efficacy + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 m3 <- lm(fearAI_3 ~  self_efficacy+ Post_course +
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 m4 <- lm(fearAI ~  self_efficacy+ Post_course +
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
-tab_model(m1, m2, m3, m4, collapse.se = TRUE, show.ci = FALSE, digits = 4)
-
+sjPlot::tab_model(m1, m2, m3, m4, collapse.se = TRUE, show.ci = FALSE, digits = 4)
+sjPlot::tab_model(m1, m2, m3, m4, show.se = TRUE,show.ci = FALSE, digits = 4)
 
 
 # self_image Predictor for fearAI
 
 m1 <- lm(fearAI_1 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai) 
 
 m2 <- lm(fearAI_2 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 
 m3 <- lm(fearAI_3 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 
 m0 <- lm(fearAI ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
-tab_model(m1,m2,m3,m0, show.se = TRUE, show.ci = FALSE, digits = 4)
+sjPlot::tab_model(m1,m2,m3,m0, show.se = TRUE, show.ci = FALSE, digits = 4)
 
 
 # self_image Predictor for self_efficacy
 m1 <- lm(self_efficacy_1 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 
 m2 <- lm(self_efficacy_2 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 
 m3 <- lm(self_efficacy_3 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 
 m4 <- lm(self_efficacy_4 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 
-m4 <- lm(self_efficacy_4 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
-         data = english_learning_ai)
-tab_model(m1,m2, m3,m4, show.se = TRUE, show.ci = FALSE, digits = 4)
+sjPlot::tab_model(m1,m2, m3,m4, show.se = TRUE, show.ci = FALSE, digits = 4)
 
 
 # ___________________ Leap AI SKY [leapAI_14032025] _______________________####
 
-names(leapAI_14032025)
+
+# index_Email ..........................................................
+# survey email
+Email_survey <- english_learning_ai %>% select(Email) %>% distinct()
+
+# sky email
+Email_sky <- leapAI_14032025 %>% select(Email) %>% distinct()
+
+# bind survey & sky
+index_Email <- 
+  inner_join(Email_survey,Email_sky ) %>%
+  # Generate unique IDs starting from B10001
+  mutate(uid = paste0("E", 10000 + match(Email, unique(Email)))) 
+
+
+
+
+# index_name...........................................................
+# survey name
+Ename_survey_1 <- english_learning_ai %>% select(me1) %>% 
+  rename(name=me1) %>% 
+  mutate(name = gsub("\\s+", "", name)) %>% distinct()
+
+Ename_survey_2 <- english_learning_ai %>% select(me1,id,Email) %>% 
+  rename(name=me1) %>% 
+  mutate(name = gsub("\\s+", "", name)) %>% distinct() 
+
+Ename_survey <- left_join(Ename_survey,Ename_survey_2)
+
+# sky name
+Ename_sky <- leapAI_14032025 %>% select(name) %>%
+  mutate(name = gsub("\\s+", "", name)) %>% # Remove all spaces between first and last name
+  distinct()
+
+index_name <- 
+  inner_join(Ename_survey,Ename_sky ) %>%
+  mutate(uid = paste0("N", 10000 + match(name, unique(name)))) 
+
+
+# index_name_Email...........................................................
+# survey name
+NE_survey <- english_learning_ai %>% select(me1,Email) %>% 
+  rename(name=me1) %>% 
+  mutate(name = gsub("\\s+", "", name)) %>% distinct()
+
+# sky name
+NE_sky <- leapAI_14032025 %>% select(name,Email) %>%
+  mutate(name = gsub("\\s+", "", name)) %>% # Remove all spaces between first and last name
+  distinct()
+
+index_EN <- 
+  inner_join(NE_survey,NE_sky ) %>%
+  mutate(uid = paste0("EN", 10000 + match(name, unique(name)))) 
+
+
+
 
 students_crs <-  
   english_learning_ai %>% 
@@ -321,56 +375,28 @@ leap_practice_achievements <-
   left_join(leap_practice_A) %>% 
   filter(participation_rate > 0 )
 
-# creat "post_course" df
-df_en_AI_post_course <- 
-  english_learning_ai %>% 
-  filter(Timestamp=="post_course") %>% 
-  rename(name=me1) %>% 
-  mutate(name = gsub("\\s+", "", name)) %>%
-  left_join(students_index) %>% 
-  left_join(leap_practice_achievements, by = "uid") 
-any(is.na(df_en_AI_post_course$uid))
-
-# creat "pre_course" df
-df_en_AI_pre_course <- 
-  english_learning_ai %>% 
-  filter(Timestamp=="pre_course") %>% 
-  rename(name=me1) %>% 
-  mutate(name = gsub("\\s+", "", name)) %>%
-  left_join(students_index) %>% 
-  mutate(
-    participation_rate = NA,
-    participation_rate_01 = NA,
-    interaction_mean = NA,
-    interaction_progress = NA,
-    interaction_01 = NA,
-    wordy_progress = NA,
-    wordy_mean = NA,
-    wordy_01 = NA
-  )
-
-
-df_en_AI <- 
-  bind_rows(df_en_AI_pre_course,df_en_AI_post_course)
 
 
 
-# REG
-# self_efficacy Predictor for fearAI
 
-m1 <- lm(fearAI_1 ~ self_efficacy + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+
+
+
+# REG ----
+# self_efficacy Predictor for fearAI ----
+
+m1 <- lm(fearAI_1 ~ self_efficacy + Post_course +
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 m2 <- lm(fearAI_2 ~self_efficacy + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 m3 <- lm(fearAI_3 ~  self_efficacy+ Post_course +
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 m4 <- lm(fearAI ~  self_efficacy+ Post_course +
-           participation_rate + interaction_mean + wordy_mean +
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
-         data = df_en_AI)
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+         data = english_learning_ai)
 tab_model(m4, collapse.se = TRUE, show.ci = FALSE, digits = 4)
 
 
@@ -417,11 +443,11 @@ m4 <- lm(self_efficacy_4 ~ self_image + Post_course+
          data = english_learning_ai)
 tab_model(m1,m2, m3,m4, show.se = TRUE, show.ci = FALSE, digits = 4)
 
--------------------------------------------
 
-  
-  
-  
+
+
+# PLOTS  FOR SEMINAR .......................................................----
+
   
   library(readxl)
 leapAI_14032025 <- read_excel("C:/Users/Dan/Downloads/leapAI_14032025.xlsx")
@@ -466,9 +492,7 @@ leapB <- leapA %>%
   ) %>%
   select(-month)  # optional: remove helper column
 
-
-quantile(leapB$freq, probs = 0.99, na.rm = TRUE)
-
+# quantile(leapB$freq, probs = 0.99, na.rm = TRUE)
 
 leapC <- leapB %>% 
   #filter(freq<64) %>% 
@@ -488,9 +512,6 @@ usage_late <- leapC %>%
   group_by(sequential_week) %>%
   summarise(usage_count = sum(usage, na.rm = TRUE), .groups = "drop")
 
-
-
-
 ############ Cumulative usage calculation
 #
 usage_cumulative <- usage_early %>%
@@ -501,7 +522,7 @@ usage_cumulative <- usage_late %>%
   arrange(sequential_week) %>%
   mutate(cumulative_usage = cumsum(usage_count))
 
-# Plot cumulative usage
+# PLOT | cumulative usage
 ggplot(usage_cumulative, aes(x = sequential_week, y = cumulative_usage)) +
   geom_line(color = "steelblue", size = 1.2) +
   geom_point(color = "steelblue") +
@@ -513,7 +534,7 @@ ggplot(usage_cumulative, aes(x = sequential_week, y = cumulative_usage)) +
   theme_minimal()
 
 
-
+# TABLE | Semester avg usage
 leapC %>% 
   group_by(uid, semester) %>%
   summarise(total_usage = sum(usage, na.rm = TRUE), .groups = "drop") %>%
@@ -525,7 +546,7 @@ leapC %>%
   filter(!is.na(semester))
 
 
-# Step 1: Summarize average usage by CEFR level (excluding NAs)
+# PLOT |  average usage by CEFR level (excluding NAs)
 avg_usage_by_cefr <- df_en_AI %>%
   rename(usage = participation_rate) %>%
   group_by(uid, english_CERF_level) %>%

@@ -74,7 +74,7 @@ t_test_threat_challenge <- data.frame(
 nice_table(t_test_threat_challenge)
 
 
-############ t-tests self_image      ####
+############ t-tests self_image       ####
 
 # Perform t-tests for each threat_challenge variable
 t_test_results <- lapply(paste0("self_image_", 1:10), function(var) {
@@ -97,7 +97,7 @@ nice_table(t_test_self_image)
 
 
 
-###########  cor_matrix   ########
+########## #  cor_matrix              ########
 self_image_vars <- paste0("self_image_", 1:10)
 self_efficacy_vars <- paste0("self_efficacy_", 1:4)
 fearAI_cat_vars <- c("fearAI_1","fearAI_2","fearAI_3","fearAI")
@@ -152,7 +152,7 @@ datatable(cor_df, options = list(pageLength = 5, autoWidth = TRUE))
 
 
 
-########### multiple regression  ###########
+########### multiple regression                     ###########
 
 self_image_vars
 self_efficacy_vars
@@ -165,71 +165,70 @@ df_self_image <- english_learning_ai %>%
 
 library(sjPlot)
 
-# self_efficacy Predictor for fearAI
+#           self_efficacy Predictor for fearAI      ----
 
 m1 <- lm(fearAI_1 ~ self_efficacy + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 m2 <- lm(fearAI_2 ~self_efficacy + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 m3 <- lm(fearAI_3 ~  self_efficacy+ Post_course +
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 m4 <- lm(fearAI ~  self_efficacy+ Post_course +
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
-tab_model(m1, m2, m3, m4, collapse.se = TRUE, show.ci = FALSE, digits = 4)
+sjPlot::tab_model(m1,m2,m3,m4, show.se = TRUE, show.ci = FALSE, digits = 4)
+
+# sjPlot::tab_model(m1, m2, m3, m4, collapse.se = TRUE, show.ci = FALSE, digits = 4)
 
 
 
-# self_image Predictor for fearAI
+#           self_image Predictor for fearAI         ----
 
 m1 <- lm(fearAI_1 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai) 
 
 m2 <- lm(fearAI_2 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 
 m3 <- lm(fearAI_3 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 
 m0 <- lm(fearAI ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
-tab_model(m1,m2,m3,m0, show.se = TRUE, show.ci = FALSE, digits = 4)
+sjPlot::tab_model(m1,m2,m3,m0, show.se = TRUE, show.ci = FALSE, digits = 4)
 
 
-# self_image Predictor for self_efficacy
+#           self_image Predictor for self_efficacy  ----
 m1 <- lm(self_efficacy_1 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 
 m2 <- lm(self_efficacy_2 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 
 m3 <- lm(self_efficacy_3 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 
 m4 <- lm(self_efficacy_4 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
          data = english_learning_ai)
 
-m4 <- lm(self_efficacy ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
-         data = english_learning_ai)
-tab_model(m1,m2, m3,m4, show.se = TRUE, show.ci = FALSE, digits = 4)
+sjPlot::tab_model(m1,m2, m3,m4, show.se = TRUE, show.ci = FALSE, digits = 4)
 
 
 # ___________________ Leap AI SKY [leapAI_14032025] _______________________####
 
 
-# SKY DF ----
+# SKY DF                                ----
 
 library(readxl)
 sky_dfB2 <- read_excel("C:/Users/Dan/Downloads/sky_dfB2.xlsx")
@@ -260,7 +259,7 @@ leapAI_14032025 <- sky_df %>%
 names(leapAI_14032025)
 
 
-##### creating uid index ----
+##### creating uid index [Email_index]  ----
 
 ######### by Email
 
@@ -282,8 +281,23 @@ Email_index <-
   # Generate unique IDs starting from B10001
   mutate(uid = paste0("E", 10000 + match(Email, unique(Email)))) 
 
+index_Email <- Email_index
+  
 
-##### leap_practice_achievements ----
+
+
+
+
+
+
+
+
+
+
+
+
+
+#   CREATING VARs                       ----
 
 leap_practice_0 <- 
   leapAI_14032025 %>% 
@@ -292,24 +306,25 @@ leap_practice_0 <-
 
 any(is.na(leap_practice_0$uid))
 
+# df Words_per_message                  ----
 
-
-
+# 1. Words_per_message | 99%
 wordy99 = quantile(leap_practice_0$Words_per_message, probs = 0.99, na.rm = TRUE)
 
-################### df median_wordy_value
-
+# 2. Words_per_message | Median 
 median_wordy_value=
-  leap_practice_0 %>% rename(wordy=Words_per_message) %>% 
-  # mutate(wordy=ifelse(Words_per_message > wordy99,NA,Words_per_message)) %>%
-  filter(!is.na(wordy)) %>%
+  leap_practice_0 %>%
+  # mutate(Words_per_message=ifelse(Words_per_message > wordy99,NA,Words_per_message)) %>%
+  filter(!is.na(Words_per_message)) %>%
   group_by(uid) %>%   summarise(
-    wordy_median=median(wordy)) %>% summarise(
-      wordy_median=median(wordy_median)) %>%
-  pull(wordy_median)
+    median=median(Words_per_message)) %>% summarise(
+      median=median(median)) %>%
+  pull(median)
+
+# 3.  CREATING Words_per_message Vars [wordy_progress] [wordy_mean] [wordy_high_low]
 
 # library(lubridate)
-leap_practice_A <- 
+df_Words_per_message <- 
   leap_practice_0 %>% 
   rename(wordy=Words_per_message) %>% 
   # mutate(wordy=ifelse(wordy > wordy99,NA,wordy)) %>%
@@ -328,12 +343,15 @@ leap_practice_A <-
   select(uid,wordy_progress,wordy_mean,wordy_high_low)
 leap_practice_A %>% count(wordy_high_low)
 
+rm(wordy99,median_wordy_value)
 
 
-###################  interaction
+# df Messages_in_session                ----
+
+# 1. Messages_in_session | 99%
 interaction99 = quantile(leap_practice_0$Messages_in_session, probs = 0.99, na.rm = TRUE)
 
-# df median_interaction_value
+# 2. Messages_in_session | Median 
 median_interaction_value=
   leap_practice_0 %>% 
   # mutate(Messages_in_session=ifelse(Messages_in_session > interaction99,NA,Messages_in_session)) %>%
@@ -345,7 +363,8 @@ median_interaction_value=
     median=median(median))%>%
   pull(median)
 
-leap_practice_B <- 
+# 3.  CREATING Messages_in_session Vars [interaction_mean] [interaction_progress] [interaction_high_low]
+df_Messages_in_session <- 
   leap_practice_0 %>% 
   # mutate(Messages_in_session=ifelse(Messages_in_session > interaction99,NA,Messages_in_session)) %>%
   rename(msg =Messages_in_session) %>% 
@@ -362,10 +381,11 @@ leap_practice_B <-
   ) %>% select(uid,interaction_mean,interaction_progress,interaction_high_low) 
 leap_practice_B %>% count(interaction_high_low)
 
+rm(interaction99 ,median_interaction_value)
 
+# df Valide_session                     ----
 
-###################  participation_rate
-# DF median_participation_value
+# 1. Valide_session | 99%
 pct99_participation_value <- 
   leap_practice_0 %>% 
   group_by(uid) %>% 
@@ -373,6 +393,8 @@ pct99_participation_value <-
   summarise(percentile_99 = quantile(total, 0.99, na.rm = TRUE)) %>%
   pull(percentile_99)
 
+
+# 2. Valide_session | Median 
 median_participation_value <- 
   leap_practice_0 %>% 
   group_by(uid) %>% 
@@ -381,9 +403,9 @@ median_participation_value <-
   summarise(median=median(total)) %>%
   pull(median)
 
-# DF leap_practice_C
+# 3.  CREATING Valide_session Vars [participation_rate] [participation_high_low]
 # library(lubridate)
-leap_practice_C <- 
+df_Valide_session <- 
   leap_practice_0 %>% 
   group_by(uid) %>% 
   summarise(
@@ -394,41 +416,48 @@ leap_practice_C <-
   filter(participation_rate>0)
 leap_practice_C %>% count(participation_high_low)
 
+rm(pct99_participation_value,median_participation_value)
 
-###################  combin leap_practice dfs [leap_practice_achievements]
+#    combined df [leap_practice_achievements]  ----
 leap_practice_achievements <- 
-  left_join(leap_practice_C,leap_practice_B) %>% 
-  left_join(leap_practice_A) 
+  left_join(df_Words_per_message,df_Messages_in_session) %>% 
+  left_join(df_Valide_session) 
 
-rm(leap_practice_0,leap_practice_A,leap_practice_B,leap_practice_C)
+rm(df_Words_per_message,df_Messages_in_session,df_Valide_session) 
 
+#    combined df [df_srvy_sky]                    ----
+# "df_en_AI" = english_learning_ai +  leap_practice_achievements
+names(df_en_AI)
+df_en_AI <- read_excel("C:/Users/Dan/Downloads/df_en_AI.xlsx")
 
-###################  ############### #### 
-
-df_sky <- 
-  leapAI_14032025 %>% 
-  group_by(uid ) %>% 
-  rename(date =  "Session_date",
-         messages= "Total messages in session", 
-         wordy = "Words_per_message",
-         conversations="Valide_session") %>% 
-  select("Email",date, messages,wordy,conversations ) %>% 
-  inner_join(Email_index)
-
-# creating df Course & Sky
-df_SkyCou <- 
+df_Ssurvey <- 
   english_learning_ai %>% 
-  select(-c(me1,me2,id,status)) %>% 
-  left_join(Email_index) %>% 
-  left_join(df_sky, by = "uid") %>% 
-  select(uid,everything(),-c(me1,me2,status))
-  
-  any(is.na(df_en_AI$uid))
+  select(Timestamp, Post_course,Pre_course,
+         gander_1male_2Female, Generation, sector_2, sector01,
+         english_CERF_level, english_level_1Low_10High,
+         self_image_1:self_efficacy_4,
+         threat_challenge_5_original:self_efficacy,
+         course_satisfaction,desire_to_continue, user_experience_level,
+         Email) %>% left_join(Email_index)
+
+df_Ssky <- Email_index %>% left_join(leap_practice_achievements)
 
 
-df_en_AIpost_course <- df_en_AI %>% filter(Timestamp  =="post_course" )
+df_srvy_sky <- df_Ssurvey %>% left_join(df_Ssky)
 
-df_en_AIpre_course <- df_en_AI %>% filter(Timestamp  !="post_course" ) 
+control_vars <- 
+  df_en_AI %>% 
+  filter(!is.na(uid) ) %>% 
+  select(uid,gander_1male_2Female, Generation, sector_2, english_CERF_level) %>% 
+  distinct()
+
+
+
+
+# REG ..............................................................----
+
+
+
 
 # NOT GOOD _ DONT USE THIS METHOD ----
 
@@ -447,10 +476,6 @@ SE_change <- df_en_AI %>%
   ) %>% 
   mutate(self_efficacy_change = self_efficacy_post - self_efficacy_pre)
 
-control_vars <- df_en_AI %>% 
-  filter(!is.na(uid) ) %>% 
-  select(uid,gander_1male_2Female, Generation, sector_2, english_CERF_level) %>% 
-  distinct()
 
 df_regression <- SE_change %>%
   left_join(leap_practice_achievements, by = "uid") %>% 
@@ -466,7 +491,7 @@ summary(model1)
 tab_model(model1, show.se = TRUE, show.ci = FALSE, digits = 4)
 
 
-############# Normalization achievements  ----
+############# Normalization achievements    ----
 library(tidyr)
 library(scales)
 
@@ -509,7 +534,7 @@ summary(m11)
 tab_model(m11, show.se = TRUE, show.ci = FALSE, digits = 4)
 
 
-# Min-Max Normalization (Rescaling to 0–1)
+# Min-Max Normalization (Rescaling to 0–1)  -----
 
 min_max_scale <- function(x) {
   (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
@@ -533,68 +558,66 @@ tab_model(m4, show.se = TRUE, show.ci = FALSE, digits = 4)
 
 
 
-# fearAI ~  leap_practice_achievements               ----
+### reg  fearAI        ~  App_achievements     ----
 names(leap_practice_achievements)
 
-m1 <- lm(fearAI_1 ~ participation_rate + interaction_mean + wordy_mean +
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
-         data = df_en_AIpost_course)
+m1 <- lm(fearAI_1 ~ Post_course + 
+           participation_rate + interaction_mean + wordy_mean +
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+         data = df_srvy_sky)
 
-m2 <- lm(fearAI_2 ~ participation_rate + interaction_mean + wordy_mean +
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
-         data = df_en_AIpost_course)
+m2 <- lm(fearAI_2 ~  Post_course + 
+           participation_rate + interaction_mean + wordy_mean +
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+         data = df_srvy_sky)
 
-m3 <- lm(fearAI_3 ~ participation_rate + interaction_mean + wordy_mean +
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
-         data = df_en_AIpost_course)
+m3 <- lm(fearAI_3 ~  Post_course + 
+           participation_rate + interaction_mean + wordy_mean +
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+         data = df_srvy_sky)
 
-m4 <- lm(fearAI ~ participation_rate + interaction_mean + wordy_mean +
-           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
-         data = df_en_AIpost_course)
+m123 <- lm(fearAI ~  Post_course + 
+           participation_rate + interaction_mean + wordy_mean +
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+         data = df_srvy_sky)
 
-tab_model(m1,m2, m3,m4, show.se = TRUE, show.ci = FALSE, digits = 4)
-
-
-
-
-
-# fearAI ~ self_efficacy + leap_practice_achievements -----
-names(leap_practice_achievements)
-
-m1 <- lm(fearAI ~ self_efficacy_1 + participation_rate + interaction_mean + wordy_mean +
-           gander_1male_2Female + Generation  + english_CERF_level, 
-         data = df_en_AIpost_course)
-
-m2 <- lm(fearAI ~ self_efficacy_2 +
-           participation_rate + 
-           interaction_mean + wordy_mean +
-           Generation + gander_1male_2Female + english_CERF_level, 
-         data = df_en_AIpost_course)
-
-m3 <- lm(fearAI ~ self_efficacy_3 +
-           participation_rate + 
-           interaction_mean + wordy_mean +
-           Generation + gander_1male_2Female + english_CERF_level, 
-         data = df_en_AIpost_course)
-
-m4 <- lm(fearAI ~ self_efficacy_4 +
-           participation_rate + 
-           interaction_mean + wordy_mean +
-           Generation + gander_1male_2Female + english_CERF_level, 
-         data = df_en_AIpost_course)
-
-m5 <- lm(fearAI ~ self_efficacy +
-           participation_rate + 
-           interaction_mean + wordy_mean +
-           Generation + gander_1male_2Female + english_CERF_level, 
-         data = df_en_AIpost_course)
-
-tab_model(m5, show.se = TRUE, show.ci = FALSE, digits = 4)
+sjPlot::tab_model(m1,m2, m3,m123, show.se = TRUE, show.ci = FALSE, digits = 4)
+# sjPlot::tab_model(m4, collapse.se = TRUE, show.ci = FALSE, digits = 4)
 
 
+### reg  self_efficacy ~  App_achievements     -----
 
-# self_efficacy ~ achievements ----
-# linear model clustered 
+m1 <- lm(self_efficacy_1 ~  Post_course + 
+           participation_rate + interaction_mean + wordy_mean +
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+         data = df_srvy_sky)
+
+m2 <- lm(self_efficacy_2 ~  Post_course + 
+           participation_rate + interaction_mean + wordy_mean +
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+         data = df_srvy_sky)
+
+m3 <- lm(self_efficacy_3 ~ Post_course + 
+           participation_rate + interaction_mean + wordy_mean +
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+         data = df_srvy_sky)
+
+m4 <- lm(self_efficacy_4 ~ Post_course + 
+           participation_rate + interaction_mean + wordy_mean +
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+         data = df_srvy_sky)
+
+m1234 <- lm(self_efficacy ~ Post_course + 
+              participation_rate + interaction_mean + wordy_mean +
+              gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+            data = df_srvy_sky)
+
+sjPlot::tab_model(m1,m2, m3,m4,m1234, show.se = TRUE, show.ci = FALSE, digits = 4)
+sjPlot::tab_model(m1, show.se = TRUE, show.ci = FALSE, digits = 4)
+
+
+
+# linear model clustered ----
 
 # Load necessary packages
 library(lmtest)
@@ -606,14 +629,39 @@ model <- lm(self_efficacy ~ Post_course + participation_rate + interaction_mean 
             data = df_en_AI)
 
 # Show clustered standard errors by 'uid'
-clustered_results <- coeftest(model, vcov = vcovCL, cluster = ~ uid)
+clustered_m1 <- coeftest(m1, vcov = vcovCL, cluster = ~ uid)
+clustered_m2 <- coeftest(m2, vcov = vcovCL, cluster = ~ uid)
+clustered_m3 <- coeftest(m3, vcov = vcovCL, cluster = ~ uid)
+clustered_m4 <- coeftest(m3, vcov = vcovCL, cluster = ~ uid)
+clustered_m1234 <- coeftest(m1234, vcov = vcovCL, cluster = ~ uid)
 
-# Print results
-print(clustered_results)
-tab_model(model, show.se = TRUE, show.ci = FALSE, digits = 4)
+print(clustered_m1)
 
- 
+# DIS STAT ----
 
+c1 <- english_learning_ai %>%select(Timestamp,english_level_1Low_10High) %>% 
+  drop_na() %>% 
+  mutate(Timestamp=ifelse(
+    Timestamp=="post_course","B_post_course","A_pre_course"))%>% 
+  group_by(Timestamp) %>% 
+  summarise(Mean=mean(english_level_1Low_10High)) 
+
+c2 <- english_learning_ai %>%select(Timestamp,course_satisfaction) %>% 
+  drop_na() %>%
+  summarise(Mean=mean(course_satisfaction)) %>% 
+  mutate(Timestamp="course_satisfaction") %>% select(2,1)
+
+c3 <- english_learning_ai %>%select(Timestamp,desire_to_continue) %>% 
+  drop_na() %>%
+  summarise(Mean=mean(desire_to_continue))%>% 
+  mutate(Timestamp="desire_to_continue") %>% select(2,1)
+
+c4 <- english_learning_ai %>%select(Timestamp,user_experience_level) %>% 
+  drop_na() %>%
+  summarise(Mean=mean(user_experience_level))%>% 
+  mutate(Timestamp="user_experience_level") %>% select(2,1)
+
+bind_rows(c1,c2,c3,c4) %>% kable() %>% kable_classic()
 
 
 
