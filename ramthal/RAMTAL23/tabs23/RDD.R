@@ -77,95 +77,307 @@ rd_land_2022 %>% filter(south1_north0==1) %>%
 # Plots  .........................................................
 
 # Plot | drip_use ................................................
-pct_elevation_DI <- 
+pct_elevation_DI_south <- 
   rd_water_2022 %>% 
   filter(south1_north0==1) %>% 
+  
+pct_elevation_DI <- 
+  rd_water_2022 %>% 
+  # filter(south1_north0==1) %>% 
   count(in_project,elevation,drip_use) %>% 
   group_by(in_project,elevation) %>% mutate(N=sum(n)) %>% 
   filter(drip_use==1) %>% rename(n_DI=n) %>% 
   mutate(pct_DI=n_DI/N) %>% ungroup() %>% 
   select( in_project, elevation, pct_DI )
   
-pct_elevation_DI <- bind_rows( # add data of the entire project
-  pct_elevation_DI,
-    tibble(
-      in_project = c(1, 0,1,0),
-      elevation = c(8,8,9,9), # Garbage Vars for plot display
-      pct_DI = c(0,0,0.31, 0.1)) )
+pct_DI <- 
+  rd_water_2022 %>% 
+  # filter(south1_north0==1) %>% 
+  count(in_project,drip_use) %>% 
+  group_by(in_project) %>% mutate(N=sum(n)) %>% 
+  filter(drip_use==1) %>% rename(n_DI=n) %>% 
+  mutate(pct_DI=n_DI/N) %>% ungroup() %>% 
+  select( in_project, elevation, pct_DI )
 
-pct_elevation_DI %>% # 700 X 250
-  ggplot(aes(x = elevation, y = pct_DI, fill = factor(in_project))) +
-  geom_col(position = "dodge") +
+
+# Separate data into two groups
+line_data <- pct_elevation_DI # elevation 0-7 for line plot
+line_data_south <- pct_elevation_DI_south %>% mutate(in_project =ifelse(in_project==1,"south_1","south_0"))
+bar_data <- pct_DI %>% mutate(elevation=8)
+
+# Create the plot
+# 700 X 300
+ggplot() +
+  # Line plot for elevations 0-7 (original data)
+  geom_line(data = line_data, aes(x = elevation, y = pct_DI, color = factor(in_project), group = in_project), size = 1.5) +
+  # Line plot for elevations 0-7 (southern boundary data)
+  geom_line(data = line_data_south, aes(x = elevation, y = pct_DI, color = factor(in_project)), size = 0.75) +
+  # Bar plot for elevation 8 (bars side by side)
+  geom_col(data = bar_data, aes(x = elevation, y = pct_DI, fill = factor(in_project)), 
+           width = 0.7, position = "dodge") +
   scale_fill_manual(name = "", 
-    values = c("0" = "gray70", "1" = "dodgerblue4"),
-    labels = c("Out Project", "In Project") ) +
-  scale_x_continuous( breaks = 0:9,
-                      labels = c("519m", "< 522m", "< 525m", "< 528m", 
-                                 "< 531m", "< 534m", "< 537m", "< 540m",
-                                 "" ,"Project") ) +
-  theme_minimal(base_family = "serif")+
-  labs(title =  "Share of farmers in Elevation Bin", # | Southern Boundary" 
-       x = "Elevation",y = "% of Households"
-  ) +theme_minimal(base_family = "serif")
+                    values = c("0" = "orange3", "1" = "dodgerblue4"),
+                    labels = c("No Elevation | Out", "No Elevation | In")) +
+  scale_color_manual(values = c("0" = "orange3", "1" = "dodgerblue4", 
+                               "south_0" = "orange1", "south_1" = "dodgerblue3"),
+                     labels = c("Out Project", "In Project","South | Out", "South | In")
+  ) +
+  scale_x_continuous(breaks = 0:8,
+                     labels = c("519m", "< 522m", "< 525m", "< 528m", 
+                                "< 531m", "< 534m", "< 537m", "< 540m", "Project")) +
+  scale_y_continuous(labels = label_percent(scale = 100)) + 
+  theme_minimal(base_family = "serif") +
+  labs(title = "Share of Farmers in Elevation Bin",
+       subtitle = "Thick line - Sample in the entire project area | Thin line - Farms in the southern boundary area \nBars - Entire sample regardless elevation",
+       x = "Elevation", y = "% of Households") +
+  theme(legend.title = element_blank())
+
+
+
+
+
 
 
 # Plot | drip_use ................................................
 
-rd_land_2022 %>% 
+land_project <- rd_land_2022 %>% 
   # filter(south1_north0==1) %>%
   group_by(in_project) %>%
-  summarise(acre_drip=mean(acre_drip),pct_drip = mean(pct_drip_land)*100) 
+  summarise(acre_drip=mean(acre_drip),pct_drip = mean(pct_drip_land)) 
 
-elv_land <- rd_land_2022 %>% 
-  # filter(south1_north0==1) %>%
+land_elv <- rd_land_2022 %>% 
   group_by(in_project,elevation) %>%
   summarise(acre_drip=mean(acre_drip),pct_drip = mean(pct_drip_land)) %>% ungroup()
 
-# acre_drip
-elv_land %>% # 500 X 200
-  ggplot(aes(x = elevation, y = acre_drip, fill = factor(in_project))) +
-  geom_col(position = "dodge") +
-  scale_fill_manual(name = "", values = c("0" = "gray70", "1" = "dodgerblue4"),labels = c("Out Project", "In Project") ) +
-  scale_x_continuous( breaks = 0:9,labels = c("519m", "< 522m", "< 525m", "< 528m", "< 531m", "< 534m", "< 537m", "< 540m","" ,"Project") ) +
-  theme_minimal(base_family = "serif")+theme(legend.position="none")+
-  labs(title =  "Land Under Drip-Irrigatin in Elevation Bin", # | Southern Boundary", 
-       x = "Elevation",y = "Acre")+
-  expand_limits(y=c(0, 0.72))
+land_elv_south <- rd_land_2022 %>% 
+  filter(south1_north0==1) %>%
+  group_by(in_project,elevation) %>%
+  summarise(acre_drip=mean(acre_drip),pct_drip = mean(pct_drip_land)) %>% ungroup()
+
+# Separate data into two groups
+line_data <- land_elv # elevation 0-7 for line plot
+line_data_south <- land_elv_south %>% mutate(in_project =ifelse(in_project==1,"south_1","south_0"))
+bar_data <- land_project %>% mutate(elevation=8)
 
 
-# pct_drip
-elv_land %>% # 500 X 200
-  ggplot(aes(x = elevation, y = pct_drip, fill = factor(in_project))) +
-  geom_col(position = "dodge") +
-  scale_fill_manual(name = "", values = c("0" = "gray70", "1" = "dodgerblue4"),labels = c("Out Project", "In Project") ) +
-  scale_x_continuous( breaks = 0:9,labels = c("519m", "< 522m", "< 525m", "< 528m", "< 531m", "< 534m", "< 537m", "< 540m","" ,"Project") ) +
-  theme_minimal(base_family = "serif")+theme(legend.position="none")+
-  labs(title = "Percent of Drip-Irrigated Land in Elevation Bin", # | Southern Boundary", 
-       x = "Elevation",y = "")+
-  scale_y_continuous(limits = c(0, 0.07),
-                     labels = scales::percent_format(accuracy = 1) )
+#  acre_drip # 830 X 300
+ggplot() +
+  geom_line(data = line_data, aes(x = elevation, y = acre_drip, color = factor(in_project), group = in_project), size = 1.5) +
+  geom_col(data = bar_data, aes(x = elevation, y = acre_drip, fill = factor(in_project)), width = 0.7, position = "dodge") +
+  coord_cartesian(ylim = c(0, 0.75)) + 
+  scale_fill_manual(values = c("0" = "orange3", "1" = "dodgerblue4"),
+                    labels = c("No Elevation | Out", "No Elevation | In")) +
+  scale_color_manual(values = c("0" = "orange3", "1" = "dodgerblue4"),
+                     labels = c("Out Project", "In Project")) +
+  scale_x_continuous(breaks = 0:8,
+                     labels = c("519m", "< 522m", "< 525m", "< 528m", "< 531m", "< 534m", "< 537m", "< 540m", "Project")) +
+  theme_minimal(base_family = "serif") +
+  labs(title = "Drip-irrigated Land in Elevation Bin",
+       subtitle = "Thick line - Sample in the entire project area | Bars - Entire sample regardless elevation",
+       x = "Elevation", y = "Acre") +theme(legend.title = element_blank())
+
+#  acre_drip southern boundary # 830 X 300
+ggplot() +
+  geom_line(data = line_data_south, aes(x = elevation, y = acre_drip, color = factor(in_project), group = in_project), size = 0.8) +
+  geom_col(data = bar_data, aes(x = elevation, y = acre_drip, fill = factor(in_project)), width = 0.7, position = "dodge") +
+  coord_cartesian(ylim = c(0, 0.75)) + 
+  scale_fill_manual(values = c("0" = "orange3", "1" = "dodgerblue4"),
+                    labels = c("No Elevation | Out", "No Elevation | In")) +
+  scale_color_manual(values = c("south_0" = "orange3", "south_1" = "dodgerblue4"),
+                     labels = c("Out Project", "In Project")) +
+  scale_x_continuous(breaks = 0:8,
+                     labels = c("519m", "< 522m", "< 525m", "< 528m", "< 531m", "< 534m", "< 537m", "< 540m", "Project")) +
+  theme_minimal(base_family = "serif") +
+  labs(title = "Drip-irrigated Land in Elevation Bin | Southern Boundary",
+       subtitle = "Thin line - Sample in the entire project area | Bars - Entire sample regardless elevation",
+       x = "Elevation", y = "Acre") +theme(legend.title = element_blank())
+
+
+
+#  pct_drip # 830 X 300
+ggplot() +
+  geom_line(data = line_data, aes(x = elevation, y = pct_drip, color = factor(in_project), group = in_project), size = 1.5) +
+  geom_col(data = bar_data, aes(x = elevation, y = pct_drip, fill = factor(in_project)), width = 0.7, position = "dodge") +
+  coord_cartesian(ylim = c(0, 0.06)) + 
+  scale_fill_manual(values = c("0" = "orange3", "1" = "dodgerblue4"),
+                    labels = c("No Elevation | Out", "No Elevation | In")) +
+  scale_color_manual(values = c("0" = "orange3", "1" = "dodgerblue4"),
+                     labels = c("Out Project", "In Project")) +
+  scale_x_continuous(breaks = 0:8,
+                     labels = c("519m", "< 522m", "< 525m", "< 528m", "< 531m", "< 534m", "< 537m", "< 540m", "Project")) +
+  scale_y_continuous(labels = label_percent(scale = 100)) + 
+  theme_minimal(base_family = "serif") +
+  labs(title = "Percet of Drip-irrigated Land in Elevation Bin",
+       subtitle = "Thick line - Sample in the entire project area | Bars - Entire sample regardless elevation",
+       x = "Elevation", y = "") +theme(legend.title = element_blank())
+
+
+
+#  pct_drip southern boundary # 830 X 300
+ggplot() +
+  geom_line(data = line_data_south, aes(x = elevation, y = pct_drip, color = factor(in_project), group = in_project), size = 0.8) +
+  geom_col(data = bar_data, aes(x = elevation, y = pct_drip, fill = factor(in_project)), width = 0.7, position = "dodge") +
+  coord_cartesian(ylim = c(0, 0.06)) + 
+  scale_fill_manual(values = c("0" = "orange3", "1" = "dodgerblue4"),
+                    labels = c("No Elevation | Out", "No Elevation | In")) +
+  scale_color_manual(values = c("south_0" = "orange3", "south_1" = "dodgerblue4"),
+                     labels = c("Out Project", "In Project")) +
+  scale_x_continuous(breaks = 0:8,
+                     labels = c("519m", "< 522m", "< 525m", "< 528m", "< 531m", "< 534m", "< 537m", "< 540m", "Project")) +
+  scale_y_continuous(labels = label_percent(scale = 100)) + 
+  theme_minimal(base_family = "serif") +
+  labs(title = "Percet of Drip-irrigated Land in Elevation Bin",
+       subtitle = "Thin line - Sample in the entire project area | Bars - Entire sample regardless elevation",
+       x = "Elevation", y = "Acre") +theme(legend.title = element_blank())
 
 
 
 
 
 
-lm_rd <- lm(acre_drip ~ in_project + elevation, 
-            data = rd_land_2022 # %>% filter(abs(elevation) <= 2)
-)
-
-model_di <- 
-  lm(drip_use ~ in_project + elevation, 
-     data = rd_land_with_coords)
-summary(model_di)
-
-sjPlot::tab_model(model_di ,  show.se = T,digits = 3,     show.stat  = TRUE )
 
 
 
 
 
+
+
+
+
+
+# RD [dfRD_water] [dfRD_land] ............................................----
+dfRD_water <- rd_water_2022 %>% left_join(control_vars)
+dfRD_water_south <- rd_water_2022 %>% filter(south1_north0==1) %>% left_join(control_vars)
+dfRD_land <- rd_land_2022 %>% left_join(control_vars)
+dfRD_land_south <- rd_land_2022 %>% filter(south1_north0==1) %>% left_join(control_vars)
+
+
+# RD drip_use  ............................................................
+
+lm_rd1 <- lm(drip_use ~ in_project + elevation+
+             hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + 
+               housing_str321 + job_income_sourceS +govPnsin_scheme +rent_property +
+               total_livestock + total_farm_equipments, #| hh_id, # Adding fixed effects
+            data = dfRD_water)
+summary(lm_rd1)
+sjPlot::tab_model(lm_rd1 ,  show.se = T,digits = 3,     show.stat  = TRUE )
+
+lm_rd2 <- lm(drip_use ~ in_project + elevation+
+               hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + 
+               housing_str321 + job_income_sourceS +govPnsin_scheme +rent_property +
+               total_livestock + total_farm_equipments, #| hh_id, # Adding fixed effects
+             data = dfRD_water_south)
+
+sjPlot::tab_model(lm_rd1 ,lm_rd2,  show.se = T,digits = 3,     show.stat  = TRUE )
+
+
+# RD acre_drip  ............................................................
+lm_rd10 <- lm(acre_drip ~ in_project + elevation+
+               hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + 
+               housing_str321 + job_income_sourceS +govPnsin_scheme +rent_property +
+               total_livestock + total_farm_equipments, #| hh_id, # Adding fixed effects
+             data = dfRD_land)
+
+lm_rd20 <- lm(acre_drip ~ in_project + elevation+
+               hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + 
+               housing_str321 + job_income_sourceS +govPnsin_scheme +rent_property +
+               total_livestock + total_farm_equipments, #| hh_id, # Adding fixed effects
+             data = dfRD_land_south)
+
+sjPlot::tab_model(lm_rd10 ,lm_rd20,  show.se = T,digits = 3 )
+
+# RD pct_drip_land  ............................................................
+lm_rd100 <- lm(pct_drip_land ~ in_project + elevation+
+               hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + 
+               housing_str321 + job_income_sourceS +govPnsin_scheme +rent_property +
+               total_livestock + total_farm_equipments, #| hh_id, # Adding fixed effects
+             data = dfRD_land)
+
+lm_rd200 <- lm(pct_drip_land ~ in_project + elevation+
+               hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + 
+               housing_str321 + job_income_sourceS +govPnsin_scheme +rent_property +
+               total_livestock + total_farm_equipments, #| hh_id, # Adding fixed effects
+             data = dfRD_land_south)
+
+sjPlot::tab_model(lm_rd100 ,lm_rd200,  show.se = T,digits = 3 )
+
+
+
+
+# Visulize the RD  ----
+
+dfRD_water$Elevation <- ifelse(dfRD_water$in_project==0,dfRD_land$elevation*(-1),dfRD_land$elevation)
+dfRD_land$Elevation <- ifelse(dfRD_land$in_project==0,dfRD_land$elevation*(-1),dfRD_land$elevation)
+
+library(scales)
+dfRD_water %>% # filter(south1_north0==1) %>% 
+  ggplot(aes(x = Elevation, y =  drip_use, color = as.factor(in_project))) +
+  geom_smooth(method = "lm") + 
+  coord_cartesian(ylim = c(0, 0.45)) + 
+  geom_vline(xintercept = 0, color = "red4", size = 0.5) +
+  scale_color_manual(name = "",
+                     values = c("0" = "orange3", "1" = "dodgerblue4"),
+                     labels = c("Out Project", "In Project")) +
+  scale_x_continuous(breaks = (-7):7, 
+                     labels = c("< 540m", "< 537m", "< 534m", "< 531m", "< 528m", "< 525m", "< 522m",
+                                "519m", "< 522m", "< 525m", "< 528m", "< 531m", "< 534m", "< 537m", "< 540m")) +
+  scale_y_continuous(labels = label_percent(scale = 100)) + 
+  theme_minimal (base_family = "serif")+
+  labs(title =  "Spatial Regression Discontinuity | Percent of Drip Users in Elevation Bin",
+  # subtitle = "Southern Boundary",
+       x = "Elevation",y = "Percent")+
+  theme(panel.grid.major.x = element_blank())
+
+
+### acre_drip
+dfRD_land %>% # filter(south1_north0==1) %>% 
+  ggplot(aes(x = Elevation, y = acre_drip, color = as.factor(in_project))) +
+  geom_smooth(method = "lm") + 
+  coord_cartesian(ylim = c(0, 0.6)) + 
+  geom_vline(xintercept = 0, color = "red4", size = 0.5) +
+  scale_color_manual(name = "",
+                     values = c("0" = "orange3", "1" = "dodgerblue4"),
+                     labels = c("Out Project", "In Project")) +
+  scale_x_continuous(breaks = (-7):7, 
+                     labels = c("< 540m", "< 537m", "< 534m", "< 531m", "< 528m", "< 525m", "< 522m",
+                                "519m", "< 522m", "< 525m", "< 528m", "< 531m", "< 534m", "< 537m", "< 540m")) +
+  theme_minimal (base_family = "serif")+
+  labs(title =  "Spatial Regression Discontinuity | Drip-Irrigated Land in Elevation Bin",
+       # subtitle = "Southern Boundary",
+       x = "Elevation",y = "Acre")
+
+### pct_drip_land
+library(scales)
+dfRD_land %>% # filter(south1_north0==1) %>% 
+  ggplot(aes(x = Elevation, y =  pct_drip_land, color = as.factor(in_project))) +
+  geom_smooth(method = "lm") + 
+  coord_cartesian(ylim = c(0, 0.08)) + 
+  geom_vline(xintercept = 0, color = "red4", size = 0.5) +
+  scale_color_manual(name = "",
+                     values = c("0" = "orange3", "1" = "dodgerblue4"),
+                     labels = c("Out Project", "In Project")) +
+  scale_x_continuous(breaks = (-7):7, 
+                     labels = c("< 540m", "< 537m", "< 534m", "< 531m", "< 528m", "< 525m", "< 522m",
+                                "519m", "< 522m", "< 525m", "< 528m", "< 531m", "< 534m", "< 537m", "< 540m")) +
+  scale_y_continuous(labels = label_percent(scale = 100)) + 
+  theme_minimal (base_family = "serif")+
+  labs(title =  "Spatial Regression Discontinuity | Percent of Drip-Irrigated Land in Elevation Bin",
+       # subtitle = "Southern Boundary",
+       x = "Elevation",y = "Percent")+
+  theme(panel.grid.major.x = element_blank())
+
+
+
+  
 # summary stats for obs with coords ------------------------------
+
+
+
+
+
+
+
+
 
 
 
