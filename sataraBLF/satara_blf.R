@@ -4,8 +4,7 @@ library(tidyr)
 
 library(readxl)
 #import df ----
-BLF_Interact_Final <- read_excel("C:/Users/Dan/Downloads/BLF_Interact_Final.xlsx", 
-                                 sheet = "Y24_25")
+BLF_Interact_Final <- read_excel("C:/Users/Dan/Downloads/BLF_Interact_Final.xlsx", sheet = "Y24_25")
 View(BLF_Interact_Final)
 
 
@@ -24,7 +23,7 @@ df_farmer_crop_long <- df_farmer_crop %>%
   )
 
 
-# bar plot ----
+# bar plot
 ggplot(df_farmer_crop_long, aes(x = crop, y = percentage, fill = crop)) +
   geom_bar(stat = "identity") +
   theme_minimal() +
@@ -39,7 +38,7 @@ ggplot(df_farmer_crop_long, aes(x = crop, y = percentage, fill = crop)) +
 
 
 
-# How many acres of land do you farm?
+# How many acres of land do you farm?  ----
 land <- 
   BLF_Interact_Final %>% 
   select(farm_acre2, farmer_experience, msg_consultation ) %>% 
@@ -50,8 +49,8 @@ land$farmer_experience[land$farmer_experience=="More than 20 years"] <- "20+ yea
 
   
 
-# How long have you been a farmer?
-# Table ----
+# How long have you been a farmer?  ----
+# Table
 exp <- BLF_Interact_Final %>% count(farmer_experience) %>% 
   mutate(N=sum(n),pct = paste0(round(n / N * 100), "%"))
 exp$farmer_experience[exp$farmer_experience=="Less than 5 years"] <- "0-5 years"
@@ -76,7 +75,7 @@ df_shop_crop_long <- df_shop_crop %>%
   )
 
 
-# COMBINE  df_shop_crop_long df_farmer_crop_long ----
+# COMBINE  df_shop_crop_long df_farmer_crop_long
 
 d1 <- df_farmer_crop_long %>% 
   mutate(col1="Farmer Crop" )
@@ -88,7 +87,7 @@ d12 <-
   rbind(d1,d2) %>% 
   filter(crop != "Rice" )
 
-# bar plot ----
+# bar plot
 
 ggplot(d12, aes(x = crop, y = percentage, fill = col1)) +
   geom_bar(stat = "identity", position = position_dodge()) +
@@ -118,7 +117,7 @@ df_crop_prob_long <- df_crop_prob %>%
   )
 
 
-# bar plot ----
+# bar plot 
 ggplot(df_crop_prob_long, aes(x = crop, y = percentage, fill = crop)) +
   geom_bar(stat = "identity", fill = "royalblue4") +
   theme_minimal() +
@@ -133,7 +132,7 @@ ggplot(df_crop_prob_long, aes(x = crop, y = percentage, fill = crop)) +
 
 
 # Is it a pest problem? ----
-# Table ----
+# Table 
 BLF_Interact_Final %>% count(pest_problem_yn) %>% 
   mutate(N=sum(n),pct = paste0(round(n / N * 100), "%"))%>% 
   select(-N) %>% kbl() %>% kable_styling()
@@ -153,7 +152,7 @@ df_pest_prob_long <- df_pest_prob %>%
     crop = gsub("kind_", "", crop)
   )  
 
-# bar plot ----
+# bar plot
 df_pest_prob_long %>% 
   filter(crop!="other" ) %>% 
 ggplot(aes(x = crop, y = percentage)) +
@@ -172,7 +171,7 @@ ggplot(aes(x = crop, y = percentage)) +
 
 
 # disease_problem_yn ----
-# Table ----
+# Table
 BLF_Interact_Final %>% count(disease_problem_yn) %>% 
   mutate(N=sum(n),pct = paste0(round(n / N * 100), "%"))%>% 
   select(-N) %>% kbl() %>% kable_styling()
@@ -189,7 +188,7 @@ disease_prob_long <- disease_prob %>%
     crop = gsub("disease_problem_", "", crop)
     )
 
-# bar plot ----
+# bar plot 
 df_pest_prob_long %>% 
   filter(crop!="other" ) %>% 
   ggplot(aes(x = crop, y = percentage)) +
@@ -230,7 +229,7 @@ consultation_prob_long <- consultation_prob_2 %>%
 consultation_prob_long$ans[consultation_prob_long$ans=="no"] <- "Not consulting"
 
 
-# bar plot ----
+# bar plot
 consultation_prob_long %>%
   mutate(ans = factor(ans, levels = c("Not consulting", "BLF_Vendor", "Another_farmer", "Expert","GovAgronomist",
                                       "other",
@@ -247,7 +246,7 @@ consultation_prob_long %>%
 
 
 # Do you want to use Whatsapp Chatbot for consultation with Bayer Seminis or similar? ----
-# Table ----
+# Table 
 BLF_Interact_Final %>% count(want_msg_consultation) %>% 
   mutate(N=sum(n),pct = paste0(round(n / N * 100), "%"))%>% 
   select(-N) %>% kbl() %>% kable_styling()
@@ -256,6 +255,7 @@ BLF_Interact_Final %>% count(want_msg_consultation) %>%
 
 
 
+# farm size ----
 
 # Calculate the average farm size for each experience group
 land$farm_acre2= as.numeric(land$farm_acre2)
