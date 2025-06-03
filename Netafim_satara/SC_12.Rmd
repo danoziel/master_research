@@ -115,90 +115,134 @@ grid.arrange(p1_source, p2_source, ncol = 2, widths = c(1.2, 1))
 
 irrigation_pattern <- 
   df12_sugarcane %>% 
-  select(ir_method,irri_times_month,irri_times_week,irri_hours,irri_days_between_ir) %>% 
-  mutate(irri_days_between_ir=ifelse(ir_method=="Drip" & irri_days_between_ir>7,NA,irri_days_between_ir)) %>%
-  pivot_longer(cols = -ir_method, names_to = "variable", values_to = "value") %>%
+  select(ir_method,
+         irri_times_month,irri_times_week,irri_hours,irri_days_between_ir) %>% 
+  mutate(drip_month_estimated=irri_times_week*4.2,
+         flood_week_estimated=irri_times_month/4.2) %>% 
+  mutate(irri_days_between_ir=
+           ifelse(ir_method=="Drip" & irri_days_between_ir>7,NA,irri_days_between_ir)  ) %>%
+  pivot_longer(
+    cols = -ir_method, names_to = "variable", values_to = "value") %>%
   group_by(variable,ir_method) %>%
-   summarise(mean = mean(value, na.rm = TRUE),sd = sd(value, na.rm = TRUE),n = sum(!is.na(value)),se = sd / sqrt(n),ci_lower = mean - 1.96 * se,ci_upper = mean + 1.96 * se, .groups = "drop") %>% 
+  summarise(mean = mean(value, na.rm = TRUE),
+            sd = sd(value, na.rm = TRUE),n = sum(!is.na(value)),se = sd / sqrt(n),
+            ci_lower = mean - 1.96 * se,ci_upper = mean + 1.96 * se, .groups = "drop") %>% 
   filter(!is.na(sd))
 
-
 # Define the order and new labels
-ordered_vars <- c("irri_times_month","irri_times_week", "irri_hours", "irri_days_between_ir")
-new_labels <- c("irri_times_week" = "IR per Week",
-                "irri_times_month"= "IR per Month",    
-                "irri_hours" = "Hours per IR",
-                "irri_days_between_ir" = "Days Between IR")
+ordered_vars <- c("irri_times_month", "drip_month_estimated",
+                  "irri_times_week","flood_week_estimated",
+                  "irri_hours", "irri_days_between_ir")
 
-pattern_drip <- irrigation_pattern %>% filter(ir_method=="Drip") %>% 
-  ggplot(aes(x=factor(variable,levels=ordered_vars),y=mean,fill=variable)) +
-  geom_bar(stat = "identity", width = 0.6,fill = "dodgerblue2") +
+new_labels <- c("irri_times_week" = "Drips \nper Week",
+                "drip_month_estimated"="Drips \nper Month \nestimated",
+                "irri_times_month"= "Floods \nper Month",
+                "flood_week_estimated"="Floods \nper Week \nestimated",    
+                "irri_hours" = "Hours \nper IR",
+                "irri_days_between_ir" = "Days \nBetween IR")
+
+
+pattern_drip <- 
+  irrigation_pattern %>% filter(ir_method=="Drip") %>% 
+  ggplot(aes(x = factor(variable, levels = ordered_vars), y = mean, fill = variable)) +
+  geom_bar(stat = "identity", width = 0.6, fill = "dodgerblue2") +
   geom_errorbar(aes(ymin=ci_lower,ymax=ci_upper),width = 0.2,color = "black") +
-  geom_text(aes(label = round(mean, 2)),  position = position_stack(vjust = 0.5),color = "black", size = 4) +
+  geom_text(aes(label = round(mean, 2)),  position = position_stack(vjust = 0.5),
+            color = "black", size = 4) +
   scale_x_discrete(labels = new_labels) +
-  labs(title = "Drip Irrigation",x ="",y="") +
-  theme_minimal(base_family = "serif") +theme(legend.position = "none")+
-  scale_y_continuous(limits=c(0,15),breaks=seq(0,15,by=5))
+  labs(title = "Irrigation Pattern",x = "", y = "") +
+  theme_minimal(base_family = "serif") +
+  theme(legend.position = "none")
 
-pattern_flood <- irrigation_pattern %>% filter(ir_method=="Flood") %>% 
-  ggplot(aes(x=factor(variable,levels=ordered_vars),y=mean,fill=variable)) +
+pattern_flood <- 
+  irrigation_pattern %>% filter(ir_method=="Flood") %>% 
+  ggplot(aes(x = factor(variable, levels = ordered_vars), y = mean, fill = variable)) +
   geom_bar(stat = "identity", width = 0.6, fill = "gray") +
   geom_errorbar(aes(ymin=ci_lower,ymax=ci_upper),width = 0.2,color = "black") +
-  geom_text(aes(label = round(mean, 2)),  position = position_stack(vjust = 0.5),color = "black", size = 4) +
+  geom_text(aes(label = round(mean, 2)),  position = position_stack(vjust = 0.5),
+            color = "black", size = 4) +
   scale_x_discrete(labels = new_labels) +
-  labs(title = "Flood Irrigation",x ="",y="") +
-  theme_minimal(base_family = "serif") + theme(legend.position = "none")+
-  scale_y_continuous(limits=c(0,15),breaks=seq(0,15,by=5))
+  labs(title = "Irrigation Pattern",x = "", y = "") +
+  theme_minimal(base_family = "serif") +
+  theme(legend.position = "none")
 
-# grid.arrange(pattern_drip, pattern_flood, ncol=2, widths = c(1, 1), heights=c(1,1))
+grid.arrange(pattern_drip, pattern_flood, ncol=2, widths = c(1, 1), heights=c(3,1))
+```
 
+```{r flood_in_drip_plot_pattern}
 
-flood_in_drip_plot <- df2_sugarcane %>% 
+flood_in_drip_plot <- 
+  df2_sugarcane %>% 
   select(flood_before_after_drip,irri_months_drip_flood,
-         irri_days_drip_flood,irri_hours_drip_flood)
+         irri_days_drip_flood,irri_hours_drip_flood) %>% 
+  filter(!is.na(flood_before_after_drip)) %>% 
+  mutate(irri_months_drip_flood=
+           ifelse(irri_months_drip_flood>8,NA,irri_months_drip_flood)  ) %>%
+  mutate(flood_week_estimated=irri_months_drip_flood/4.2) %>% 
+  mutate(days_between_floods=30/irri_days_drip_flood  ) %>% 
+  mutate(days_between_floodsB=ifelse(irri_days_drip_flood>1,30/irri_days_drip_flood,NA) )
+
   
-
-p1_fl <- tibble::tribble(~Farm, ~flood_before_after_drip, ~n,
-               "Drip farm",  "Flood and Drip",16,"Drip farm","Drip only",1) %>%
-  mutate(freq_percent = n / sum(n) * 100) %>% 
-  ggplot(aes(x = Farm, y = freq_percent, fill = flood_before_after_drip)) +
-  geom_bar(stat = "identity") + 
-  geom_text(aes(label = paste0(round(freq_percent), "%")),
-            position = position_stack(vjust = 0.5),color = "white", size = 4) +
-  scale_fill_manual(values = c("Flood and Drip" = "dodgerblue4", "Drip only" = "dodgerblue2")) +
-  labs(title = "Flood irrigation in plots \nirrigated with drip systems",x="",y="" , fill = "" ) +
-  theme_minimal(base_family = "serif") + 
-  theme(axis.text = element_blank(),axis.ticks = element_blank(),panel.grid = element_blank())
-
-
-p2_fl <- flood_in_drip_plot %>%   select(-flood_before_after_drip) %>% 
+p1_fl <- 
+  flood_in_drip_plot %>%   select(-flood_before_after_drip) %>% 
   mutate(irri_days_drip_flood=
            ifelse(irri_days_drip_flood==11,NA,irri_days_drip_flood)) %>%
-  rename("IR per Month"= irri_days_drip_flood ,
-         "Hours per IR"= irri_hours_drip_flood,
-         "Months in a Year" = irri_months_drip_flood) %>% 
+  rename("Floods\na Month"= irri_days_drip_flood ,
+         "Floods\na Week \nestimated" =flood_week_estimated,
+         "Hours \nper IR"= irri_hours_drip_flood,
+         "Month in \na Year" = irri_months_drip_flood,
+         "Days \nBetween \nFloods I" = days_between_floods,
+         "Days \nBetween \nFloods II" = days_between_floodsB
+  ) %>% 
   pivot_longer(cols = everything(),
                names_to = "variable", values_to = "value",values_drop_na = T) %>%
   group_by(variable) %>%
   summarise(mean = mean(value, na.rm = TRUE),
             sd = sd(value, na.rm = TRUE),n = sum(!is.na(value)),se = sd / sqrt(n),
             ci_lower = mean - 1.96 * se,ci_upper = mean + 1.96 * se, .groups = "drop") %>% 
-  mutate(variable = factor(variable, levels = c("IR per Month","Hours per IR","Months in a Year"))) %>% 
+  mutate(variable = factor(variable, levels = c("Floods\na Month" ,
+         "Floods\na Week \nestimated",
+         "Hours \nper IR",
+         "Month in \na Year",
+         "Days \nBetween \nFloods I",
+         "Days \nBetween \nFloods II"))) %>% 
   
   ggplot(aes(x = variable, y = mean, fill = variable)) +
   geom_bar(stat = "identity", width = 0.6,fill="dodgerblue2") +
   geom_errorbar(aes(ymin=ci_lower,ymax=ci_upper),width = 0.2,color = "black") +
   geom_text(aes(label = round(mean, 2)),  position = position_stack(vjust = 0.5),
             color = "black", size = 4) +
-  labs(title = "Freq of flooding",x = "", y = "") +
+  labs(title = "Flooding in drip plot",x = "", y = "") +
   theme_minimal(base_family = "serif")
 
-grid.arrange(pattern_drip, pattern_flood,p1_fl,p2_fl, ncol=2, nrow =2, heights=c(7,7))
+
+p2_fl <- 
+df2_sugarcane %>% count(ir_method,flood_before_after_drip) %>% 
+  filter(!is.na(flood_before_after_drip)) %>% 
+  mutate(freq_percent = n / sum(n) * 100) %>% 
+  mutate(flood_before_after_drip=ifelse(flood_before_after_drip=="not_flood","Drip \nonly","Flood")) %>% 
+  ggplot(aes(x = ir_method, y = freq_percent, fill = flood_before_after_drip)) +
+  geom_bar(stat = "identity") + 
+  geom_text(aes(label = paste0(round(freq_percent), "%")),
+            position = position_stack(vjust = 0.5),color = "white", size = 4) +
+  scale_fill_manual(values = c("Flood" = "dodgerblue4", "Drip \nonly" = "gray")) +
+  labs(title = "Flooding in addition \nto dripping",x="",y="" , fill = "" ) +
+  theme_minimal(base_family = "serif") + 
+  theme(axis.text = element_blank(),axis.ticks = element_blank(),panel.grid = element_blank())
+
+
+grid.arrange(p1_fl, p2_fl, ncol=2, widths = c(3, 1), heights=c(3,1))
 
 
 ```
+<br>
+Days Between Floods I = Mean includeד the value 30 for "irrigation 1 time per month"  
+Days Between Floods II = Mean without "irrigation 1 time per month".
 
 <br><br><br>
+
+
+
 
 ## Sugarcane treatments
 
@@ -578,52 +622,65 @@ p1_jb <- job_biz %>% filter(!is.na(job_biz_income)) %>%
   theme_minimal(base_family = "serif") + 
   theme(axis.ticks = element_blank(),panel.grid = element_blank(),legend.position = "none")
 
-p2_jb <-job_biz %>% filter(!is.na(job_biz_less)) %>% 
-  group_by(ir_method) %>% summarise(freq_percent=mean(job_biz_less )*100) %>% 
 
-  ggplot(aes(x = ir_method, y = freq_percent,fill = ir_method)) +
-  geom_bar(stat = "identity") +     coord_flip() +
-  geom_text(aes(label = paste0(round(freq_percent), "%\n")),
-            position = position_stack(vjust = 0.5),color = "black", size = 4) +
-  labs(title = "Are you holding the job/business because drip causes LESS work?",subtitle = "fraction of farmers said YES",x = "",y = ""  ) +
-  scale_fill_manual(values = c("Drip" = "dodgerblue3", "Flood" = "gray")) +
-  theme_minimal(base_family = "serif") + 
-  theme(axis.ticks = element_blank(),panel.grid = element_blank(),
-        legend.position = "none")
-  
+grid.arrange(p1_jb, heights  = c(1, 1))
 
-grid.arrange(p1_jb,p2_jb, nrow=2, heights  = c(1, 1))
+```
+
+```{r job_biz 2}
+library(scales)
+library(kableExtra)
+
+
+job_biz %>%
+  filter(!is.na(job_biz_less)) %>%
+  summarise(n   = n(),
+            Yes = percent(mean(job_biz_less))) %>%
+  kable(caption = "Are you holding the job/business because drip causes LESS work?",
+        col.names = c("N", "Percent Yes"),align = c("r", "r")
+  ) %>%kable_minimal() 
+
+
+job_biz %>%
+  filter(!is.na(plan_install_drip_prevent_jobBiz)) %>%
+  summarise(n   = n(),
+            Yes = percent(mean(plan_install_drip_prevent_jobBiz))) %>%
+  kable(caption = "Are you concerned that drip will prevent you from holding a job/business?",
+        col.names = c("N", "Percent Yes"),align = c("r", "r")
+  ) %>%kable_minimal()
+
+job_biz %>%
+  filter(!is.na(plan_install_drip_why_not_jobBiz)) %>%
+  summarise(n   = n(),
+            Yes = percent(mean(plan_install_drip_why_not_jobBiz))) %>%
+  kable(caption = "Do you think using drip will prevent you from holding your job/business?",
+        col.names = c("N", "Percent Yes"),align = c("r", "r")
+  ) %>%kable_minimal()
 
 
 
 ```
+Are you holding the job/business because drip causes LESS work?
+Use Flood or Drip +  Hold job/biz_income
 
-**Are you concerned that drip will prevent you from holding a job/business?**
-ir_method==Flood & ${job_biz_income} = '1' 
-and plan_install_drip} = '1' 
+<br>
 
+Are you concerned that drip will prevent you from holding a job/business?
+Use Flood +  Hold job/biz_income + YES plan install drip
 
-**Do you think using drip will prevent you from holding your job/business?**
-ir_method==Flood & ${job_biz_income} = '1' 
-${plan_install_drip} = '0' 
-         
-         
+<br>
+
+Do you think using drip will prevent you from holding your job/business?
+Use Flood +  Hold job/biz_income + NO plan install drip
+
+<br>
+<br>
+<br>
+
 ```{r instions2}
 
 
 
 ```
 
-This is some text.
 
-<br>
-
-This is text after an empty line.
-
-\bigskip % a bit of vertical space
-
-\medskip % slightly less space
-
-\vspace{1cm}
-
-\% custom space

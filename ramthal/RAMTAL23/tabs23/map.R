@@ -124,6 +124,7 @@ points(boundary_coords[, "X"], boundary_coords[, "Y"], col = "yellow", pch = 19)
 text(boundary_coords[, "X"], boundary_coords[, "Y"],
      labels = seq_len(nrow(boundary_coords)), cex = 0.5, pos = 3)
 
+
 # Step 3: Remove bad points (retain only the clean southern segment)
 #             Manual selection to remove points 2-75 from step 2 plot
 boundary_coords_clean <- boundary_coords[76:nrow(boundary_coords), ]
@@ -182,10 +183,12 @@ coords_north <- st_coordinates(north2_edge_sf)[, c("X", "Y")]
 edge_segments <- list(coords_south, coords_north)
 
 # Step 3: Create MULTILINESTRING
-south_edge_sf <- st_multilinestring(edge_segments)
+combined_multiline <- st_multilinestring(edge_segments)
+# south_edge <- 
 
 # Step 4: Convert to sf object with same CRS
-south_edge_sf <- st_sfc(combined_multiline, crs = st_crs(southern_edge_sf))
+combined_edge_sf <- st_sfc(combined_multiline, crs = st_crs(southern_edge_sf))
+# south_edge_sf <- 
 
 # Plot result
 plot(combined_edge_sf, col = "red3", lwd = 2, main = "Combined Project Edge (Unconnected)")
@@ -283,6 +286,9 @@ df_for_Land_map <-
   mutate(elevation = ifelse(is.na(elevation),7,elevation),
          elevation=as.numeric(elevation)) 
 
+rd_water_with_coords
+rd_land_with_coords
+
 
 # ##      [rd_water_with_coords]       ----
 
@@ -295,10 +301,11 @@ rd_water_with_coords <-
 rd_water_with_coords <- rd_water_with_coords %>%
   st_as_sf(coords = c("X", "Y"), crs = 32643) # UTM
 
-# 3. Compute distance to the southern boundary line
+# 3. Compute distance to the southern boundary line  (south_edge_sf) (combined_edge_sf)
 rd_water_with_coords$dist_to_south_m <- st_distance(
   rd_water_with_coords,
-  south_edge_sf)
+  combined_edge_sf)
+  # south_edge_sf)
 
 # 3. Convert from units to numeric meters (optional but clearer)
 rd_water_with_coords$dist_to_south_m <- as.numeric(rd_water_with_coords$dist_to_south_m)
@@ -321,7 +328,8 @@ rd_land_with_coords <-
 # 3. Compute distance to the southern boundary line
 rd_land_with_coords$dist_to_south_m <- st_distance(
   rd_land_with_coords,
-  south_edge_sf) # df south_edge_sf creating is below
+  combined_edge_sf)
+  # south_edge_sf) # df south_edge_sf creating is below
 
 # 4. Convert from units to numeric meters (optional but clearer)
 rd_land_with_coords$dist_to_south_m <- as.numeric(rd_land_with_coords$dist_to_south_m)

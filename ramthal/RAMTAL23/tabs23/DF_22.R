@@ -15,7 +15,7 @@ library(rempsyc) # ttest # nice_table
 library(kableExtra )
 
 
-############################ full_seasons
+# DF [full_seasons] ----
 full_seasons <- 
   rmtl_InOut %>% select(hh_id,in1_out0,farmers_hh)%>% 
   mutate(kharif_2021=1,rabi_2021_22=1,kharif_2022=1) %>% 
@@ -70,8 +70,7 @@ rmtl_InOut <-
   )  %>% 
   rename(hh_6m_2021_22=hh_6m_2021) # %>%   select(-c(infrstr_17_21, waterIR_17_21) )
 
-# rmtl_In DF----
-rmtl_In <- rmtl_InOut %>% filter(in1_out0 ==1 )
+
 
 
 
@@ -89,67 +88,65 @@ attr(rmtl_srvy22$l7_rank_1, "labels")
 # 6        Rainfed
 # -888     Other (specify) == canal[7]
 
-L7_source_irri1 <- 
-  rmtl_srvy22 %>%select(farmers_hh, hh_id,starts_with("l7_"))%>%  
+# DF [hh_2022] N sample to water source
+hh_2022 <- 
+  rmtl_srvy22 %>% select(hh_id,farmers_hh) %>% 
+  group_by(farmers_hh) %>%  
+  mutate(N_in.out=n(),in_project=ifelse(farmers_hh=="inside_ramthal",1,0)) %>% ungroup()
+
+
+# DF [L7_source_irri]
+L7_source_irri <- 
+  rmtl_srvy22 %>%select(hh_id,starts_with("l7_"))%>%  
   mutate(l7_rank_1 = as.numeric (l7_rank_1),
          l7_rank_2 = as.numeric(l7_rank_2),
          l7_rank_3 = as.numeric(l7_rank_3)
-  ) %>%
+         ) %>%
+  # Set "canal" as 7 and combine it into "l7_rank_1 2 3"
   mutate(l7_rank_1=ifelse(l7_rank_1=="-888", 7 ,l7_rank_1),
          l7_rank_2=ifelse(l7_rank_2=="-888",7,l7_rank_2),
-         l7_rank_3=ifelse(l7_rank_3=="-888",7,l7_rank_3)) %>%select(-l7_other)
-
-a_source_irri2 <- 
-  L7_source_irri1 %>% 
-  select(hh_id, l7_rank_1, l7_rank_2,l7_rank_3 ) %>% 
-  pivot_longer(cols = -hh_id,names_to = "rank",  values_to = "SOURCE") %>% 
-  mutate(SOURCE= ifelse(is.na(SOURCE),6,SOURCE) ) %>% 
-  select(-rank) %>% distinct()
-
-a_source_irri2[a_source_irri2==6] <- 0
-a_source_irri2[a_source_irri2==2] <- 234
-a_source_irri2[a_source_irri2==3] <- 234
-a_source_irri2[a_source_irri2==4] <- 234
-
-a_source_irri3=
-  a_source_irri2 %>%
-  group_by(hh_id) %>%
-  mutate(source = ifelse(234 %in% SOURCE , "well_pond", 
-                  ifelse(any(SOURCE  == 7), "canal",
-                  ifelse(any(SOURCE  == 5), "gov_source",
-                         "no_source")))) %>% ungroup()
-
-a_source_irri4= a_source_irri3 %>% select(-SOURCE ) %>% distinct()
- 
-# a_source_irri5
-a_source_irri <-
-  a_source_irri4 %>% 
-  mutate(source_type=ifelse(source %in% c("well_pond","canal") ,"well_pond_canal",source)) 
-  
-rm(L7_source_irri1,a_source_irri2,a_source_irri3, a_source_irri4)
+         l7_rank_3=ifelse(l7_rank_3=="-888",7,l7_rank_3)
+         )
 
 
-a_source_irri %>% 
-  left_join(rmtl_InOut_groups)  %>% count(farmers_hh,source) %>% 
-  pivot_wider(names_from = farmers_hh, values_from = n)
+a_source_irri <- 
+  L7_source_irri %>%
+  mutate(source_ramthal = case_when(
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . == 5) ~ "ramthal",
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . == 4) ~ "borwell",
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . %in% c(2,3,7)) ~ "pond_Owell_canal",
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . == 6)      ~ "rain",
+    TRUE ~ NA_character_)
+  ) %>% 
+  mutate(source_borwell = case_when(
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . == 4) ~ "borwell",
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . == 5) ~ "ramthal",
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . %in% c(2,3,7)) ~ "pond_Owell_canal",
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . == 6)      ~ "rain",
+    TRUE ~ NA_character_)
+  ) %>% 
+  mutate(source_canal = case_when(
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . == 7) ~ "canal",
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . == 4) ~ "borwell",
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . == 5) ~ "ramthal",
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . %in% c(2,3)) ~ "pond_Owell",
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . == 6)      ~ "rain",
+    TRUE ~ NA_character_)
+  ) %>% 
+  mutate(source_rank1 = case_when(
+    l7_rank_1 == 2 ~ "pond",
+    l7_rank_1 == 3 ~ "openwell",
+    l7_rank_1 == 4 ~ "borwell",
+    l7_rank_1 == 5 ~ "ramthal",
+    l7_rank_1 == 6 ~ "rain",
+    l7_rank_1 == 7 ~ "canal",
+    TRUE ~ NA_character_)) %>% 
+  select(hh_id,source_rank1,source_ramthal, source_borwell, source_canal)
+    
+    
 
-a_source_irri %>% 
-  left_join(rmtl_InOut_groups) %>% count(farmers_hh,source_type) %>% 
-  pivot_wider(names_from = farmers_hh, values_from = n)
 
-a_source_irri %>% 
-  left_join(rmtl_InOut_groups) %>% 
-  mutate(water_source= ifelse(mm4==0,"no_source",source) ) %>% 
-  count(farmers_hh ,source) %>% 
-  mutate(pct=ifelse(farmers_hh== "inside_ramthal",n/946,n/666 )) %>% 
-  mutate_at(4,round,2) %>% select( -n) %>% 
-  pivot_wider(names_from = farmers_hh, values_from = pct)
 
-a_source_irri %>% 
-  left_join(rmtl_InOut_groups) %>% count(farmers_hh,source_type) %>%  
-  mutate(pct=ifelse(farmers_hh== "inside_ramthal",n/946,n/666 )) %>% 
-  mutate_at(4,round,2) %>% select( -n) %>% 
-  pivot_wider(names_from = farmers_hh, values_from = pct)
 
 
 

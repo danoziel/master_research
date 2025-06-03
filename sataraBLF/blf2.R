@@ -749,6 +749,7 @@ consult3 <- consult %>%
   select(id,consult) %>% 
   right_join(farmer_AGE ) %>% 
   count(consult,age_grp2) %>% filter(!is.na(consult)) %>% 
+  # filter(consult != "other") %>% group_by(age_grp2) %>% mutate(N=sum(n),pct=n/N)
   mutate(pct=ifelse(age_grp2=="<35",n/age_below35_N,n/age_above35_N))
 
 consult_vars  <- tibble(
@@ -758,7 +759,7 @@ consult_vars  <- tibble(
 
 # consult3 PLOT
 consult3 %>%
-  filter(consult != "other") %>% full_join(consult_vars) %>% 
+  full_join(consult_vars) %>% 
   mutate(consult = factor(consult, 
                           levels = c("farmer", "blf_center_vendor", "agronomist", "private_company_agronomist", 
                                      "government_agronomist", "app", "google", "youtube", "other", "no")) 

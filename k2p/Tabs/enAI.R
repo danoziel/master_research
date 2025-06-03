@@ -253,7 +253,7 @@ index_Email <-
 Ename_survey_1 <- english_learning_ai %>% select(me1) %>% 
   rename(name=me1) %>% 
   mutate(name = gsub("\\s+", "", name)) %>% distinct()
-
+<- 
 Ename_survey_2 <- english_learning_ai %>% select(me1,id,Email) %>% 
   rename(name=me1) %>% 
   mutate(name = gsub("\\s+", "", name)) %>% distinct() 
@@ -573,3 +573,54 @@ ggplot(avg_usage_by_cefr, aes(x = english_CERF_level, y = avg_usage)) +
 
 
 
+library(ggplot2)
+library(broom)
+
+# Manually enter your data from the table
+reg_data <- data.frame(
+  Model = rep(c("Intimidating", "Unpleasant", "Empowerment", "Total"), each = 2),
+  Predictor = rep(c("Self-Efficacy", "Post Course"), times = 4),
+  Estimate = c(-0.527, -0.160, -0.349, 0.166, 0.600, 0.000, -0.483, 0.012),
+  SE = c(0.048, 0.090, 0.044, 0.083, 0.038, 0.071, 0.032, 0.060)
+)
+
+# Manually enter your data from the table
+reg_data <- data.frame(
+  Model = rep(c("Intimidating", "Unpleasant", "Empowerment", "Total"), each = 2),
+  Predictor = rep(c("Engage", "Interac", "Wordy"), times = 4),
+  Estimate = c(-0.019, -0.010,-0.017,
+               -0.020,-0.002, -0.017,
+               0.014, -0.005, 0.015,
+               -0.019,-0.002,-0.016),
+  SE = c(0.008, 0.011, 0.009,
+         0.007,0.009,0.008,
+         0.007, 0.009, 0.007,
+         0.006,0.008,0.006)
+)
+
+
+reg_data <- reg_data %>%
+  mutate(
+    Lower = Estimate - 1.96 * SE,
+    Upper = Estimate + 1.96 * SE
+  )
+
+# Plot
+ggplot(reg_data, aes(x = Estimate, y = Model)) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = Lower, xmax = Upper), height = 0.2) +
+  facet_wrap(~ Model) +
+  theme_minimal() +
+  labs(title = "Regression Coefficients by Threat Component",
+       x = "Coefficient Estimate", y = "Predictor")
+
+
+
+
+
+
+
+
+
+
+library(ltm)

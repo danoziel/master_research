@@ -1,0 +1,31 @@
+\begin{table}
+\centering
+\begin{tblr}[         %% tabularray outer open
+]                     %% tabularray outer close
+{                     %% tabularray inner open
+colspec={Q[]Q[]},
+column{2}={}{halign=c,},
+column{1}={}{halign=l,},
+hline{10}={1,2}{solid, black, 0.05em},
+}                     %% tabularray inner close
+\toprule
+& (1) \\ \midrule %% TinyTableHeader
+(Intercept) & \num{0.008} \\
+& (\num{0.010}) \\
+in\_project & \num{0.003} \\
+& (\num{0.014}) \\
+Post & \num{0.091} \\
+& (\num{0.015}) \\
+in\_project × Post & \num{0.206} \\
+& (\num{0.020}) \\
+Num.Obs. & \num{3423} \\
+R2 & \num{0.166} \\
+R2 Adj. & \num{0.165} \\
+AIC & \num{1127.4} \\
+BIC & \num{1158.1} \\
+Log.Lik. & \num{-558.704} \\
+F & \num{227.104} \\
+RMSE & \num{0.28} \\
+\bottomrule
+\end{tblr}
+\end{table}

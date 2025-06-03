@@ -63,7 +63,7 @@ quantile(land_holding_2016$land_holding, 0.99,na.rm = T)
 
 
 
-#### IRRIGATION   ______________________________________________ ----
+#### IRRIGATION   _________________________________________________________ ----
 irrigation_2022         # in part1_WaterUsage.R
 irrigation_2018_2020   # in part1_WaterUsage.R
 irrigation_2017       # in part1_WaterUsage.R
@@ -101,7 +101,7 @@ ir_20 <- irrigation_2018_2020 %>% rename(drip_use=drip_use_2020,ir_use=ir_use_20
 # library(summarytools)
 freq(df$drip_use, plain.ascii = FALSE,cumul = T, style = "rmarkdown")
 
-# Cross Tab
+# Cross Tab ----
 crs_tab= ir_bl %>% full_join(treatment) %>% 
   rename(`Use DI`= drip_use,`Use IR`= ir_use,
          `In Project`=in_project) # %>% right_join(hh_2022 )
@@ -120,7 +120,9 @@ sjPlot::tab_xtab(var.row=crs_tab$`In Project`,var.col=crs_tab$`Use DI`) # title 
 # Use IR
 sjPlot::tab_xtab(var.row=crs_tab$`In Project`,var.col=crs_tab$`Use IR`)
 
-# df to DiD
+#    DiD           ----
+
+# df to DiD ...........................................
 df1=rbind(ir_bl,ir_end) %>% 
   full_join(treatment) %>% 
   full_join(control_vars) %>% 
@@ -134,18 +136,30 @@ df1=rbind(ir_bl,ir_18) %>% full_join(treatment) %>% full_join(control_vars) %>% 
 df1=rbind(ir_bl,ir_19) %>% full_join(treatment) %>% full_join(control_vars) %>% mutate(inProject_Post=in_project*Post)
 df1=rbind(ir_bl,ir_20) %>% full_join(treatment) %>% full_join(control_vars) %>% mutate(inProject_Post=in_project*Post)
 
-#    DiD           ----
 
 # DiD regression model to drip_use   HH FE
-library(lfe)
 did_model_drip <- 
-  felm(drip_use ~ in_project + Post + inProject_Post + 
+  lm(drip_use ~ in_project + Post + in_project * Post + 
          hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + 
          housing_str321 + job_income_sourceS +govPnsin_scheme +rent_property +
-         total_livestock + total_farm_equipments | hh_id, # Adding fixed effects
+         total_livestock + total_farm_equipments+ 
+       factor (hh_id), # Adding fixed effects
        data = df1)
-# summary(did_model_drip)
+
+summary(did_model_drip)
 sjPlot::tab_model(did_model_drip ,  show.se = T,digits = 5,     show.stat  = TRUE )
+# modelsummary(list("Simple" = model_small, "Full" = model_big))
+modelsummary(did_model_drip)
+tidy(model_1, conf.int = TRUE) %>% kable() %>% kable_paper()
+
+# Simple linear regression
+mod<- lm(drip_use ~ in_project + Post + in_project*Post+ 
+               hh_haed_edu_level, 
+             data = df1)
+
+
+
+
 
 
 # DiD regression model to ir_use
@@ -160,7 +174,7 @@ did_model_ir <-
 sjPlot::tab_model(did_model_ir ,  show.se = T,digits = 3,     show.stat  = TRUE )
 
 
-#### HIGH VALUE CROP   _________________________________________ ----
+#### HIGH VALUE CROP   ____________________________________________________ ----
 # High-value crops: share of farmers cultivating
 
 hv22 <- plots_crop_2022 %>% # in DF.22.R
@@ -221,10 +235,77 @@ did_model_hv <- # Sunflower, VegetablesANDFruits, Oilseeds, Sugarcane, cashcrop_
 summary(did_model_hv)
 sjPlot::tab_model(did_model_hv ,  show.se = T,digits = 5,     show.stat  = TRUE )
 
+#### TRADITIONAL CROP   ____________________________________________________ ----
+# share of farmers cultivating
+
+traditional_2022 <- plots_crop_2022 %>% # in DF.22.R
+  # filter(season != "kharif_2021") %>% 
+  select(hh_id,common_n2_family) %>% distinct() %>% 
+  mutate(value = 1) %>%
+  pivot_wider(
+    names_from = common_n2_family, 
+    values_from = value,
+    values_fill = list(value = 0)) %>% 
+  select(hh_id,"Toor","Bengal gram","Sorghum/jowar","Greengram") %>% 
+  mutate(traditional_crop_total = rowSums(select(., Toor:Greengram))) %>% 
+  mutate(traditional_crop_yn = ifelse(traditional_crop_total==0,0,1)) %>% 
+  rename(Sorghum_jowar =`Sorghum/jowar`, Bengal_gram = `Bengal gram`) %>% 
+  mutate(Post=1,Year=2022)
+
+BL_2015_16_crop_IRsource_IRmethod %>% count(crop_common)
+traditional_2015 <- BL_2015_16_crop_IRsource_IRmethod %>% 
+  # filter(season != "rabi_2015_16") %>% 
+  select(hh_id,crop_common) %>% distinct() %>% 
+  mutate(value = 1) %>%
+  pivot_wider(
+    names_from = crop_common, 
+    values_from = value,
+    values_fill = list(value = 0)) %>% 
+  select(hh_id,"Toor","Bengal_gram","Sorghum_jowar","Greengram") %>% 
+  mutate(traditional_crop_total = rowSums(select(., Toor:Greengram))) %>% 
+  mutate(traditional_crop_yn = ifelse(traditional_crop_total==0,0,1)) %>% 
+ mutate(Post=0,Year=2015)
+
+#    summary stat  ----
+rbind(traditional_2015,traditional_2022) %>% 
+  left_join(treatment)%>%
+  pivot_longer(
+    cols = c(Toor, Bengal_gram, Sorghum_jowar, Greengram, 
+             traditional_crop_total, traditional_crop_yn),
+    names_to = "crop",
+    values_to = "value"
+  ) %>% group_by(crop,Year, in_project) %>% 
+  summarise (N=n(),n=sum(value)) %>% ungroup() %>% 
+  mutate(pct=n/N) %>%  kableExtra:: kable()
+
+#    DiD           -----
+#     DiD regression model to traditional crops   HH FE
+traditional_df = rbind(traditional_2015,traditional_2022) %>% 
+  left_join(treatment) %>% 
+  left_join(control_vars) 
+
+mod_toor <- # Toor, Bengal_gram, Sorghum_jowar, Greengram, cashcrop_yn
+  lm(Toor    ~ in_project + Post + in_project * Post  + 
+         hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + 
+         housing_str321 + job_income_sourceS +govPnsin_scheme +rent_property +
+         total_livestock + total_farm_equipments+ factor(hh_id), # Adding fixed effects
+       data = traditional_df)
+
+# summary(did_model)
+# sjPlot::tab_model(did_model , show.se= T,digits= 5, show.stat= T )
+library(modelsummary)
+modelsummary(list("Toor"=mod_toor,"Chickpea"=mod_bg,"Sorghum (Jowar)"=mod_sj,"Greengram"=mod_gg), 
+             fmt = fmt_decimal(3, 3), 
+             statistic = c("{std.error}","{p.value}"), # no more parentheses
+             stars = F,
+             coef_map=c("Post"= "Post","in_project:Post"="In Project × Post"))
 
 
 
-#### CULTIVATION IRRIGATION LAND   _____________________________ ----
+
+
+
+#### CULTIVATION IRRIGATION LAND   ________________________________________ ----
 # Cultivated area (acres)
 
 # Make sure that the traditinal crop categorize in the same season
@@ -452,84 +533,142 @@ sjPlot::tab_model(did_model_df4 ,  show.se = T,digits = 5, show.stat  = F )
 
 #### YIELD		         ----					
 
+
+
+total_acre_22 <- a_plots_size %>% 
+  select(hh_id,plotID,acres)
+
 # yield_per_acre_2022
-yield_22A <- 
-  plots_crop_2022 %>% 
-  left_join(a_total_yield) %>% 
-  left_join(a_plots_size %>% 
-              select(hh_id,plotID,acres)) %>%
-  select(hh_id, season, plotID, crop_name,acres ,kg_crop) %>% 
-  group_by(hh_id, season, plotID) %>% 
-  mutate(total_crop_in_plot=n(), 
-         acre_crop=acres/total_crop_in_plot) %>% 
-  ungroup()
 
-yield_22B <- yield_22A %>% 
-  mutate(season = sub("_.*", "", season)) %>% 
-  group_by(season ,hh_id ) %>% 
-  summarise( acres=sum(acres ,na.rm = T),
-             kg_crop=sum(kg_crop,na.rm = T)) %>% 
-  group_by(season ,hh_id ) %>% 
-  reframe(kg_per_acre= kg_crop/acres) %>% ungroup() %>% 
-  filter(kg_per_acre>0)
+yield_per_acre_2022 <- 
+  a_total_yield %>% 
+  select(hh_id, season,plotID, kg_crop ) %>% 
+  left_join(total_acre_22) %>% 
+  filter(kg_crop>0) %>% 
+   mutate(season = sub("_.*", "", season)) %>% 
+  group_by(hh_id, season) %>% 
+  summarise(kg_crop=sum(kg_crop,na.rm = T),acres=sum(acres,na.rm = T),.groups = "drop" ) %>% 
+  mutate(kg_per_acre= kg_crop/acres) %>% 
+  mutate(Post=1)
 
-yield_per_acre_2022 <- yield_22B %>% 
-  mutate(Post=1,Year=2022)
+yield_per_acre_2022_99 <- quantile(yield_per_acre_2022$kg_per_acre, 0.99)
+yield_per_acre_2015_99 <- quantile(yield_per_acre_2015$kg_per_acre, 0.99)
 
-# yield_per_acre_2015
-# remove Toor to Kharif
-crop15 <- BL_2015_16_crop_IRsource_IRmethod %>% 
-  select(hh_id,season, plot_num,crop_num , crop_code) %>% 
-  rename(plotID = plot_num)%>%
-  mutate(crop_num = str_replace(crop_num, "_", "") %>%
-           tolower())
-  
-
-yield_per_acre_2015 <- bl_yield %>% ungroup() %>% 
-  left_join(crop15) %>% 
-  mutate(seasonII=ifelse(crop_code==9,"kharif",season)) %>% 
-  mutate(season=ifelse(is.na(seasonII),season,seasonII)) %>% 
-  mutate(season = sub("_.*", "", season)) %>% 
-  group_by(season ,hh_id ) %>% 
-  summarise(acre=sum(crop_acre ,na.rm = T),
-             kg=sum(kg_crop,na.rm = T)) %>% 
-  group_by(season ,hh_id ) %>% 
-  reframe(kg_per_acre= kg/acre) %>% ungroup()%>% 
-  filter(kg_per_acre != Inf) %>% 
-  mutate(Post=0,Year=2015)
-  
 #    summary stat  ----
-yield_per_acre <- rbind(yield_per_acre_2015,yield_per_acre_2022)
-hist(yield_per_acre$kg_per_acre)
-max(yield_per_acre$kg_per_acre)
-quantile(yield_per_acre$kg_per_acre, 0.99)
-quantile(yield_per_acre$kg_per_acre , 0.995)
+yield_per_acre_2022B <- yield_per_acre_2022 %>% 
+  mutate( kg_per_acre= ifelse(kg_per_acre > yield_per_acre_2022_99 , NA, kg_per_acre))
 
-yield_per_acre$kg_per_acre <- ifelse(yield_per_acre$kg_per_acre > 15300 , NA, yield_per_acre$kg_per_acre)
+yield_per_acre_2015B <- 
+  yield_per_acre_2015 %>% mutate(Post=0) %>% 
+  mutate( kg_per_acre= ifelse(kg_per_acre > yield_per_acre_2015_99 , NA, kg_per_acre))
 
-yield_per_acre %>% 
-  left_join(treatment)%>%
-  pivot_longer(
-    cols = c(kg_per_acre),
-    names_to = "land",
-    values_to = "value"
-  ) %>% group_by(Year,season,land, in_project) %>% 
-  summarise (N=n(),Mean=mean(value,na.rm = T)) %>% ungroup() %>% 
-  kableExtra:: kable()
+yield_per_acre <-  rbind(yield_per_acre_2015B,yield_per_acre_2022B)
 
-
-
-
-# Crop yield Traditional crops (Kg/acre)
+yield_per_acre %>% group_by(season,Post ) %>% 
+  summarise(Mean=mean(kg_per_acre,na.rm=T ),
+            SD=sd(kg_per_acre,na.rm=T),
+            Min=min(kg_per_acre,na.rm=T),
+            Max=max(kg_per_acre,na.rm=T),
+            .groups = 'drop') 
 
 
 
 
 
+#    DiD           -----
+#     DiD regression model to yield per acre   HH FE
+yield_per_acre_df = yield_per_acre %>% 
+  left_join(treatment) %>% 
+  left_join(control_vars) 
+
+yield_kharif_df <- yield_per_acre_df %>% filter(season=="kharif")
+yield_rabi_df <- yield_per_acre_df %>% filter(season=="rabi")
+
+mod_yield_rabi <- 
+  lm(kg_per_acre ~ in_project + Post + in_project * Post  + 
+       hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + 
+       housing_str321 + job_income_sourceS +govPnsin_scheme +rent_property +
+       total_livestock + total_farm_equipments+ factor(hh_id), # Adding fixed effects
+     data = yield_rabi_df)
+
+# summary(did_model)
+# sjPlot::tab_model(did_model , show.se= T,digits= 5, show.stat= T )
+library(modelsummary)
+modelsummary( list("Rabi | Yield per Acre (in Kg)"=mod_yield_rabi,"Kharif | Yield per Acre (in Kg)"=mod_yield_kharif), 
+             fmt = fmt_decimal(3, 3), 
+             statistic = c("{std.error}","{p.value}"), # no more parentheses
+             stars = F,
+             coef_map=c("Post"= "Post","in_project:Post"="In Project × Post"))
 
 
-# Lost yield Rabi (Kg/acre)
-# Lost yield Kharif (Kg/acre)
+
+
+# YIELD Sold Kept Lost             ----					
+# How much of the yield was [%]	# [percentage at Season-Crop]
+# [L52] Sold # [L53] Kept for HH consumption # [L54] Lost in post-harves
+
+L52_stored <- 
+  rmtl_srvy22 %>% select(hh_id, starts_with( "L52")) %>%
+  select(hh_id, contains("stored")) %>% 
+  pivot_longer(!hh_id, names_to = "POV", values_to = "count") %>% 
+  mutate(yld_status="stored")
+
+L52_Sold <- 
+  rmtl_srvy22 %>% select(hh_id, starts_with( "L52")) %>%
+  select(-contains("stored", ignore.case = TRUE)) %>%  # then drop the “stored” ones
+  pivot_longer(!hh_id, names_to = "POV", values_to = "count") %>% 
+    mutate(yld_status="sold")
+
+L53_Kept <- 
+  rmtl_srvy22 %>% select(hh_id, starts_with( "L53")) %>%
+  pivot_longer(!hh_id, names_to = "POV", values_to = "count")%>% 
+  mutate(yld_status="kept")
+  
+L54_Lost <- 
+  rmtl_srvy22 %>% select(hh_id, starts_with( "L54")) %>%
+  pivot_longer(!hh_id, names_to = "POV", values_to = "count") %>% 
+  mutate(yld_status="lost")
+
+library(stringr)
+L54_yield_status <- 
+  rbind(L52_Sold,L52_stored,L53_Kept,L54_Lost) %>% 
+  mutate(
+    season = case_when(
+      str_detect(POV, regex("rab",   ignore_case = TRUE)) ~ "rabi_2021_22",
+      str_detect(POV, regex("kha22", ignore_case = TRUE)) ~ "kharif_2022",
+      str_detect(POV, regex("kha",   ignore_case = TRUE)) ~ "kharif_2021",
+      TRUE~ NA_character_))
+
+yield_status <- L54_yield_status %>% 
+  filter(!is.na(count) ) %>% 
+  mutate(season = sub("_.*", "", season)) %>% 
+  group_by(hh_id,yld_status,season) %>% 
+  summarise(prt=mean(count), .groups = "drop")
+
+yield_status %>% 
+  left_join(treatment) %>% 
+  group_by(season,in_project,yld_status) |>rmtl_midline2018 %>% select(  contains("d55"))
+rmtl_midline2018 %>% select(  contains("d60"))
+rmtl_midline2018 %>% select(  contains("d60a"))
+rmtl_midline2018 %>% select(  contains("d60b"))
+
+  summarise(prt=mean(prt)) 
+            
+
+
+#| D29	55	What was the total yield?
+#| D31.2.1	60a	Sold
+#| D31.2.2	60b	Kept for HH consumption
+#| D31.2.3	60c	Lost in post-harvest
+#| D31.2.4	60d	Other (specify)
+
+
+
+
+
+
+
+
 # % Households using improved seeds Year
 
 

@@ -20,6 +20,8 @@ DF_1A <- SugarcaneDF_11Nov2024_10Dec2024 %>%
   
 # obs 11.12.24 onward
 Sugarcane_survey_24_25 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/NETAFIM_2024/Sugarcane_survey_24_25_-_all_versions.xlsx")
+Sugarcane_survey_24_25 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/NETAFIM_2024/Sugarcane_survey_24_25_all_versions_2705.xlsx")
+
 
 DF_1B <- Sugarcane_survey_24_25 %>% 
   rename(Mobile = farmer_mobilenumber) %>% 
@@ -290,6 +292,107 @@ irrigation_pattern <-
   df12_sugarcane %>% 
   select(ir_method,
          irri_times_month,irri_times_week,irri_hours,irri_days_between_ir) %>% 
+  mutate(drip_month_estimated=irri_times_week*4.2,
+         flood_week_estimated=irri_times_month/4.2) %>% 
+  mutate(irri_days_between_ir=
+           ifelse(ir_method=="Drip" & irri_days_between_ir>7,NA,irri_days_between_ir)  ) %>%
+  pivot_longer(
+    cols = -ir_method, names_to = "variable", values_to = "value") %>%
+  group_by(variable,ir_method) %>%
+  summarise(mean = mean(value, na.rm = TRUE),
+            sd = sd(value, na.rm = TRUE),n = sum(!is.na(value)),se = sd / sqrt(n),
+            ci_lower = mean - 1.96 * se,ci_upper = mean + 1.96 * se, .groups = "drop") %>% 
+  filter(!is.na(sd))
+
+# Define the order and new labels
+ordered_vars <- c("irri_times_month", "drip_month_estimated",
+                  "irri_times_week","flood_week_estimated",
+                  "irri_hours", "irri_days_between_ir")
+new_labels <- c("irri_times_week" = "Drip | Times per Week",
+                "drip_month_estimated"="Drip | Times per Month estimated",
+                "irri_times_month"= "Flood | Times per Month",
+                "flood_week_estimated"="Flood | Times per Week estimated",    
+                "irri_hours" = "Hours per Irrigation",
+                "irri_days_between_ir" = "Days Between Irrigation")
+
+
+# irrigation_pattern %>% filter(ir_method=="Drip") %>% 
+irrigation_pattern %>% filter(ir_method=="Flood") %>% 
+  ggplot(aes(x = factor(variable, levels = ordered_vars), y = mean, fill = variable)) +
+  geom_bar(stat = "identity", width = 0.6, 
+           #          fill = "dodgerblue2") +
+           fill = "gray") +
+  geom_errorbar(aes(ymin=ci_lower,ymax=ci_upper),width = 0.2,color = "black") +
+  geom_text(aes(label = round(mean, 2)),  position = position_stack(vjust = 0.5),
+            color = "black", size = 4) +
+  scale_x_discrete(labels = new_labels) +
+  labs(title = "Irrigation Pattern",x = "", y = "") +
+  theme_minimal(base_family = "serif") +
+  theme(legend.position = "none")
+
+
+##### flood_in_drip_plot pattern
+flood_in_drip_plot <- df2_sugarcane %>% 
+  select(flood_before_after_drip,irri_months_drip_flood,
+         irri_days_drip_flood,irri_hours_drip_flood) %>% 
+  filter(!is.na(flood_before_after_drip)) %>% 
+  mutate(irri_months_drip_flood=
+           ifelse(irri_months_drip_flood>8,NA,irri_months_drip_flood)  ) %>%
+  mutate(flood_week_estimated=irri_months_drip_flood/4.2) %>% 
+  mutate(days_between_floods=30/irri_days_drip_flood  ) %>% 
+  mutate(days_between_floodsB=ifelse(irri_days_drip_flood>1,30/irri_days_drip_flood,NA) )
+  
+flood_in_drip_plot %>%   select(-flood_before_after_drip) %>% 
+  mutate(irri_days_drip_flood=
+           ifelse(irri_days_drip_flood==11,NA,irri_days_drip_flood)) %>%
+  rename("Times per Month"= irri_days_drip_flood ,
+         "Times per Week estimated" =flood_week_estimated,
+         "Hours per Irrigation"= irri_hours_drip_flood,
+         "Month in a Year" = irri_months_drip_flood,
+         "Days Between Floods" = days_between_floods,
+         "Days Between Floods B" = days_between_floodsB
+  ) %>% 
+  pivot_longer(cols = everything(),
+               names_to = "variable", values_to = "value",values_drop_na = T) %>%
+  group_by(variable) %>%
+  summarise(mean = mean(value, na.rm = TRUE),
+            sd = sd(value, na.rm = TRUE),n = sum(!is.na(value)),se = sd / sqrt(n),
+            ci_lower = mean - 1.96 * se,ci_upper = mean + 1.96 * se, .groups = "drop") %>% 
+  mutate(variable = factor(variable, levels = c("Times per Month","Times per Week estimated",
+                                                "Hours per Irrigation","Month in a Year",
+                                                "Days Between Floods","Days Between Floods B"))) %>% 
+  
+  ggplot(aes(x = variable, y = mean, fill = variable)) +
+  geom_bar(stat = "identity", width = 0.6,fill="dodgerblue2") +
+  geom_errorbar(aes(ymin=ci_lower,ymax=ci_upper),width = 0.2,color = "black") +
+  geom_text(aes(label = round(mean, 2)),  position = position_stack(vjust = 0.5),
+            color = "black", size = 4) +
+  labs(title = "Flooding in drip plot",x = "", y = "") +
+  theme_minimal(base_family = "serif")
+
+
+#### PLOT  flood freq in drippers
+df2_sugarcane %>% count(ir_method,flood_before_after_drip) %>% 
+  filter(!is.na(flood_before_after_drip)) %>% 
+  mutate(freq_percent = n / sum(n) * 100) %>% 
+  mutate(flood_before_after_drip=ifelse(flood_before_after_drip=="not_flood","Drip \nonly","Flood")) %>% 
+  ggplot(aes(x = ir_method, y = freq_percent, fill = flood_before_after_drip)) +
+  geom_bar(stat = "identity") + 
+  geom_text(aes(label = paste0(round(freq_percent), "%")),
+            position = position_stack(vjust = 0.5),color = "white", size = 4) +
+  scale_fill_manual(values = c("Flood" = "dodgerblue4", "Drip \nonly" = "gray")) +
+  labs(title = "Flooding in addition to dripping",x="",y="" , fill = "" ) +
+  theme_minimal(base_family = "serif") + 
+  theme(axis.text = element_blank(),axis.ticks = element_blank(),panel.grid = element_blank())
+
+
+#| ----------------------------------------------------------------------------
+#| OLD irrigation_pattern----------------------------------------------------------
+
+irrigation_pattern <- 
+  df12_sugarcane %>% 
+  select(ir_method,
+         irri_times_month,irri_times_week,irri_hours,irri_days_between_ir) %>% 
   mutate(irri_days_between_ir=
            ifelse(ir_method=="Drip" & irri_days_between_ir>7,NA,irri_days_between_ir)  ) %>%
   pivot_longer(
@@ -333,14 +436,12 @@ pattern_flood %>%
 
 flood_in_drip_plot <- df2_sugarcane %>% 
   select(flood_before_after_drip,irri_months_drip_flood,
-         irri_days_drip_flood,irri_hours_drip_flood)
-  
-flood_in_drip_plot %>% count(flood_before_after_drip)
+         irri_days_drip_flood,irri_hours_drip_flood,ir_method)
 
-tibble::tribble(~Farm, ~flood_before_after_drip, ~n,
-               "Drip farm",  "flood_before_drip",16,"Drip farm","Drip only",1) %>%
+flood_in_drip_plot %>% count(ir_method,flood_before_after_drip) %>% 
+  filter(!is.na(flood_before_after_drip)) %>% 
   mutate(freq_percent = n / sum(n) * 100) %>% 
-  ggplot(aes(x = Farm, y = freq_percent, fill = flood_before_after_drip)) +
+  ggplot(aes(x = ir_method, y = freq_percent, fill = flood_before_after_drip)) +
   geom_bar(stat = "identity") + 
   geom_text(aes(label = paste0(round(freq_percent), "%")),
             position = position_stack(vjust = 0.5),color = "white", size = 4) +
@@ -808,6 +909,20 @@ job_biz %>% filter(!is.na(job_biz_income)) %>%
 
 # Are you holding the job/business because drip causes LESS work?
 # ${job_biz_income} = '1'
+
+library(scales)
+library(kableExtra)
+
+job_biz %>%
+  filter(!is.na(job_biz_less)) %>%
+  summarise(n   = n(),
+            Yes = percent(mean(job_biz_less))) %>%
+  kable(caption = "Are you holding the job/business because drip causes LESS work?",
+        col.names = c("N", "Percent Yes"),align = c("r", "r")
+  ) %>%kable_minimal()
+
+
+
 job_biz %>% filter(!is.na(job_biz_less)) %>% 
   group_by(ir_method) %>% summarise(freq_percent=mean(job_biz_less )*100) %>% 
   ggplot(aes(x = ir_method, y = freq_percent,fill = ir_method)) +
@@ -825,8 +940,24 @@ job_biz %>% filter(!is.na(job_biz_less)) %>%
 # #         ir_method==Flood & ${job_biz_income} = '1' 
 # #         and plan_install_drip} = '1'  
 
+
+library(scales)
+library(kableExtra)
+
+job_biz %>%
+  filter(!is.na(plan_install_drip_prevent_jobBiz)) %>%
+  summarise(n   = n(),
+            Yes = percent(mean(plan_install_drip_prevent_jobBiz))) %>%
+  kable(caption = "Are you concerned that drip will prevent you from holding a job/business?",
+        "<br><em>Rural Maharashtra Survey, 2025</em>",
+        col.names = c("N", "Percent Yes"),align = c("r", "r")
+  ) %>%kable_minimal()
+
+
+
 job_biz %>% filter(!is.na(plan_install_drip_prevent_jobBiz)) %>% 
-  summarise(Yes=mean(plan_install_drip_prevent_jobBiz ))
+  summarise(n=n(), Yes=mean(plan_install_drip_prevent_jobBiz ))%>% 
+  kable() %>% kable_minimal()
 
 job_biz %>% filter(!is.na(plan_install_drip_prevent_jobBiz)) %>% 
   group_by(ir_method) %>% summarise(freq_percent=mean(plan_install_drip_prevent_jobBiz )*100) %>% 
@@ -849,12 +980,20 @@ job_biz %>% filter(!is.na(plan_install_drip_prevent_jobBiz)) %>%
 
 job_biz %>% 
   filter(!is.na(plan_install_drip_why_not_jobBiz)) %>% 
-  summarise(Yes=mean(plan_install_drip_why_not_jobBiz ))
+  summarise(n=n(), Yes=mean(plan_install_drip_why_not_jobBiz )) %>% 
+  kable() %>% kable_minimal()
 
 
-tibble::tribble( ~plan_install_drip_why_not_jobBiz,
-                 1,1,1,0,0,0,1,0,1,1,0,0,0,0,0,0,0) %>%
-  summarise(Yes=mean(plan_install_drip_why_not_jobBiz ))
+
+
+
+
+
+
+
+
+
+
 
 
 

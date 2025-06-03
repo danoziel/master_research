@@ -90,13 +90,16 @@ wi2018 %>% count(in1_out0,start_use_water) %>% mutate(pct = n / sum(n), .by = in
 #🟩  L7  ir source                    -----
 
 a_source_irri %>%  # Freq: source_type
-  left_join(rmtl_InOut_groups) %>% count(farmers_hh,source_type) %>%  
-  mutate(pct=ifelse(farmers_hh== "inside_ramthal",n/946,n/666 )) %>% 
+  left_join(rmtl_InOut) %>% 
+  group_by(farmers_hh,source_type) %>%  summarise(n=n()) %>% mutate(pct=n/sum(n)) %>% 
   mutate_at(4,round,2) %>% select( -n) %>% 
   pivot_wider(names_from = farmers_hh, values_from = pct)
 
 a_source_irri %>% # Freq: source
-  left_join(rmtl_InOut_groups) %>% count(farmers_hh,source) %>%  mutate(pct=ifelse(farmers_hh== "inside_ramthal",n/946,n/666 )) %>% mutate_at(4,round,2) %>% select( -n) %>% pivot_wider(names_from = farmers_hh, values_from = pct)
+  left_join(rmtl_InOut) %>% 
+  group_by(farmers_hh,source) %>%  summarise(n=n()) %>% mutate(pct=n/sum(n)) %>% 
+  mutate_at(4,round,2) %>% select( -n) %>% 
+  pivot_wider(names_from = farmers_hh, values_from = pct)
 
 ######################## t test L7a  rmtl_InOut_groups
 ir_source <- 
@@ -560,8 +563,7 @@ irrigation_2017 <-
   ml18_irri_methods %>% 
   rename(ir_method_2017=irri_method  ) %>%
   mutate(ir_use_2017  =ifelse(ir_method_2017=="rain",0,1),
-         drip_use_2017=ifelse(ir_method_2017=="drip",1,0),
-         in_project= ifelse(farmers_hh=="outside_ramthal",0,1)) %>%  
+         drip_use_2017=ifelse(ir_method_2017=="drip",1,0)) %>%  
   select(-irri,-farmers_hh)
 
 # irrigation_BL        ----

@@ -613,7 +613,7 @@ D24_os2 <- D24_os1 %>%  select(-contains("os") )%>%
   mutate(across(-hh_id, as.character)) %>%  # Convert all columns (except hh_id) to character
   mutate(across(
     where(is.character), ~ ifelse(. %in% c("NA", "0","-666", "-888", "-777","-999", "-444"), NA, .) # Replace specific character values with NA
-  )) %>%   pivot_longer(-hh_id, names_to = "plot_num", values_to = "crop_bl")
+  )) %>%   pivot_longer(-hh_id, names_to = "plotID", values_to = "crop_bl")
 
 
 D24_os2 %>% count(crop_bl)
@@ -654,19 +654,20 @@ D24_os3 <- D24_os2 %>%
   ))
 
 
+
 D24 <- D24_os3%>% 
   filter(!is.na(crop_bl))
 
-D24$season <- sub("^(D24_1)_.*", "rabi_2015_16", D24$plot_num)
+D24$season <- sub("^(D24_1)_.*", "rabi_2015_16", D24$plotID)
 D24$season <- sub("^(D24_2)_.*", "kharif_2015", D24$season)
 D24$season <- sub("^(D24_3)_.*", "rabi_2014_15", D24$season)
 
-D24$crop_num <- sub("^.*_(Crop_\\d+)_.*", "\\1", D24$plot_num)
+D24$crop_num <- sub("^.*_Crop_(\\d+)_.*", "crop\\1", D24$plotID)
 
-D24$plot_num <- str_replace(D24$plot_num, "^.*_(\\d)$", "plot_0\\1")
-D24$plot_num <- str_replace(D24$plot_num, "^.*_10$", "plot_10")
+D24$plotID <- str_replace(D24$plotID, "^.*_(\\d)$", "plot_0\\1")
+D24$plotID <- str_replace(D24$plotID, "^.*_10$", "plot_10")
 
-D24$plot_num[D24$plot_num == "D24_10"] <- "plot_10" 
+D24$plotID[D24$plotID == "D24_10"] <- "plot_10" 
 
 D24[,1] %>% distinct() # A tibble: 1,729 × 1
 
@@ -708,10 +709,6 @@ bl_crop_plot_3s=
       crop_common %in% c("Chillies","Vegetables") ~ "VegetablesANDFruits",
       TRUE ~ crop_common  )
     )           
-      
-  
-bl_crop_plot_3s
-
 
 
 
@@ -721,33 +718,33 @@ bl_crop_plot_3s
 D28_1 <- # 2015-16 RABI  
   rmtl_baseline2016 %>% select(farmers_hh, hh_id, starts_with("D28_1") ) %>% 
   select(farmers_hh: D28_1_irrigated_1_10)  %>% 
-  pivot_longer(-c(farmers_hh,hh_id), names_to = "plot_num", values_to = "irri_plot") %>% filter(!is.na(irri_plot))
-D28_1$plot_num <- str_replace(D28_1$plot_num, "D28_1_irrigated_\\d_(\\d)$", "plot_0\\1")
-D28_1$plot_num[D28_1$plot_num=="D28_1_irrigated_1_10"] <- "plot_10"
+  pivot_longer(-c(farmers_hh,hh_id), names_to = "plotID", values_to = "irri_plot") %>% filter(!is.na(irri_plot))
+D28_1$plotID <- str_replace(D28_1$plotID, "D28_1_irrigated_\\d_(\\d)$", "plot_0\\1")
+D28_1$plotID[D28_1$plotID=="D28_1_irrigated_1_10"] <- "plot_10"
 D28_1=D28_1 %>% 
-  group_by(farmers_hh,hh_id,plot_num) %>% summarise(irri_plot=sum(irri_plot)) %>% 
+  group_by(farmers_hh,hh_id,plotID) %>% summarise(irri_plot=sum(irri_plot)) %>% 
   mutate(irri_plot=ifelse( irri_plot>0,1,0 )) %>% distinct() %>% 
   mutate(season="rabi_2015_16") %>% ungroup()
 
 D28_2 <- # 2015 KHARIF
   rmtl_baseline2016 %>% select(farmers_hh, hh_id, starts_with("D28_2") ) %>% 
   select(farmers_hh: D28_2_irrigated_1_7)  %>% 
-  pivot_longer(-c(farmers_hh,hh_id), names_to = "plot_num", values_to = "irri_plot") %>% filter(!is.na(irri_plot))
-D28_2$plot_num <- str_replace(D28_2$plot_num, "D28_2_irrigated_\\d_(\\d)$", "plot_0\\1")
+  pivot_longer(-c(farmers_hh,hh_id), names_to = "plotID", values_to = "irri_plot") %>% filter(!is.na(irri_plot))
+D28_2$plotID <- str_replace(D28_2$plotID, "D28_2_irrigated_\\d_(\\d)$", "plot_0\\1")
 D28_2=D28_2 %>% 
-  group_by(farmers_hh,hh_id,plot_num) %>% summarise(irri_plot=sum(irri_plot)) %>% 
+  group_by(farmers_hh,hh_id,plotID) %>% summarise(irri_plot=sum(irri_plot)) %>% 
   mutate(irri_plot=ifelse( irri_plot>0,1,0 )) %>% distinct() %>% mutate(season="kharif_2015") %>% 
   ungroup()
 
 D28_3 <- # 2014-15 RABI
   rmtl_baseline2016 %>% select(farmers_hh, hh_id, starts_with("D28_3") ) %>% 
   select(farmers_hh: D28_3_irrigated_1_10)  %>% 
-  pivot_longer(-c(farmers_hh,hh_id), names_to = "plot_num", values_to = "irri_plot") %>% filter(!is.na(irri_plot))
-D28_3$plot_num <- str_replace(D28_3$plot_num, "D28_3_irrigated_\\d_(\\d)$", "plot_0\\1")
-D28_3$plot_num[D28_3$plot_num=="D28_3_irrigated_1_10"] <- "plot_10"
+  pivot_longer(-c(farmers_hh,hh_id), names_to = "plotID", values_to = "irri_plot") %>% filter(!is.na(irri_plot))
+D28_3$plotID <- str_replace(D28_3$plotID, "D28_3_irrigated_\\d_(\\d)$", "plot_0\\1")
+D28_3$plotID[D28_3$plotID=="D28_3_irrigated_1_10"] <- "plot_10"
 
 D28_3=D28_3 %>% 
-  group_by(farmers_hh,hh_id,plot_num) %>% 
+  group_by(farmers_hh,hh_id,plotID) %>% 
   summarise(irri_plot=sum(irri_plot)) %>% 
   mutate(irri_plot=ifelse( irri_plot>0,1,0 )) %>% 
   distinct() %>% 
@@ -760,11 +757,35 @@ bl28_irri_plot_season <-
 rm(D28_1,D28_2,D28_3)
 
 #### YIELD		         ----					
-# [D29]	What was the total yield? (Quintals)      || bl_crop_yield  ----
-D29_a <- 
-  rmtl_baseline2016 %>% select(hh_id, starts_with("D29") )
+# [D30]	In what terms is the yield defined?	----
 
-D29_a[1,] %>% select(where(~ !all(is.na(.))))
+#| IGNORE D30 - IT SEEMS UNRILIBLE
+
+      # 1 Quintals in total (the whole plot)
+      # 2	Quintals/acre
+      # 3	Quintals/gunta
+
+# d30 <- 
+#   rmtl_baseline2016 %>% 
+#   select(hh_id, starts_with("D30"), -ends_with("_0") ) %>% 
+#   pivot_longer(-hh_id, names_to = "scp", values_to = "yield_defined") %>% 
+#   filter(yield_defined>0) %>% 
+#   separate(scp, into = c("prefix1", "number1", "prefix2", "number2", "number3"), sep = "_") %>%
+#   select(-prefix2,-prefix1) %>% 
+#   unite("season_croplot_plot", number1:number3, sep = "_", remove = TRUE)
+# 
+# inner_join(d24,d29 ) %>% left_join(d30) %>% filter(is.na(yield_defined ))
+# d_index <- inner_join(d24,d29 ) %>% left_join(d30)
+# d_index$yield_defined <- ifelse(is.na(d_index$yield_defined),1,d_index$yield_defined)
+# d_index %>% count(yield_defined)
+# 
+# d2930 <- 
+#   left_join(d29,d30) %>% 
+#   mutate(yield_defined=ifelse(is.na(yield_defined),1, yield_defined)) %>% 
+#   left_join(bl6_plotAcre %>% select(-farmers_hh) )
+
+# [D29]	What was the total yield? (Quintals)      || bl_crop_yield  ----
+
 
 d29 <- 
   rmtl_baseline2016 %>% 
@@ -775,38 +796,11 @@ d29 <-
   select(-prefix2,-prefix1) %>% 
   unite("season_croplot_plot", number1:number3, sep = "_", remove = TRUE)
 
-# [D30]	In what terms is the yield defined?	
-      # 1 Quintals in total (the whole plot)
-      # 2	Quintals/acre
-      # 3	Quintals/gunta
-
-d30 <- 
-  rmtl_baseline2016 %>% 
-  select(hh_id, starts_with("D30"), -ends_with("_0") ) %>% 
-  pivot_longer(-hh_id, names_to = "scp", values_to = "yield_defined") %>% 
-  filter(yield_defined>0) %>% 
-  separate(scp, into = c("prefix1", "number1", "prefix2", "number2", "number3"), sep = "_") %>%
-  select(-prefix2,-prefix1) %>% 
-  unite("season_croplot_plot", number1:number3, sep = "_", remove = TRUE)
-
-inner_join(d24,d29 ) %>% left_join(d30) %>% filter(is.na(yield_defined ))
-d_index <- inner_join(d24,d29 ) %>% left_join(d30)
-d_index$yield_defined <- ifelse(is.na(d_index$yield_defined),1,d_index$yield_defined)
-d_index %>% count(yield_defined)
 
 
-d2930 <- 
-  left_join(d29,d30) %>% 
-  mutate(yield_defined=ifelse(is.na(yield_defined),1, yield_defined)) %>% 
 
-  left_join(bl6_plotAcre %>% select(-farmers_hh) )
-
-
-# D29_a <- 
-#   rmtl_baseline2016 %>% select(hh_id, starts_with("D29") )
-# 
-# D29_a[1,] %>% select(where(~ !all(is.na(.))))
-
+library(tidyr)
+library(stringr)
 
 D29_a <- 
   rmtl_baseline2016 %>% 
@@ -828,28 +822,36 @@ D29_a$crop_num <- paste0("crop", D29_a$crop_num)
 # D29_a %>% count(plotID)
 D29_a$plotID <- ifelse(nchar(D29_a$plotID) == 1, paste0("plot_0", D29_a$plotID), paste0("plot_", D29_a$plotID))
 
-BL_plotAcre <- bl6_plotAcre %>% select(-farmers_hh) %>% rename(plotID =plot_num )
-
-D29_b <- 
-  D29_a %>% 
-  separate(season_crop_plot, into = c("prefix1", "number1", "prefix2", "number2", "number3"), sep = "_") %>%
-  select(-prefix2,-prefix1) %>% 
-  unite("season_croplot_plot", number1:number3, sep = "_", remove = TRUE) %>% 
-  left_join(d30) %>% 
-  left_join(BL_plotAcre ) %>%
-  group_by(hh_id,season,plotID ) %>% 
-  mutate(total_crop_in_plot=n(),crop_acre=plot_acre/total_crop_in_plot)
-  
-bl_yield <- D29_b %>% 
-  mutate(kg_crop=yield*100) %>% 
-  mutate(kg_crop=ifelse(yield_defined==2,kg_crop*plot_acre,kg_crop)
-         ) %>% 
-  filter(kg_crop>0 )
   
 
-  
+BL_plotAcre <- bl6_plotAcre %>% select(-farmers_hh) %>% rename(plotID =plot_num )  # A tibble: 3,455
+
+
+
+BL_plotCrop <- bl_crop_plot_3s %>% 
+  select(hh_id ,plotID, season,crop_num , crop_name) %>% 
+  right_join(D29_a %>% select(hh_id ,plotID,crop_num , season,yield))
+BL_plotCrop$season[BL_plotCrop$crop_name=="Toor"] <- "kharif_2015"
+
+
+yield_per_acre_2015 <- 
+  BL_plotCrop %>% select(hh_id, yield ,season,plotID  ) %>% 
+  filter (yield >0) %>% 
+  left_join(BL_plotAcre) %>%  filter(plot_acre>0) %>% 
+   mutate(season = sub("_.*", "", season)) %>% 
+  group_by(hh_id, season) %>% 
+  summarise(kg_crop=sum(yield,na.rm = T)*100,
+            acres=sum(plot_acre,na.rm = T),.groups = "drop" ) %>% 
+  mutate(kg_per_acre= kg_crop/acres) 
+
+yield_per_acre_2015_99 <- quantile(yield_per_acre_2015$kg_per_acre, 0.99)
 
   
+yield_per_acre_2015 %>% group_by(season) %>% 
+  filter(kg_per_acre<yield_per_acre_2015_99) %>% 
+  summarise(mean(kg_per_acre,na.rm=T))
+
+
   
   
   
