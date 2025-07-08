@@ -141,6 +141,13 @@ plot(st_geometry(southern_edge_sf), col = "red3", lwd = 2,
 
 # Step 7 😄:  Ensure centroids are in sf format
 centroids_sf <- st_as_sf(centroids_coords, coords = c("X", "Y"), crs = 32643)
+library(sf)
+
+# Read the shapefile back into R
+centroids_sf <- st_read("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/centroids_sf.shp", stringsAsFactors = F, quiet=F)
+
+
+
 
 #|==============================
 # Completion to Southern Border 
@@ -241,7 +248,36 @@ ggplot() +
   ) +
   theme_minimal(base_family = "serif")
 
+#|=============================================================================
 
+# extract elevation data from coordinates [elev_data_sf] [elev_data_tbl] ----
+#|=============================================================================
+
+library(elevatr)
+library(sf)
+
+## FOR SHAPE FILE centroids_sf
+# Make sure the points are in WGS84 (EPSG:4326) # "centroids_sf" current CRS is UTM zone 43N
+centroids_wgs <- st_transform(centroids_sf, crs = 4326)
+
+# Extract elevation
+elevation_points_sf <- get_elev_point(locations = centroids_wgs, src = "aws", units = "meters", z = 10)
+st_write(elevation_points_sf, "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/elevation_points_sf.shp")
+
+
+## FOR tibble df "centroids_coords"
+centroids_sf2 <- st_as_sf(centroids_coords, coords = c("X", "Y"), crs = 32643)  # UTM zone 43N
+centroids_wgs2 <- st_transform(centroids_sf2, crs = 4326)
+elev_data2 <- get_elev_point(locations = centroids_wgs2, src = "aws", units = "meters", z = 10)
+
+elevation_points_tbl <- st_drop_geometry(elev_data2)
+elevation_points_tbl <- elevation_points_tbl %>% 
+  select(id ,elevation) %>% rename(elevation_m=elevation)
+
+library(writexl)
+write_xlsx(elevation_points_tbl, "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/elevation_points_tbl.xlsx")
+
+elev_df <- cbind(st_drop_geometry(elev_data2),st_coordinates(elev_data2))
 
 
 

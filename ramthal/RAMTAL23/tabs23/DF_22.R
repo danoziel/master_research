@@ -125,6 +125,14 @@ a_source_irri <-
     if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . == 6)      ~ "rain",
     TRUE ~ NA_character_)
   ) %>% 
+  mutate(source_pond = case_when(
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . %in% c(2,3)) ~ "pond_Owell",
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . == 7) ~ "canal",
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . == 4) ~ "borwell",
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . == 5) ~ "ramthal",
+    if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . == 6)      ~ "rain",
+    TRUE ~ NA_character_)
+  ) %>% 
   mutate(source_canal = case_when(
     if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . == 7) ~ "canal",
     if_any(c(l7_rank_1, l7_rank_2, l7_rank_3), ~ . == 4) ~ "borwell",
@@ -141,7 +149,7 @@ a_source_irri <-
     l7_rank_1 == 6 ~ "rain",
     l7_rank_1 == 7 ~ "canal",
     TRUE ~ NA_character_)) %>% 
-  select(hh_id,source_rank1,source_ramthal, source_borwell, source_canal)
+  select(hh_id,source_rank1,source_ramthal, source_borwell, source_canal,source_pond)
     
     
 

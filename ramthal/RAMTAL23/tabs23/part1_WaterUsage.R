@@ -307,15 +307,27 @@ cultivated_land_In %>%
 
 
 
+# mw 2		Have you used it in [ _____ ]?
+attr(rmtl_srvy22$mw1a, "labels")
+rmtl_srvy22 %>% select(hh_id, starts_with("mw1") )
+# How many years in total did you ever make use of the water for irrigation 
+#                                              during Kharif[mw5]/rabi[mw6] ?
+mw5_mw6 <- 
+  rmtl_srvy22 %>% 
+  # filter(farmers_hh=="inside_ramthal",mm4==1) %>%  
+  select(hh_id,mw5,mw6, mw2) %>%
+  mutate(year_of_use=pmax(mw5,mw6)) %>% 
+  filter(year_of_use>=1) %>% 
+  mutate(years_use_2022=ifelse(year_of_use>=3,"3-6",year_of_use))
 
-
+mw5_mw6 %>% count(years_use_2022) %>% mutate(N=sum(n),pct=n/N)
 
 
 
 
 
 # WATER moudul ----
-############ m3
+############ m3   advantages of drip irrigation  ----
 #Are you aware of any advantages of drip irrigation over other irrigation methods?	
 # 0	No knowledge # 1	Increased yields # 2	Water saving
 # 3	Fertilizer saving # 4	Less weeds # 5	Less labor requirements # 6	Other
@@ -336,7 +348,7 @@ rmtl_srvy22 %>% select(hh_id,m3_0:m3_5 ) %>%
   pivot_longer(-hh_id, names_to = "ans",values_to = "yn") %>% 
   group_by(ans) %>% summarise(n=sum(yn))%>%  mutate(prt=n/1612)
 
-############ m4 
+############ m4   ALLOWED TO TAKE PART ----
 #"Who is deciding which land and farmers are ALLOWED TO TAKE PART in this drip irrigation project?
 # "	1	Government # 2	Company # 4	Anyone who wants to can join # 5	Panchayat # -999	Don't know #-888	Other (specify)
 
@@ -360,7 +372,7 @@ rmtl_srvy22 %>%
   select(ans,estimate1, estimate2,statistic,p,df,conf.low, conf.high) %>% 
   mutate_at(2:8,round,2) %>% kbl() %>% kable_styling()
 
-############ m5		
+############ m5		deciding what/who is included  -----
 #"On what basis are they deciding what/who is included or not in the project?
 # 1	Elevation # 2	Political factors/connections # 3	Wealth # 4	Farming skill # 5	Location # -999	Don't know # -888	Other
 
@@ -378,7 +390,7 @@ rmtl_srvy22 %>%
   group_by(ans) %>%t_test(yn ~ farmers_hh , detailed = T) %>% 
   select(ans,estimate1, estimate2,statistic,p,df,conf.low, conf.high) %>% mutate_at(2:8,round,2) %>% kbl() %>% kable_styling()
 
-############### mw12 13 14
+############ mw12 13 14 when water is provided Month and days  ----
 # mw12 Typically, in your experience, when water is provided in a particular year, in which month does it start?	
 #                                      1	[ Indicate Month ] #2	Dont know
 # 
@@ -403,7 +415,7 @@ mw14= rmtl_srvy22 %>% select(farmers_hh, hh_id,mw14,mw14_int)%>%filter(!is.na(mw
 mw14_int= rmtl_srvy22 %>% select(farmers_hh, hh_id,mw14,mw14_int)%>% filter(farmers_hh=="inside_ramthal")  %>% 
   summarise(mean(mw14_int,na.rm = T))
 
-# Damaged in the irrigation system  ----
+############ m35 a b c  Damaged in the irrigation system  ----
 m35s <- 
   rmtl_srvy22 %>%select(hh_id,contains("m35")) %>%
   right_join(rmtl_In_groups)
@@ -443,15 +455,13 @@ rmtl_srvy22 %>% select(farmers_hh,hh_id ,m35b_month, m35b_year)%>%
 rmtl_srvy22 %>% select(farmers_hh,hh_id,contains("m35")) %>% filter(!is.na(m35c),farmers_hh=="inside_ramthal") %>%  
   count(m35c) %>%  mutate(N=sum(n),n/N)
 
-############ m36		
-# did you contact someone to fix ?
+############ m36 # did you contact someone to fix ? -----
 #1	Contact government office	#2	Contact the company	#3	Contact Water User Association	#4	Dont know who to contact #5	I did not
 
 rmtl_srvy22 %>% select(farmers_hh,hh_id, contains("m36")) %>% 
   filter(!is.na(m36)) %>% count(m36)%>%  mutate(N=sum(n),n/N)
   
-############ m37	
-# did they help you and fix it?	
+############ m37 # did they help you and fix it?	-----
 #1	Yes	#2	didnt get no response	#3	They said they would fix it but never came	
 
 rmtl_srvy22 %>% select(farmers_hh,hh_id, contains("m37")) %>% 
@@ -475,20 +485,47 @@ m3_mm4[c(7:18),] %>% group_by(farmers_hh) %>% mutate(N=sum(n),prt_mm4= n/N )
 #   L7 rank irrigation source
 # What irrigation source are you dependent on? (Rank according to the degree of importance)
 
-S1=a_source_irri %>% count(farmers_hh, l7_rank_1 )%>%  mutate(prt2=ifelse(farmers_hh=="inside_ramthal",n/946,n/666))
-S12=a_source_irri %>% count(farmers_hh, govSource_rnk12)%>%  mutate(prt2=ifelse(farmers_hh=="inside_ramthal",n/946,n/666))
-a_source_irri %>% count(farmers_hh, govSource_rnk123)%>%  mutate(prt2=ifelse(farmers_hh=="inside_ramthal",n/946,n/666))
+L7_source_irri # df in DF_22.R
+a_source_irri  # df in DF_22.R
+  
 
-# DS table
-S12 %>% mutate(prt2=prt2*100) %>% 
-  mutate_at(4,round) %>% 
-  kbl() %>% kable_styling()
-
-S1 %>% mutate(prt2=prt2*100) %>% 
-  mutate_at(4,round,1) %>% 
-  kbl() %>% kable_styling()
+# preq tbl source rank_1
+a_source_irri %>%  # df in DF_22.R
+  left_join(hh_2022) %>% count(farmers_hh,N_in.out, source_rank1) %>% 
+  mutate(pct=(n/N_in.out)*100 
+  ) %>% select(farmers_hh, source_rank1, n, pct )
 
 
+# preq tbl source:  MORE than 1 source to HH
+tb_source <- 
+  L7_source_irri %>% 
+  select(-l7_other ) %>% 
+  pivot_longer(cols = -hh_id,names_to = "rank",  values_to = "source") %>% 
+  filter(!is.na(source), source != 6)  %>%  left_join(hh_2022)
+
+# TABLE
+tb_source %>% count(farmers_hh,N_in.out) %>% 
+  mutate(pct_water_source= n/N_in.out, rain= 1-pct_water_source)
+
+# TABLE
+tb_source %>% 
+  count(farmers_hh,N_in.out,source)%>% 
+  mutate(pct=(n/N_in.out)*100 
+  ) %>% 
+  mutate(Source = case_when(
+    source == 2 ~ "pond",
+    source == 3 ~ "openwell",
+    source == 4 ~ "borwell",
+    source == 5 ~ "ramthal",
+    source == 7 ~ "canal",
+    TRUE ~ NA_character_)) %>% 
+  select(farmers_hh, Source, n, pct )
+
+# TABLE
+L7_source_irri  %>%  left_join(hh_2022) %>% 
+  count(farmers_hh,N_in.out,l7_rank_1 ) %>% 
+  mutate(pct=(n/N_in.out)*100 
+  )
 
 
 ####### HH%_IR 2016-2021 ----

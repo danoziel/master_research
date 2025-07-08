@@ -17,6 +17,8 @@ english_learning_ai=english_learning_ai_cleanDF %>%
 english_learning_ai$Post_course <- ifelse(english_learning_ai$Timestamp== "pre_course",0,1 )
 english_learning_ai$Pre_course <- ifelse(english_learning_ai$Timestamp== "pre_course",1,0 )
 
+english_learning_ai$english_CERF_level <- ifelse(english_learning_ai$english_CERF_level %in% c("Advanced_1","Advanced_2"),"Advanced",english_learning_ai$english_CERF_level)
+
 rm(english_learning_ai_cleanDF)
 
 names(english_learning_ai)

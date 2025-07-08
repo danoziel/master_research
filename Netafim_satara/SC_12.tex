@@ -1,0 +1,165 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{tabu}
+\usepackage{threeparttable}
+\usepackage{threeparttablex}
+\usepackage[normalem]{ulem}
+\usepackage{makecell}
+\usepackage{xcolor}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Sugarcane Irrigation Methods Report},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Sugarcane Irrigation Methods Report}
+\author{}
+\date{\vspace{-2.5em}}
+
+\begin{document}
+\maketitle
+
+\pandocbounded{\includegraphics[keepaspectratio]{SC_12_files/figure-latex/freq,acre,total-1.pdf}}
+
+\subsection{Water Source}\label{water-source}
+
+\pandocbounded{\includegraphics[keepaspectratio]{SC_12_files/figure-latex/water_source-1.pdf}}
+
+\subsection{Irrigation Pattern}\label{irrigation-pattern}
+
+\pandocbounded{\includegraphics[keepaspectratio]{SC_12_files/figure-latex/irrigation_pattern-1.pdf}}
+
+\pandocbounded{\includegraphics[keepaspectratio]{SC_12_files/figure-latex/flood_in_drip_plot_pattern-1.pdf}}
+Days Between Floods I = Mean includeד the value 30 for ``irrigation 1
+time per month''\\
+Days Between Floods II = Mean without ``irrigation 1 time per month''.
+
+\subsection{Sugarcane treatments}\label{sugarcane-treatments}
+
+\pandocbounded{\includegraphics[keepaspectratio]{SC_12_files/figure-latex/SC treat-1.pdf}}
+
+\subsection{Crop Other then
+Sugarcanes}\label{crop-other-then-sugarcanes}
+
+\pandocbounded{\includegraphics[keepaspectratio]{SC_12_files/figure-latex/crop_bind-1.pdf}}
+
+\subsection{Economy}\label{economy}
+
+\pandocbounded{\includegraphics[keepaspectratio]{SC_12_files/figure-latex/economy-1.pdf}}
+
+\subsection{Opinion}\label{opinion}
+
+\pandocbounded{\includegraphics[keepaspectratio]{SC_12_files/figure-latex/Opinion-1.pdf}}
+
+\subsection{installations \textbar{} Farms with
+Drip-Irrigation}\label{installations-farms-with-drip-irrigation}
+
+\pandocbounded{\includegraphics[keepaspectratio]{SC_12_files/figure-latex/installations-1.pdf}}
+
+\pandocbounded{\includegraphics[keepaspectratio]{SC_12_files/figure-latex/installations2-1.pdf}}
+
+\pandocbounded{\includegraphics[keepaspectratio]{SC_12_files/figure-latex/job_biz-1.pdf}}
+
+\begin{longtable}[t]{rr}
+\caption{\label{tab:job_biz 2}Are you holding the job/business because drip causes LESS work?}\\
+\toprule
+N & Percent Yes\\
+\midrule
+7 & 86\%\\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}[t]{rr}
+\caption{\label{tab:job_biz 2}Are you concerned that drip will prevent you from holding a job/business?}\\
+\toprule
+N & Percent Yes\\
+\midrule
+5 & 100\%\\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}[t]{rr}
+\caption{\label{tab:job_biz 2}Do you think using drip will prevent you from holding your job/business?}\\
+\toprule
+N & Percent Yes\\
+\midrule
+8 & 75\%\\
+\bottomrule
+\end{longtable}
+
+Are you holding the job/business because drip causes LESS work? Use
+Flood or Drip + Hold job/biz\_income
+
+Are you concerned that drip will prevent you from holding a
+job/business? Use Flood + Hold job/biz\_income + YES plan install drip
+
+Do you think using drip will prevent you from holding your job/business?
+Use Flood + Hold job/biz\_income + NO plan install drip
+
+\end{document}

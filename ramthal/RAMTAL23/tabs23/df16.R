@@ -4,12 +4,8 @@
 
 CMF_RAMTHAL_IRRIGATION_18_Aug_2016_cleaned <- read_dta("~/master_research/DATAs/ramthal_data/baseline_survey_2016/CMF_RAMTHAL_IRRIGATION_18 Aug 2016 - cleaned.dta")
 
-
-rmtl_baseline2016 <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_baseline2016.csv")
-
-#🟠MIDELINE 2018| rmtl_midline2018 is in `df18.R` script
-#🟣MIDELINE 2022| rmtl_srvy22 is in `DF_22.R` script
 library(readr)
+rmtl_baseline2016 <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_baseline2016.csv")
 
 library(dplyr)
 library(haven)
@@ -374,8 +370,6 @@ bl_plot_SrvyHis <- full_join(D4_,D4_h)
 bl_plot_SrvyHis$hissa_bl[is.na(bl_plot_SrvyHis$hissa_bl)] <- ""
 
 rm(D4_,D4_h)
-#       D5 Village in which survey plot is located       ----
-D5_land <- baseline_RMTL %>% select(hh_id, starts_with("D5_"))
 
 
 # plot info  bl_plot_dt  ----
@@ -452,8 +446,8 @@ d6_own_land <- rmtl_baseline2016 %>% select(hh_id, starts_with("D6_"))
 d63_Leased_land_2016 <- rmtl_baseline2016 %>% select(hh_id,matches ("D63_"),matches ("D11"),-ends_with("_0")) # %>% filter(!is.na(D63_acer_1  ))
 
 # [D6]  Area of Plot (acres/gunta)     ||  bl6_plotAcre            ----
-bl_d6 <- rmtl_baseline2016 %>% select(farmers_hh, hh_id,D6_1:D6_10) %>% 
-  pivot_longer(-c(farmers_hh, hh_id), names_to = "plot_num", values_to = "plot_acre")
+bl_d6 <- rmtl_baseline2016 %>% select(hh_id,D6_1:D6_10) %>% 
+  pivot_longer(-hh_id, names_to = "plot_num", values_to = "plot_acre")
 bl_d6$plot_num <- str_replace(bl_d6$plot_num, "D6_(\\d)$", "plot_0\\1")
 bl_d6$plot_num <- str_replace(bl_d6$plot_num, "^D6_", "plot_")
 bl6_plotAcre <- filter(bl_d6,!is.na(plot_acre))

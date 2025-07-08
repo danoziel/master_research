@@ -3,18 +3,267 @@ library(kableExtra)
 library(tidyr)
 library(haven)
 
-rmtl_srvy22 %>%
-  filter(mm4 == 1, farmers_hh=="inside_ramthal" ) %>% 
-  count(mm5) %>% mutate(N=sum(n),n/N)
+# DFs [rmtl_srvy22_24] ============================================================
+
+library(readr)
+rmtl_srvy22 <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_srvy22.csv")
+
+rmtl_srvy22_24 <- 
+  rmtl_srvy22 %>% 
+  filter(farmers_hh=="inside_ramthal",mm4==1, 
+         !a5 %in%c( "AMARAVATHI","Amaravathi","Amaravati",
+                    "hungund" ,"Hungund",
+                    "Marol", "Chinnapur", "Hemavadagi", "Nidasanur", 
+                    "Revadihal", "Thumba", "Yadahalli" ))
+
+# location on pipe NERATIVE  --------------------------------------------------
+# interviews 2024 ----
+# [10] "farmers_B4_u"
+
+freq(rmtl_2024$farmers_B4_u, cumul = FALSE)
+
+# df I
+location_Int <- 
+  rmtl_2024 %>% 
+  select(hh_id,farmers_B4_u, drip_1use_2useOwmDrip,irri_jain_flood) %>% 
+  mutate(farmers_B4_u = ifelse(farmers_B4_u=="dont_know",1000,farmers_B4_u),
+         location_on_pipe=as.numeric(farmers_B4_u),
+         irri_jain_flood=as.numeric(irri_jain_flood) ) %>% 
+  filter(!is.na(farmers_B4_u)
+  ) %>% 
+  group_by(location_on_pipe) %>%  
+  summarise(n_loc=n(),
+            drip_users=sum(drip_1use_2useOwmDrip),
+            flood=sum(irri_jain_flood,na.rm = T)) %>% ungroup()
+
+# df II
+location_Int_13 <- 
+  location_Int %>% 
+  mutate(location=
+           ifelse(location_on_pipe %in% c(13:30),"13+",location_on_pipe)) %>% 
+  group_by(location) %>% 
+  summarise(n_loc=sum(n_loc), drip_users=sum(drip_users), flood=sum(flood)) %>% 
+  mutate(
+    N=sum(n_loc), pct=n_loc/N, # total farmers on certain pipe-location out-of total sample
+    pct_drip_users=drip_users/n_loc, # total DI users on certain pipe-location out-of total pipe-location
+    pct_flood=flood/n_loc ) # total flood users on certain pipe-location out-of total pipe-location
+
+# df III
+location_Int_01 <- 
+  location_Int %>% 
+  mutate(location=
+           ifelse(location_on_pipe %in% c(4:30),"far",
+                  ifelse(location_on_pipe<=3,"close","iDont_know"))) %>% 
+  group_by(location) %>% 
+  summarise(n_loc=sum(n_loc), drip_users=sum(drip_users), flood=sum(flood)
+            ) %>% mutate(
+    N=sum(n_loc), pct=n_loc/N, # total farmers on certain pipe-location out-of total sample
+    pct_drip_users=drip_users/n_loc, # total DI users on certain pipe-location out-of total pipe-location
+    pct_flood=flood/n_loc ) # total flood users on certain pipe-location out-of total pipe-location
+
+#|----------------------------------------------------------------------------
+# Survey 2022-23 
+
+library(readr)
+a_source_irri <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/a_source_irri.csv")
+source_rmtl <- a_source_irri %>% 
+  mutate(source_ramthal = ifelse(source_ramthal == "ramthal",1,0 )) %>% 
+  select(hh_id,source_ramthal)
+
+
+# df I
+location_Sur <- 
+  rmtl_srvy22_24  %>% 
+  filter(farmers_hh=="inside_ramthal",
+         !is.na(mm9)) %>% 
+  select(hh_id,mm9) %>% 
+  mutate(location_on_pipe= mm9+1) %>% 
+  inner_join(rmtl_InOut) %>% 
+  select(hh_id,location_on_pipe,drip_use) %>%
+  mutate(location_on_pipe = ifelse(
+    location_on_pipe== -998,1000,location_on_pipe)) %>%   
+  left_join(source_rmtl) %>% 
+  group_by(location_on_pipe) %>%  
+  summarise(n_loc=n(),
+            drip_users=sum(drip_use),
+            source_ramthal=sum(source_ramthal)
+            ) %>% ungroup()
   
 
+# df II
+location_Sur_13 <- 
+  location_Sur  %>% 
+  mutate(location=
+           ifelse(location_on_pipe %in% c(13:999),"13+",location_on_pipe)) %>% 
+  group_by(location) %>% 
+  summarise(n_loc=sum(n_loc), drip_users=sum(drip_users), source_ramthal=sum(source_ramthal)) %>% 
+  mutate(
+    N=sum(n_loc), pct=n_loc/N, # total farmers on certain pipe-location out-of total sample
+    pct_drip_users=drip_users/n_loc, # total DI users on certain pipe-location out-of total pipe-location
+    pct_source_ramthal=source_ramthal/n_loc ) # total flood users on certain pipe-location out-of total pipe-location
 
+
+# df III
+location_Sur_01 <- 
+  location_Sur  %>% 
+  mutate(location=
+           ifelse(location_on_pipe %in% c(5:999),"far",
+                  ifelse(location_on_pipe<=4,"close","iDont_know"))) %>% 
+group_by(location) %>% 
+  summarise(n_loc=sum(n_loc), drip_users=sum(drip_users), source_ramthal=sum(source_ramthal)) %>% 
+  mutate(
+    N=sum(n_loc), pct=n_loc/N, # total farmers on certain pipe-location out-of total sample
+    pct_drip_users=drip_users/n_loc, # total DI users on certain pipe-location out-of total pipe-location
+    pct_source_ramthal=source_ramthal/n_loc ) # total flood users on certain pipe-location out-of total pipe-location
+
+
+
+############### Total respondents IN%
+df1 <- location_Int_13 %>%   rename(pct_source_ramthal=pct_flood) %>% 
+  select(location ,pct, pct_drip_users, pct_source_ramthal) %>% 
+  mutate(dt="Interviews_2024")
+df2 <- location_Sur_13 %>% 
+  select(location ,pct, pct_drip_users, pct_source_ramthal)%>% 
+  mutate(dt="Survey_2022-23")
+
+df12 <- rbind(df1,df2) %>% 
+  select(dt, everything()) %>% arrange(location)
+df12$location[df12$location=="1000"] <- "Dont \nknow"
+
+df12 %>%
+  mutate(pct = pct * 100) %>%
+  ggplot(aes(x=factor(location, level=c('1', '2', '3', '4','5','6','7','8','9','10','11','12','13+',"Dont \nknow")), 
+             y = pct, fill = dt)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
+  scale_fill_manual(values = 
+    c("Interviews_2024" = "#3c78d8ff", "Survey_2022-23" = "#8e7cc3ff")) +
+  labs(x = "Location on pipline",y = "% respondents", fill =NULL,
+    title = "Total respondents in % of sample") +
+  theme_minimal(base_family = "serif")+ theme(legend.position='none')
+
+
+########### PLOT  [pct_drip_users] [pct_source_ramthal]
+df10 <- location_Int_01 %>%   rename(pct_source_ramthal=pct_flood) %>% 
+  select(location ,pct, pct_drip_users, pct_source_ramthal) %>% 
+  mutate(dt="Interviews_2024")
+df20 <- location_Sur_01 %>% 
+  select(location ,pct, pct_drip_users, pct_source_ramthal)%>% 
+  mutate(dt="Survey_2022-23")
+
+df0 <- rbind(df10,df20) %>% 
+  select(dt, everything()) %>% arrange(location)
+df0$location[df0$location=="DN"] <- "Dont \nknow"
+df0$location[df0$location=="close"] <- "Close from \nwater outlet"
+df0$location[df0$location=="far"] <- "Far from \nwater outlet"
+
+########### PLOT  [pct_drip_users]
+df0 %>%
+  mutate(pct_drip_users  = pct_drip_users  * 100) %>%
+  ggplot(aes(x=factor(location, level=c("Close from \nwater outlet","Far from \nwater outlet","Dont \nknow")), y = pct_drip_users, fill = dt)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_text(aes(label = round(pct_drip_users)), 
+            position = position_dodge(width = 0.8), 
+            vjust = 1.5, size = 3.5, family = "serif") +
+  scale_fill_manual(values = c("Interviews_2024" = "#6d9eebff", 
+                               "Survey_2022-23" = "#b4a7d6ff")) +
+  labs(x = NULL,y = "% of Users", fill =NULL, title = "DI Users") +
+  theme_minimal(base_family = "serif")
+
+########### PLOT [pct_source_ramthal]
+df0 %>%
+  mutate(pct_source_ramthal  = pct_source_ramthal  * 100) %>%
+  ggplot(aes(x=factor(location, level=c("Close from \nwater outlet","Far from \nwater outlet","Dont \nknow")), 
+             y = pct_source_ramthal, fill = dt)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_text(aes(label = round(pct_source_ramthal)), 
+            position = position_dodge(width = 0.8), 
+            vjust = 1.5, size = 3.5, family = "serif") +
+  scale_fill_manual(values = c("Interviews_2024" = "#6d9eebff", 
+                               "Survey_2022-23" = "#b4a7d6ff")) +
+  labs(x = NULL,y = "% of Users", fill =NULL,
+       title = "Ramthal as water source") +
+  theme_minimal(base_family = "serif")
+
+# [3] "drip_trust"   =========================================================
+
+# Is a drip system trustworthy?
+freq(rmtl_2024$drip_trust, cumul = FALSE)
+149-90
+
+
+rmtl_2024 %>% 
+  select(drip_trust,drip_1use_2useOwmDrip) %>% 
+  mutate(drip_use=ifelse(drip_1use_2useOwmDrip==2,1,drip_1use_2useOwmDrip)) %>% 
+  drop_na() %>% 
+  count(drip_use, drip_trust) %>% 
+  group_by(drip_use) %>% mutate(N=sum(n),pct=n/N)
+
+
+
+# Correlation damage with usage ----
+
+# interviews 2024
+
+freq(rmtl_2024$tap_status_1damged_0not, cumul = FALSE)
+freq(rmtl_2024$drip_1use_2useOwmDrip, cumul = FALSE)
+
+dw1 <- rmtl_2024 %>% 
+  select(tap_status_1damged_0not,drip_1use_2useOwmDrip) %>% 
+  mutate(drip_use=ifelse(drip_1use_2useOwmDrip==2,1,drip_1use_2useOwmDrip)) %>% 
+  drop_na()
+
+dw2 <- rmtl_2024 %>% 
+  select(tap_status_1damged_0not,irri_jain_flood) %>% 
+  drop_na()
+
+dw1 %>% count(drip_use, tap_status_1damged_0not) %>% 
+  group_by(drip_use) %>% mutate(N=sum(n),pct=n/N) %>% filter(tap_status_1damged_0not==1)
+
+dw2 %>% count(irri_jain_flood, tap_status_1damged_0not) %>% 
+  group_by(irri_jain_flood) %>% mutate(N=sum(n),pct=n/N) %>% filter(tap_status_1damged_0not==1)
+
+# survey 2022-23
+# [m35] What is the status of the main pipe coming into your land ?
+attr(Ramthal_Karnataka_Cleaned_Data$m35, "labels")
+# Works # Damaged 
+# 1     # 2 
+
+m35 <- 
+  rmtl_srvy22_24 %>% 
+  select(hh_id, "m35") %>% filter(!is.na(m35)) %>%
+  left_join(
+    rmtl_InOut %>% select(hh_id,drip_use)
+  ) %>% left_join(source)
+
+m35 %>% count(m35) %>% mutate(N=sum(n), pct= n/N) %>% filter(m35==2)
+
+m35 %>% count(drip_use ,m35) %>% 
+  group_by(drip_use ) %>% 
+  mutate (N=sum(n), pct= n/N) %>% filter(m35==2)
+
+m35 %>% count(source_ramthal ,m35) %>% 
+  group_by(source_ramthal ) %>% 
+  mutate (N=sum(n), pct= n/N) %>% filter(m35==2)
+
+
+
+
+
+
+
+
+# DI advantages -----
 #Are you aware of any advantages of drip irrigation over other irrigation methods?	
-# 0	No knowledge # 1	Increased yields # 2	Water saving
-# 3	Fertilizer saving # 4	Less weeds # 5	Less labor requirements # 6	Other
+# 0	No knowledge 
+# 1	Increased yields 
+# 2	Water saving
+# 3	Fertilizer saving 
+# 4	Less weeds 
+# 5	Less labor requirements # 6	Other
 
-rmtl_srvy22 %>%
+rmtl_srvy22_24 %>%
   filter(mm4 == 1, farmers_hh=="inside_ramthal" ) %>% 
+# filter(mm5 == 1 ) %>% 
   select(hh_id,m3_0:m3_5 ) %>%
   pivot_longer(-c(hh_id), names_to = "ans",values_to = "yn") %>% 
   group_by(ans) %>% summarise(n=sum(yn),N=n()) %>%  
@@ -28,10 +277,9 @@ rmtl_srvy22 %>%
 # [mw1c] If No, Why? (in Rabi)
 # [mw7] In Kharif, when you did NOT irrigate, what are the reasons?
 
-rmtl_srvy22$mw1c
+rmtl_srvy22_24$mw1c
 # Sr=
-rmtl_srvy22 %>% 
-  filter(mm4 == 1, farmers_hh=="inside_ramthal" ,a5 !="Hungund") %>% 
+rmtl_srvy22_24 %>% 
   select(hh_id,starts_with("mw1c") ) %>%filter( mw1c != "" ) %>% 
   select(-mw1c__888 , -mw1c_other ,-mw1c) %>% 
   pivot_longer(-c(hh_id), names_to = "ans",values_to = "yn") %>% 
@@ -87,6 +335,149 @@ rmtl_srvy22 %>%
 ####   select(-ans)
 #### 
 #### full_join(Sr,Sk) %>% mutate(Rpct-pct) %>% arrange(TH)
+
+
+
+# mw 2		Have you used it in [ _____ ]?		
+# 1	Kharif # 2	Rabi # 3	Both #
+
+rmtl_srvy22_24  %>% select(mm5,starts_with("mw2")) %>% 
+  count(mm5,mw2) %>% filter(!is.na(mw2) | mm5 == 0) %>%  
+  mutate(n1=sum(n)) %>% 
+  group_by(mm5) %>%  mutate(n2=sum(n)) %>% ungroup() %>% 
+  mutate( mw2 = case_when(mw2 == 1 ~ "Kharif",
+                          mw2 == 2 ~ "Rabi",
+                          mw2 == 3 ~ "Both",
+                          TRUE ~ "Didn't use drip"),
+          N=sum(n),pct1=n/N*100, 
+          pct2=ifelse(mm5==1,n/n2*100,NA)) %>% 
+  select(mw2,n,pct1,pct2
+         ) %>% 
+  rename(`When do you water, in what season?`=mw2) %>% 
+  mutate(pct1 = paste0(round(pct1), "%"),
+         pct2 = paste0(round(pct2), "%")) %>% 
+  kable() %>% kable_minimal()
+
+#mw1 a	------
+# If Yes, in which year did you first make use of the water?
+
+rmtl_srvy22_24  %>% select(mm5,starts_with("mw1a")) %>% 
+  count(mm5,mw1a) %>% filter(!is.na(mw1a) | mm5 == 0) %>%  
+    mutate(n1=sum(n)) %>% 
+  group_by(mm5) %>%  mutate(n2=sum(n)) %>% ungroup() %>% 
+  mutate( mw1a = ifelse(is.na(mw1a),"Didn't use drip",mw1a),
+          N=sum(n),pct1=n/N*100, 
+          pct2=ifelse(mm5==1,n/n2*100,NA)) %>% 
+  select(mw1a,n,pct1,pct2
+         )%>% 
+  filter(!is.na(pct2)) %>% 
+  ggplot(aes(x = factor(mw1a), y = pct2)) +
+  geom_bar(stat = "identity",fill = "steelblue4") +
+  labs(x =NULL,y="% of Respondents",
+       title = "First use of system water") + 
+  theme_minimal(base_family = "serif")
+
+
+# mw12		----
+# Typically, in your experience, when water is provided in a particular year, in which month does it start?
+		 		
+season_colors <- c("Kharif"="dodgerblue4","Rabi"="burlywood4", "Summer"="gray70")
+
+rmtl_srvy22_24  %>% select(starts_with("mw12")) %>% 
+  count(mw12) %>% filter(mw12 %in% c(1:12)) %>% 
+  mutate(N=sum(n),pct=n/N*100) %>%
+  mutate(N = sum(n),pct = n / N,
+    month = month.abb[mw12] ,        # Convert to abbreviated month names
+    season = case_when(mw12 %in% c(6, 7, 8, 9, 10) ~ "Kharif",
+      mw12 %in% c(11, 12, 1, 2, 3) ~ "Rabi",TRUE ~ "Summer")
+  ) %>% 
+  ggplot(aes(x = factor(month, levels = month.abb), y = pct * 100, fill = season)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = season_colors) +
+  labs(x =NULL,y="% of Respondents",
+    title = "Month in which water supply begins") + 
+  theme_minimal(base_family = "serif")
+
+
+# mw14		----
+# Typically, in your experience, during the period water is provided, how often is it provided?
+# 1	Every  _____ Days
+# 2	Very unpredictable and irreular
+# 3	Dont know
+
+mw14_123 <- rmtl_srvy22 %>% select(starts_with("mw14")) %>% 
+  count(mw14) %>% filter(mw14 %in% c(2,4)) %>% 
+  rename(freq=mw14) %>% select(freq,n)
+mw14_123$freq[mw14_123$freq==2] <- "Unpredictable"
+mw14_123$freq[mw14_123$freq==4] <- "Don't know"
+
+mw14_DAYS <- rmtl_srvy22 %>% select(starts_with("mw14")) %>% 
+  filter(!is.na(mw14_int)) %>% 
+  mutate(freq = case_when(
+    mw14_int %in% c(1:6) ~ "1-2 a week",
+    mw14_int %in% c(9:40) ~ "Once a month",
+    mw14_int %in% c(50:100) ~ "Once every 2-3 months",
+    TRUE ~ "T")
+  ) %>% count(freq) 
+
+rbind(mw14_DAYS, mw14_123) %>%  
+  mutate(N=sum(n),pct=n/N*100) %>% 
+  select(freq,pct) %>% 
+  mutate(pct = paste0(round(pct), "%")) %>% 
+  kable() %>% kable_styling()
+
+
+# mw4		Are you still making use of the water from the project to irrigate your land?	
+#	1	Yes, Everytime Water is provided
+# 2	No, I stopped, even if water is provided
+# 3	Sometimes, Depends 
+
+mw4 <- rmtl_srvy22_24  %>% 
+  select(mm2, mm4,mm5,starts_with("mw4"))%>% 
+  mutate(last_yr_use=ifelse(mw4 == 1,2022,mw4b))  
+
+mw4 %>% filter(!is.na(last_yr_use) ) %>% 
+  count(last_yr_use) %>% 
+  mutate(N=sum(n),pct=n/N*100)%>% 
+  ggplot(aes(x = factor(last_yr_use), y = pct)) +
+  geom_bar(stat = "identity",fill = "steelblue4") +
+  labs(x =NULL,y="% of Respondents",
+       title = "Last use of system water") + 
+  theme_minimal(base_family = "serif")+
+  theme(axis.text.x = element_text(size = 11))
+
+# "mw5", "mw6" ---- 
+# How many years in total did you ever make use of the water for irrigation
+rmtl_srvy22_24 %>% 
+  select(mm5,"mw5", "mw6") %>% 
+  mutate(yr=ifelse(mw5 > mw6,mw5,mw6)) %>% 
+  count(yr) %>% filter(yr>0) %>%   
+  mutate(N=sum(n),pct = paste0(round(n/N*100), "%"))%>% 
+  kable() %>% kable_styling()
+
+
+
+rmtl_srvy22_24  %>%
+  select(hh_id, starts_with("m20_")) %>%
+  pivot_longer(-hh_id,names_to = "M20",values_to = "val") %>%
+  separate(M20, into = c("var", "season", "year"), sep = "_", remove = F) %>%
+  group_by(hh_id,year) %>% summarise(use=sum(val,na.rm = T)) %>%
+  mutate(use=ifelse(use==2,1,use)) %>%
+  summarise(use_times=sum(use)) %>%
+  count(use_times) %>% filter(use_times>0) %>%
+  mutate(N=sum(n),pct = paste0(round(n/N*100), "%"))
+# 
+# 
+rmtl_srvy22_24  %>%
+  select(hh_id, starts_with("m20_")) %>%
+  pivot_longer(-hh_id,names_to = "M20",values_to = "val") %>%
+  separate(M20, into = c("var", "season", "year"), sep = "_", remove = F) %>%
+  group_by(hh_id,year) %>% summarise(use=sum(val,na.rm = T)) %>%
+  mutate(use=ifelse(use==2,1,use)) %>% ungroup() %>%
+  filter(use > 0) %>%
+  count(year) %>%
+  mutate(N=sum(n),pct = paste0(round(n/N*100), "%"))
+
 
 
 

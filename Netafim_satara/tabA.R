@@ -21,7 +21,7 @@ DF_1A <- SugarcaneDF_11Nov2024_10Dec2024 %>%
 # obs 11.12.24 onward
 Sugarcane_survey_24_25 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/NETAFIM_2024/Sugarcane_survey_24_25_-_all_versions.xlsx")
 Sugarcane_survey_24_25 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/NETAFIM_2024/Sugarcane_survey_24_25_all_versions_2705.xlsx")
-
+Sugarcane_survey_24_25 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/NETAFIM_2024/Sugarcane_survey_24_25_-_all_versions_-_False_-_2025-06-28-14-13-52.xlsx")
 
 DF_1B <- Sugarcane_survey_24_25 %>% 
   rename(Mobile = farmer_mobilenumber) %>% 
@@ -258,7 +258,7 @@ water_source <-
 
 
 ##### [ir_source]
-ir_source_colors <- c("skyblue", "skyblue2", "skyblue3", "skyblue4" )
+ir_source_colors <- c("#8ab4dfff", "#5f91cbff", "#286c9cff", "#314465ff" )
 water_source %>%
   filter(variable == "ir_source") %>%
   ggplot(aes(x = ir_method, y = freq_percent, fill = value)) +
@@ -271,7 +271,7 @@ water_source %>%
 
 
 ##### [ir_source_own_or_public]
-OPsource_colors <- c("lightblue3", "lightblue2" )
+OPsource_colors <- c("#5f91cbff", "#314465ff" )
 water_source %>%
   filter(variable == "ir_source_own_or_public") %>%
   ggplot(aes(x = ir_method, y = freq_percent, fill = value)) +
@@ -838,11 +838,34 @@ plan <-
   filter(!is.na(plan_install_drip_why_not))
 
 plan$no_plan_drip[plan$plan_install_drip_why_not %in% c(
-  "Money issues","Expenses","Money")] <- "Lack of Capital"
+  "Money issues","Expenses","Money issue","More expenses","No money",
+  "Money")] <- "Money issues"
+
 plan$no_plan_drip[plan$plan_install_drip_why_not %in% c(
-  "Dam water is near by","Dam water near to","River is close and he have only one acres")] <- "I Have Water"
+  "Dam water is near by","River is close and he have only one acres",
+  "Dam is near lot of water","Lot of water","More water",
+  "More water dam water is near","Water sources is good and week maintenance in plot",
+  "Dam water near to")] <- "I Have lot of Water"
+
+plan$no_plan_drip[plan$plan_install_drip_why_not %in% c(
+  "Investing money is risky","Invest in drip is risky","Investing on drip is risky",
+  "Dont want to change farming method it’s risky","Invest in drip is risky",
+  "Investing drip is risk")] <- "Drip is a risk"
+
+plan$no_plan_drip[plan$plan_install_drip_why_not %in% c(
+  "Farmer choice is flood","They only so then don’t want to invest","For better growth",
+  "According to farmer, flood is simple")] <- "Flood is easier to manage"
+
+plan$no_plan_drip[plan$plan_install_drip_why_not %in% c(
+  "Farmer can do different work","Flood time management is better then flood",
+  "I a month i go in plot weekly base","More time for different work","More work",
+  "Farmer thinks less works in flood")] <- "Drip takes more work/time"
+
+plan$no_plan_drip[plan$plan_install_drip_why_not %in% c(
+  "Only half acre of land","Less land")] <- "I have small plot of land"
 
 plan_not <- plan %>% 
+  mutate(no_plan_drip=ifelse(is.na(no_plan_drip),plan_install_drip_why_not,no_plan_drip )) %>% 
   count(no_plan_drip) %>% 
   mutate(freq_percent=n/sum(n)*100) 
 plan_not_N <- sum(plan_not$n)

@@ -251,9 +251,15 @@ d100=
 
 # Survey/hissa number
 d3_ <-  #  currently OWNED
-  rmtl_midline2018 %>% select(farmers_hh,hh_id, starts_with("d3_" ))
+  rmtl_midline2018 %>% select(hh_id, starts_with("d3_" ))
+
+
+
+
+
+
 d23 <- # currently LEASED IN
-  rmtl_midline2018 %>% select(farmers_hh,id, starts_with("d23" ))
+  rmtl_midline2018 %>% select(farmers_hh,hh_id, starts_with("d23" ))
 ############ ml18_plots_size ----
 # Area of plot
  #  currently OWNED
@@ -264,9 +270,9 @@ library(tidyr)
 d15 <- d15 %>% pivot_longer(cols = -c(farmers_hh,hh_id),names_to = c("observation"))
 
 d15 <-rmtl_midline2018 %>% 
-  select(farmers_hh,hh_id, starts_with("d15_acre_" ),starts_with("d15_guntas_"),
+  select(hh_id, starts_with("d15_acre_" ),starts_with("d15_guntas_"),
          -ends_with("cb"))
-d15 <- d15 %>% pivot_longer(cols = -c(farmers_hh,hh_id),names_to = c("observation"))
+d15 <- d15 %>% pivot_longer(cols = -c(hh_id),names_to = c("observation"))
 
 d15$observation <- str_replace(d15$observation, "d15_acre_(\\d)$", "acre_0\\1")
 d15$observation[d15$observation=="d15_acre_10"] <- "acre_10"

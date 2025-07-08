@@ -2,11 +2,17 @@ library(dplyr)
 library(tidyr)
 
 library(readxl)
-tblOBS <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/BLF_satara/BLF_Observations_-_all_versions_-_False_-_2025-05-28-13-02-36.xlsx")
+tbl_OBS <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/BLF_satara/BLF_Observations_-_all_versions_-_False_-_2025-05-28-13-02-36.xlsx")
+
+
+tbl_OBS %>% filter(is.na(crop_grow)) %>% 
+  count(Did_the_farmer_participate_in_) %>% 
+  mutate(n/sum(n))
+  
 
 names(tblOBS)
 tblObs<- 
-  tblOBS %>% filter(!is.na(crop_grow)) %>% 
+  tbl_OBS %>% filter(!is.na(crop_grow)) %>% 
   rename(phone=Farmer_Phone_Number) %>% 
   mutate(phone=as.numeric(phone) ) %>% 
   mutate(start = as.Date(start),end = as.Date(end)) # %>% 

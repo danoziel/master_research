@@ -1,5 +1,6 @@
 ---
-title: "Sugarcane Irrigation Methods Report"
+title: "<span style='font-size:24px; font-family:Georgia;'>Sugarcane Irrigation Methods Report</span>"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output:
   html_document:
     df_print: paged
@@ -12,7 +13,7 @@ library(tidyverse)
 library(readxl)
 library(gridExtra)  # for arranging plots
 library(grid)       # already included in R
-
+library(kableExtra)
 
 df12_sugarcane <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/NETAFIM_2024/df12_sugarcane.xlsx")
 df2_sugarcane <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/NETAFIM_2024/df2_sugarcane.xlsx")
@@ -21,18 +22,51 @@ economy <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/NETAFIM_2024/econo
 
 ```
 
+```{r style, echo=FALSE, results='asis'}
+cat("
+<style>
+body {
+  font-family: 'Georgia', serif;
+  font-size: 14px;
+  color: #222222;
+}
+
+/* Headings */
+h1 {
+  font-family: 'Georgia', serif;
+  font-size: 20px;
+  color: #222222;
+}
+
+h2 {
+  font-family: 'Georgia', serif;
+  font-size: 18px;
+  color: #5b5b5b;
+}
+
+h3 {
+  font-family: 'Georgia', serif;
+  font-size: 16px;
+  color: #5b5b5b;
+}
+</style>
+")
+```
 
 
-```{r freq,acre,total}
+```{r freq_acre_total, fig.height=3, fig.width=8}
+
+df12_sugarcane %>% count() %>% kable() %>% kable_paper()
 
 p1 <- df12_sugarcane %>% 
   count(ir_method) %>% 
   ggplot(aes(x = ir_method, y = n, fill = ir_method)) + 
   geom_bar(stat = "identity", position = "stack") +
-  geom_text(aes(label = n),color = "black", vjust = 9,size = 4) +
-  scale_fill_manual(values = c("Drip" = "dodgerblue3", "Flood" = "gray")) +
+  geom_text(aes(label = n),color = "black", vjust = 2,size = 4) +
+  scale_fill_manual(values = c("Drip" = "#c7d9eeff", "Flood" = "#d7dbb5ff")) +
   labs(title="Number of Households \nby Irrigation Methods",x="",y="No. of HH",fill="") + 
-  theme_minimal(base_family = "serif")+theme(legend.position = "none")
+  theme_minimal(base_family = "serif")+
+  theme(legend.position = "none",plot.title = element_text(size = 11))
 
 ci_summary <- df12_sugarcane %>%
   select(ir_method, acre_sugarcane, plots_sugarcane) %>% 
@@ -48,22 +82,28 @@ ci_summary <- df12_sugarcane %>%
 p2 <- ggplot(ci_summary, aes(x = ir_method, y = mean, fill = ir_method)) +
   geom_bar(stat = "identity", position = "dodge") +
   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper),width = 0.2,color = "black") +
-  geom_text(aes(label = paste0(round(mean, 2))), vjust = 9,size = 4  ) +
+  geom_text(aes(label = paste0(round(mean, 2))), vjust = 2,size = 4  ) +
   facet_wrap(~variable, scales = "free_y") +
-  scale_fill_manual(values = c("Drip" = "dodgerblue3", "Flood" = "gray")) +
+  scale_fill_manual(values = c("Drip" = "#c7d9eeff", "Flood" = "#d7dbb5ff")) +
   labs(title = "", x = "", y = "", fill = "") +
   theme_minimal(base_family = "serif")+ 
-  theme(legend.position = "none")
+  theme(legend.position = "none", strip.text = element_text(size = 11))
 
+# Plot 0
+blankPlot <- 
+  ggplot()+geom_blank(aes(1,1))+
+  theme(plot.background = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), 
+   panel.border = element_blank(),panel.background = element_blank(),
+   axis.title.x = element_blank(),axis.title.y = element_blank(),axis.text.x = element_blank(), axis.text.y = element_blank(),axis.ticks = element_blank(),axis.line = element_blank())
 
-grid.arrange(p1, p2, ncol = 2, widths = c(1, 2))
+grid.arrange(p1,blankPlot, p2, ncol = 3, widths = c(1, 1,2))
 ```
 
 <br><br><br>
 
-## Water Source
+## Water Source for Irrigation
 
-```{r water_source}
+```{r water_source, fig.height=3, fig.width=6}
 
 water_source <- 
   df12_sugarcane %>%
@@ -77,30 +117,31 @@ water_source <-
 
 
 ##### [ir_source]
-ir_source_colors <- c("skyblue", "skyblue2", "skyblue3", "skyblue4" )
+ir_source_colors <- c("#8ab4dfff", "#5f91cbff", "#286c9cff", "#314465ff" )
 p1_source <- water_source %>%
   filter(variable == "ir_source") %>%
   ggplot(aes(x = ir_method, y = freq_percent, fill = value)) +
   geom_bar(stat = "identity", position = "stack") +
   geom_text(aes(label = paste0(round(freq_percent), "%")),
-    position = position_stack(vjust = 0.5),color = "black", size = 4) +
+    position = position_stack(vjust = 0.5),color = "black", size = 3.5) +
   scale_fill_manual(values = ir_source_colors) +
-  labs(title="Water Source for Irrigation ",x="", y="% of HH") +
-  theme_minimal(base_family = "serif")
+  labs(title="Source",x="", y="% of HH", fill = NULL ) +
+  theme_minimal(base_family = "serif")+theme(strip.text = element_text(size = 10))
 
 
 ##### [ir_source_own_or_public]
-OPsource_colors <- c("lightblue3", "lightblue2" )
+OPsource_colors <- c("#286c9cff", "#314465ff" )
 p2_source <- water_source %>%
   filter(variable == "ir_source_own_or_public") %>%
   ggplot(aes(x = ir_method, y = freq_percent, fill = value)) +
   geom_bar(stat = "identity", position = "stack") +
   geom_text(aes(label = paste0(round(freq_percent), "%")),
-            position = position_stack(vjust = 0.5),color = "black", size = 4) +
+            position = position_stack(vjust = 0.5),color = "white", size =3.5) +
   scale_fill_manual(values = OPsource_colors) +
-  labs(title = "Water Source | Own or Public",
-       x = "",y = "% of HH" , fill = "" ) +
-  theme_minimal(base_family = "serif")
+  labs(title = "Own / Public",
+       x = "",y = NULL , fill = "" ) +
+  theme_minimal(base_family = "serif")+theme(strip.text = element_text(size = 10),axis.text.y = element_blank())
+
 
 
 
@@ -111,7 +152,7 @@ grid.arrange(p1_source, p2_source, ncol = 2, widths = c(1.2, 1))
 
 ## Irrigation Pattern
 
-```{r irrigation_pattern}
+```{r irrigation_pattern, fig.height=3, fig.width=6.8}
 
 irrigation_pattern <- 
   df12_sugarcane %>% 
@@ -134,10 +175,10 @@ ordered_vars <- c("irri_times_month", "drip_month_estimated",
                   "irri_times_week","flood_week_estimated",
                   "irri_hours", "irri_days_between_ir")
 
-new_labels <- c("irri_times_week" = "Drips \nper Week",
-                "drip_month_estimated"="Drips \nper Month \nestimated",
-                "irri_times_month"= "Floods \nper Month",
-                "flood_week_estimated"="Floods \nper Week \nestimated",    
+new_labels <- c("irri_times_week" = "Drips \na Week",
+                "drip_month_estimated"="Drips \na Month \n[estimated]",
+                "irri_times_month"= "Floods \na Month",
+                "flood_week_estimated"="Floods \na Week \n[estimated]",    
                 "irri_hours" = "Hours \nper IR",
                 "irri_days_between_ir" = "Days \nBetween IR")
 
@@ -145,31 +186,33 @@ new_labels <- c("irri_times_week" = "Drips \nper Week",
 pattern_drip <- 
   irrigation_pattern %>% filter(ir_method=="Drip") %>% 
   ggplot(aes(x = factor(variable, levels = ordered_vars), y = mean, fill = variable)) +
-  geom_bar(stat = "identity", width = 0.6, fill = "dodgerblue2") +
+  geom_bar(stat = "identity", width = 0.6, fill = "#c7d9eeff") +
   geom_errorbar(aes(ymin=ci_lower,ymax=ci_upper),width = 0.2,color = "black") +
   geom_text(aes(label = round(mean, 2)),  position = position_stack(vjust = 0.5),
             color = "black", size = 4) +
   scale_x_discrete(labels = new_labels) +
-  labs(title = "Irrigation Pattern",x = "", y = "") +
+  labs(title = "Drip-Irrigation",x = "", y = "") +
   theme_minimal(base_family = "serif") +
   theme(legend.position = "none")
 
 pattern_flood <- 
   irrigation_pattern %>% filter(ir_method=="Flood") %>% 
   ggplot(aes(x = factor(variable, levels = ordered_vars), y = mean, fill = variable)) +
-  geom_bar(stat = "identity", width = 0.6, fill = "gray") +
+  geom_bar(stat = "identity", width = 0.6, fill = "#d7dbb5ff") +
   geom_errorbar(aes(ymin=ci_lower,ymax=ci_upper),width = 0.2,color = "black") +
   geom_text(aes(label = round(mean, 2)),  position = position_stack(vjust = 0.5),
             color = "black", size = 4) +
   scale_x_discrete(labels = new_labels) +
-  labs(title = "Irrigation Pattern",x = "", y = "") +
+  labs(title = "Flood Irrigation",x = "", y = "") +
   theme_minimal(base_family = "serif") +
   theme(legend.position = "none")
 
-grid.arrange(pattern_drip, pattern_flood, ncol=2, widths = c(1, 1), heights=c(3,1))
+grid.arrange(pattern_drip, pattern_flood, ncol=2, widths = c(1, 1))
 ```
 
-```{r flood_in_drip_plot_pattern}
+
+
+```{r flood_in_drip_plot_pattern, fig.height=4, fig.width=8}
 
 flood_in_drip_plot <- 
   df2_sugarcane %>% 
@@ -188,11 +231,11 @@ p1_fl <-
   mutate(irri_days_drip_flood=
            ifelse(irri_days_drip_flood==11,NA,irri_days_drip_flood)) %>%
   rename("Floods\na Month"= irri_days_drip_flood ,
-         "Floods\na Week \nestimated" =flood_week_estimated,
+         "Floods\na Week \n[estimated]" =flood_week_estimated,
          "Hours \nper IR"= irri_hours_drip_flood,
-         "Month in \na Year" = irri_months_drip_flood,
-         "Days \nBetween \nFloods I" = days_between_floods,
-         "Days \nBetween \nFloods II" = days_between_floodsB
+         "Days \nBetween \nFloods" = days_between_floods,
+         "Days \nBetween \nFloods \n(-once a month)" = days_between_floodsB,
+         "Months \na Year" = irri_months_drip_flood
   ) %>% 
   pivot_longer(cols = everything(),
                names_to = "variable", values_to = "value",values_drop_na = T) %>%
@@ -200,15 +243,17 @@ p1_fl <-
   summarise(mean = mean(value, na.rm = TRUE),
             sd = sd(value, na.rm = TRUE),n = sum(!is.na(value)),se = sd / sqrt(n),
             ci_lower = mean - 1.96 * se,ci_upper = mean + 1.96 * se, .groups = "drop") %>% 
-  mutate(variable = factor(variable, levels = c("Floods\na Month" ,
-         "Floods\na Week \nestimated",
-         "Hours \nper IR",
-         "Month in \na Year",
-         "Days \nBetween \nFloods I",
-         "Days \nBetween \nFloods II"))) %>% 
+  mutate(variable = factor(variable, levels = c(
+    "Floods\na Month" ,
+    "Floods\na Week \n[estimated]",
+    "Hours \nper IR",
+    "Days \nBetween \nFloods \n(-once a month)",
+    "Days \nBetween \nFloods",
+    "Months \na Year"
+         ))) %>% 
   
   ggplot(aes(x = variable, y = mean, fill = variable)) +
-  geom_bar(stat = "identity", width = 0.6,fill="dodgerblue2") +
+  geom_bar(stat = "identity", width = 0.6,fill="#c7d9eeff") +
   geom_errorbar(aes(ymin=ci_lower,ymax=ci_upper),width = 0.2,color = "black") +
   geom_text(aes(label = round(mean, 2)),  position = position_stack(vjust = 0.5),
             color = "black", size = 4) +
@@ -222,17 +267,16 @@ df2_sugarcane %>% count(ir_method,flood_before_after_drip) %>%
   mutate(freq_percent = n / sum(n) * 100) %>% 
   mutate(flood_before_after_drip=ifelse(flood_before_after_drip=="not_flood","Drip \nonly","Flood")) %>% 
   ggplot(aes(x = ir_method, y = freq_percent, fill = flood_before_after_drip)) +
-  geom_bar(stat = "identity") + 
+  geom_bar(stat = "identity") + coord_flip() +
   geom_text(aes(label = paste0(round(freq_percent), "%")),
             position = position_stack(vjust = 0.5),color = "white", size = 4) +
-  scale_fill_manual(values = c("Flood" = "dodgerblue4", "Drip \nonly" = "gray")) +
+  scale_fill_manual(values = c("Flood" =  "#989f52ff", "Drip \nonly" = "#276c9cff")) +
   labs(title = "Flooding in addition \nto dripping",x="",y="" , fill = "" ) +
   theme_minimal(base_family = "serif") + 
   theme(axis.text = element_blank(),axis.ticks = element_blank(),panel.grid = element_blank())
 
 
-grid.arrange(p1_fl, p2_fl, ncol=2, widths = c(3, 1), heights=c(3,1))
-
+grid.arrange(p2_fl, p1_fl,  ncol=2, widths = c(2.5, 3))
 
 ```
 <br>
@@ -245,8 +289,11 @@ Days Between Floods II = Mean without "irrigation 1 time per month".
 
 
 ## Sugarcane treatments
+% of Farmers Who Fertilize and use Fungicides and Insecticides
 
-```{r  SC treat}
+<br>
+
+```{r  SC treat, fig.height=3, fig.width=7}
 
 treat <- df12_sugarcane %>%
   select(uid, start,ir_method,insecticides_yn, fungi_yn, fertilze) %>% 
@@ -276,6 +323,7 @@ p1_treat <- treat1 %>%filter(variable == "fertilze") %>%
             position = position_stack(vjust = 0.5),color = "white", size = 4) +
   labs(title = "Fertilization method",x = "",y = "% of HH" , fill = "" ) +
   theme_minimal(base_family = "serif") + 
+    theme(plot.title = element_text(size = 11))+
   scale_fill_manual(
     values = c("manual_spread"="pink3","fertigation"="pink1","both"="pink4"),    
     labels = c("Fertigation","Manual spread","Both" ))
@@ -295,7 +343,8 @@ p2_treat <- treat1 %>%filter(variable != "fertilze",value=="Yes" ) %>%
   theme(
   axis.text.y = element_blank(),
   axis.ticks.y = element_blank()
-)
+)+  theme(legend.position = "none", strip.text = element_text(size = 11))
+
 
 
 
@@ -309,7 +358,7 @@ grid.arrange(p1_treat, p2_treat, ncol = 2, widths = c(1, 1.1))
 
 ## Crop Other then Sugarcanes
 
-```{r crop_bind}
+```{r crop_bind, fig.height=4, fig.width=7}
 
 p1_crop <- crop_bind %>% 
   filter(crop %in% c("Ginger","Wheat","Soybean")) %>% 
@@ -362,18 +411,18 @@ grid.arrange(p1_crop, p2_crop, ncol = 2, widths = c(1, 1))
 
 ## Economy
 
-```{r economy}
+```{r economy, fig.height=5, fig.width=6}
 
 # Plot 1: Sold Production (Ton)
 p1_economy <- economy %>% filter(variable=="sold_ton_per_acre") %>% 
   ggplot(aes(x = ir_method, y = mean, fill = ir_method)) +
   geom_col(width = 0.6) +
   geom_errorbar(aes(ymin=ci_lower,ymax=ci_upper),width = 0.2,color = "black") +
-  geom_text(aes(label = paste0(round(mean))),vjust=7,size = 4) +
+  geom_text(aes(label = paste0(round(mean))),vjust=4,size = 4) +
   labs(title = "Production Sold per Acre",x = "",y="Crop (Ton)") +
   theme_minimal(base_size = 14, base_family = "serif") +
-  scale_fill_manual(values = c("Drip" = "dodgerblue3", "Flood" = "gray")) +
-  theme(legend.position = "none")
+  scale_fill_manual(values = c("Drip" = "#c7d9eeff", "Flood" = "#d7dbb5ff")) +
+  theme(legend.position = "none", plot.title = element_text(size = 11))
 
 
 # Plot 0
@@ -400,23 +449,25 @@ p2_economy <- economy %>%
   ggplot(aes(x = ir_method, y = mean, fill = ir_method)) +
   geom_bar(stat = "identity", position = "dodge") +
   geom_errorbar(aes(ymin=ci_lower,ymax=ci_upper),width=.2,color="black") +
-  geom_text(aes(label = paste0(round(mean))),vjust=7,size = 4) +
+  geom_text(aes(label = paste0(round(mean))),vjust=4,size = 4) +
   facet_wrap(~variable, scales = "free_y") +
-  scale_fill_manual(values = c("Drip" = "dodgerblue3", "Flood" = "gray")) +
+  scale_fill_manual(values = c("Drip" = "#c7d9eeff", "Flood" = "#d7dbb5ff")) +
   labs(title = "Expenses per Acre", x = "", y ="") +
   theme_minimal(base_family = "serif")+ 
-  theme(legend.position = "none")
+  theme(legend.position = "none", plot.title = element_text(size = 11))
 
 # Plot 3: Revenue
 p3_economy <- economy %>% filter(variable=="revenue_per_acre") %>% 
   ggplot(aes(x = ir_method, y = mean, fill = ir_method)) +
   geom_col(width = 0.6) +
   geom_errorbar(aes(ymin=ci_lower,ymax=ci_upper),width = 0.2,color = "black") +
-  geom_text(aes(label = paste0(round(mean))),vjust=7,size = 4) +
+  geom_text(aes(label = paste0(round(mean))),vjust=4,size = 4) +
   labs(title = "Revenue per Acre",x = "",y="Thousands ₹") +
   theme_minimal(base_size = 14, base_family = "serif") +
-  scale_fill_manual(values = c("Drip" = "dodgerblue3", "Flood" = "gray")) +
-  theme(legend.position = "none")
+  scale_fill_manual(values = c("Drip" = "#c7d9eeff", "Flood" = "#d7dbb5ff")) +
+  theme(legend.position = "none", 
+        plot.title= element_text(size = 11),
+        strip.text = element_text(size = 10))
 
 
 grid.arrange(p1_economy, blankPlot,  p3_economy,p2_economy,nrow = 2, ncol = 2, widths = c(1, 1.4))
@@ -428,7 +479,7 @@ grid.arrange(p1_economy, blankPlot,  p3_economy,p2_economy,nrow = 2, ncol = 2, w
 
 ## Opinion
 
-```{r Opinion}
+```{r Opinion, fig.height=4, fig.width=5}
 
 p1_op <- df2_sugarcane %>% 
   filter(!is.na(drip_more_less)) %>% 
@@ -440,11 +491,11 @@ p1_op <- df2_sugarcane %>%
   geom_text(aes(label = paste0(round(freq_percent), "%\n", drip_more_less)),
             position = position_stack(vjust = 0.5),color = "white", size = 4) +
   scale_fill_manual(values = c("Less" = "dodgerblue4", "More" = "dodgerblue2")) +
-  labs(title = "Opinion | Does drip cause more or less agricultural work? \nApart from deploying the pipes",
+  labs(title = "Does drip cause more or less agricultural work? \nApart from deploying the pipes",
        x = "",y = "% of HH" , fill = "" ) +
   theme_minimal(base_family = "serif") + 
   theme(axis.ticks = element_blank(),panel.grid = element_blank(),
-    legend.position = "none")
+    legend.position = "none", plot.title= element_text(size = 11))
 
 grid.arrange(p1_op, nrow=2, heights  = c(1, 1))
 
@@ -467,7 +518,7 @@ p2_op <- df2_sugarcane %>%
   ggplot(aes(x = 1, y = freq_percent, fill = first_drip_system)) +
   geom_bar(stat = "identity") +
   geom_text(aes(label = paste0(round(freq_percent), "%\n", first_drip_system)),
-            position = position_stack(vjust = 0.5),color = "white", size = 4) +
+            position = position_stack(vjust = 0.5),color = "black", size = 4) +
   scale_fill_manual(values = c("Yes" = "royalblue2", "No" = "gray60")) +
   labs(title = "Is it your first \ndrip system?",
        x = "",y = "" , fill = "" ) +
@@ -505,6 +556,11 @@ why_drip<-
          -why_drip,-`why_drip/other`, -`why_drip/hold_job_biz`)
 why_drip_N <- as.numeric(count(why_drip))
 
+new_labels <- c("better_yield" = "Better \nyield",
+                "less_weeds"="Less \nweeds",
+                "reduce_labor_cost"= "Reduce \nlabor \ncost",
+                "save_water_share_source"="Save water \nShared source",
+                "save_water_year_round" = "Save water \nfor year round")
 
 p5_op <- why_drip %>% 
   pivot_longer(
@@ -517,6 +573,7 @@ p5_op <- why_drip %>%
   geom_bar(stat = "identity", width = 0.6, fill = "dodgerblue4") +
   geom_text(aes(label = paste0(round(freq_percent), "%")),
             vjust = 1.5, color = "white", size = 4) +
+  scale_x_discrete(labels = new_labels) +
   labs(
     title = "What are the reasons you adopted drip irrigation?",
     x = "", y = "") +
@@ -555,7 +612,7 @@ grid.arrange(p2_op, p3_op,  blankPlot,  p5_op ,nrow = 2, ncol = 2, widths =  c(1
 
 ```
 
-```{r installations2}
+```{r installations2 , fig.height=3, fig.width=6}
 #   plan_install_drip  -----
 p4_op <- df2_sugarcane %>% 
   filter(!is.na(plan_install_drip)) %>% 
@@ -565,7 +622,7 @@ p4_op <- df2_sugarcane %>%
   ggplot(aes(x = 1, y = freq_percent, fill = plan_install_drip)) +
   geom_bar(stat = "identity") +
   geom_text(aes(label = paste0(round(freq_percent), "%\n", plan_install_drip)),
-            position = position_stack(vjust = 0.5),color = "white", size = 4) +
+            position = position_stack(vjust = 0.5),color = "black", size = 4) +
   scale_fill_manual(values = c("Yes" = "royalblue2", "No" = "gray60")) +
   labs(title = "Plan to install drip",
        x = "",y = "" , fill = "" ) +
@@ -580,11 +637,37 @@ plan <-
   filter(!is.na(plan_install_drip_why_not))
 
 plan$no_plan_drip[plan$plan_install_drip_why_not %in% c(
-  "Money issues","Expenses","Money")] <- "Lack of Capital"
+  "Money issues","Expenses","Money issue","More expenses","No money",
+  "Money")] <- "Money \nissues"
+
 plan$no_plan_drip[plan$plan_install_drip_why_not %in% c(
-  "Dam water is near by","Dam water near to","River is close and he have only one acres")] <- "I Have Water"
+  "Dam water is near by","River is close and he have only one acres",
+  "Dam is near lot of water","Lot of water","More water",
+  "More water dam water is near","Water sources is good and week maintenance in plot",
+  "Dam water near to")] <- "I Have \nlot of \nWater"
+
+plan$no_plan_drip[plan$plan_install_drip_why_not %in% c(
+  "Investing money is risky","Invest in drip is risky","Investing on drip is risky",
+  "Dont want to change farming method it’s risky","Invest in drip is risky",
+  "Investing drip is risk")] <- "Drip is \na risk"
+
+plan$no_plan_drip[plan$plan_install_drip_why_not %in% c(
+  "Farmer choice is flood","They only so then don’t want to invest","For better growth",
+  "According to farmer, flood is simple")] <- "Flood is \neasier to \nmanage"
+
+plan$no_plan_drip[plan$plan_install_drip_why_not %in% c(
+  "Farmer can do different work","Flood time management is better then flood",
+  "I a month i go in plot weekly base","More time for different work","More work",
+  "Farmer thinks less works in flood")] <- "Drip takes \nmore \nwork/time"
+
+plan$no_plan_drip[plan$plan_install_drip_why_not %in% c(
+  "Only half acre of land","Less land")] <- "I have \nsmall plot \nof land"
+
+
+
 
 plan_not <- plan %>% 
+    mutate(no_plan_drip=ifelse(is.na(no_plan_drip),plan_install_drip_why_not,no_plan_drip )) %>% 
   count(no_plan_drip) %>% 
   mutate(freq_percent=n/sum(n)*100) 
 plan_not_N <- sum(plan_not$n)
@@ -593,7 +676,7 @@ p5_op <- plan_not %>%
   ggplot(aes(x = factor(no_plan_drip), y = freq_percent)) +
   geom_bar(stat = "identity", width = 0.6, fill = "gray60") +
   geom_text(aes(label = paste0(round(freq_percent), "%")),
-            vjust = 1.5, color = "white", size = 4) +
+            vjust = 1.5, color = "black", size = 4) +
   labs(title = "           For what reasons you don't want drip?",x = "", y = "% of HH") +
   theme_minimal(base_family = "serif") +
   theme(legend.position = "none")
@@ -604,7 +687,7 @@ grid.arrange(p4_op,p5_op, ncol=2, widths = c(1, 5))
 ```
 
 
-```{r job_biz}
+```{r job_biz, fig.height=2, fig.width=5}
 
 job_biz <- df2_sugarcane %>%
   select(uid,ir_method, job_biz_income, job_biz_less,plan_install_drip_prevent_jobBiz,plan_install_drip_why_not_jobBiz) 
@@ -616,71 +699,34 @@ p1_jb <- job_biz %>% filter(!is.na(job_biz_income)) %>%
   geom_bar(stat = "identity") +     coord_flip() +
   geom_text(aes(label = paste0(round(freq_percent), "%\n")),
             position = position_stack(vjust = 0.5),color = "black", size = 4) +
-  labs(title = "Do you have income from a salary job or non-farming business in addition to selling crops?",
+  labs(title = "Do you have income from a salary job or \nnon-farming business in addition to selling crops?",
               subtitle = "fraction of farmers said YES",x = "",y = ""  ) +
-  scale_fill_manual(values = c("Drip" = "dodgerblue3", "Flood" = "gray")) +
+  scale_fill_manual(values = c("Drip" = "#c7d9eeff", "Flood" = "#d7dbb5ff")) +
   theme_minimal(base_family = "serif") + 
   theme(axis.ticks = element_blank(),panel.grid = element_blank(),legend.position = "none")
 
 
-grid.arrange(p1_jb, heights  = c(1, 1))
+p1_jb
 
 ```
 
-```{r job_biz 2}
-library(scales)
-library(kableExtra)
-
-
-job_biz %>%
-  filter(!is.na(job_biz_less)) %>%
-  summarise(n   = n(),
-            Yes = percent(mean(job_biz_less))) %>%
-  kable(caption = "Are you holding the job/business because drip causes LESS work?",
-        col.names = c("N", "Percent Yes"),align = c("r", "r")
-  ) %>%kable_minimal() 
-
-
-job_biz %>%
-  filter(!is.na(plan_install_drip_prevent_jobBiz)) %>%
-  summarise(n   = n(),
-            Yes = percent(mean(plan_install_drip_prevent_jobBiz))) %>%
-  kable(caption = "Are you concerned that drip will prevent you from holding a job/business?",
-        col.names = c("N", "Percent Yes"),align = c("r", "r")
-  ) %>%kable_minimal()
-
-job_biz %>%
-  filter(!is.na(plan_install_drip_why_not_jobBiz)) %>%
-  summarise(n   = n(),
-            Yes = percent(mean(plan_install_drip_why_not_jobBiz))) %>%
-  kable(caption = "Do you think using drip will prevent you from holding your job/business?",
-        col.names = c("N", "Percent Yes"),align = c("r", "r")
-  ) %>%kable_minimal()
-
-
-
-```
-Are you holding the job/business because drip causes LESS work?
-Use Flood or Drip +  Hold job/biz_income
-
+**When it's NOT sowing or harvesting time, how much time you work in your sugarcane field?**  
+How many days in a week?  
+How many hours each day?
 <br>
 
-Are you concerned that drip will prevent you from holding a job/business?
-Use Flood +  Hold job/biz_income + YES plan install drip
-
-<br>
-
-Do you think using drip will prevent you from holding your job/business?
-Use Flood +  Hold job/biz_income + NO plan install drip
-
-<br>
-<br>
-<br>
-
-```{r instions2}
+_If he have salary job/ business_  
+**How much time you spend on your salary job/ business?**  
+How many days in a week?  
+How many hours each day?  
 
 
 
-```
+
+
+
+
+
+
 
 

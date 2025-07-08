@@ -219,6 +219,21 @@ bl6_plotAcre  %>% filter(hh_id==100019)
 ml18_plots_size %>% filter(hh_id==100019)
 a_plots_size %>% filter(hh_id==100019)
 
+p16=bl6_plotAcre %>% rename(acre_BL=plot_acre,plotID = plot_num)
+p18=ml18_plots_size %>% rename(acre_MID=acres,plotID = plotId   )
+p22=a_plots_size %>% rename(acre_END=acres)%>% select(plotSrvy, plotSrvyHissa, plotStatus, plotVillage, hh_id, plotID,acre_END  )
+plot_size= p22 %>% left_join(p16)%>% left_join(p18) %>% 
+  select(plotSrvy:plotID ,acre_BL, acre_MID,acre_END )
+
+
+plot_BL_dt <-full_join(bl_plot_SrvyHis, bl6_plotAcre)
+plot_BL_dt %>% filter(is.na(plot_acre))
+
+ml18_plots_size
+
+
+
+
 
 
 
