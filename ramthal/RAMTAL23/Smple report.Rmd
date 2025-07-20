@@ -1,0 +1,94 @@
+---
+title: "Sample Report"
+author: "Your Name"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    number_sections: true
+
+    
+
+---
+
+# Introduction
+
+Some text.
+
+## Reg Discontinuity
+
+$$
+Y_i = \alpha + \beta_1 \text{Project}_i + \beta_2 \text{DistanceBoundary}_i + \beta_3 Y_{i,t-1} + \sum_{k=1}^8 \gamma_k C_{ik} + \epsilon_i
+$$
+
+- $\mathbf{Y_{i,t}}$ is the outcome at endline for farmer $i$ (e.g., drip use, land size, income),
+- $\mathbf{Y_{i,t-1}}$ is the *pre-treatment* (baseline) value of the *same* outcome for farmer $i$,
+- **Project**$_i$ $=1$ if farmer $i$ lies inside the project area ($0$ otherwise),
+- **DistanceBoundary**$_i$: is the distance in meters from the project boundary;
+- $\mathbf{C_{ik}}$ ($\mathbf{k=1,\ldots,8}$) are control variables (e.g., farmer age, gender, education, household size, total landholding, caste, baseline income, market distance);
+- $\mathbf{\alpha}$ is the intercept, $\mathbf{\beta_j}$ are coefficients of interest, $\mathbf{\gamma_k}$ capture control effects, and $\mathbf{\epsilon_i}$ is an error term.  
+  
+
+\underline{\textbf{Control Variables:}}
+
+- **Age:** Continuous variable.
+- **Gender:** Binary variable, 1 for male.  
+- **Education:** Continuous variable representing years of education [1 = elementary to 6 = high edu].
+- **Land holding:** Continuous variable for total agricultural acre of land owned.  
+- **House type:** Continuous variable. 1 = pucca, 2 = semi pucca, 3 = kutcha.
+- **Jobs other than agriculture:** Continuous variable for total external sources [1–4 sources]\footnote{Own non-agricultural business/ Salaried job/ Casual work or daily labor by current household members/ Other jobs or activities}
+- **Government pension or scheme:** Binary variable.
+- **Rent/lease of property or land:** Binary variable.  
+- **Livestock:** Continuous variable for total livestock owned\footnote{\# Cows \# Bullock \# Buffaloes \# Goats and sheep}  
+- **Farm equipments:** Continuous variable for total equipments owned\footnote{\# Tractor \# Plough \# Thresher \# Seed drill}
+  
+  
+We estimate an OLS model of the endline outcome $\mathbf{Y_{i,t}}$ on three core regressors plus eight controls. Coefficient  $\mathbf{\beta_1}$captures the average difference in Y for farmers inside versus outside the project area;  $\mathbf{\beta_2}$ measures how Y varies with each additional meter from the project boundary. Importantly,  $\mathbf{\beta_3}$ is on the lagged outcome $\mathbf{Y_{i,t-1}}$, which controls for any baseline level of the same variable (drip use, land size, income, caste group, etc.), thereby isolating the incremental change. Controls $\mathbf{C_{ik}}$ include farmer demographics (age, gender, education), household and farm attributes (household size, total landholding, baseline income).
+  
+Term 1
+:   Definition 1
+
+Term 2
+:   Definition 2
+
+
+## SUB Subsection
+
+$Y_i = \alpha + \beta_1 X_i + \epsilon_i$
+
+# Section 
+
+
+
+
+##  Subsection
+
+This is the first paragraph.
+  
+This is a new paragraph.
+  
+  
+First line
+\\
+Second line\\
+Third line
+
+  
+  
+  
+  
+  
+This is line one.  
+This is line two, right below it.
+
+
+  
+  
+
+$$
+a = b + c \\
+d = e + f
+$$
+[Karnataka's largest tech-induced irrigation project in muddy waters?](https://thefederal.com/states/south/karnataka/rainfed-or-tech-induced-irrigation-farmers-caught-in-muddy-waters)
+
+
+

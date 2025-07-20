@@ -705,6 +705,11 @@ bl_crop_plot_3s=
     )           
 
 
+library(writexl)
+write_xlsx(bl_crop_plot_3s, "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/bl_crop_plot_3s.xlsx")
+
+
+
 
 
 # [D28]	Was the crop irrigated?        || bl28_irri_plot_season   ----
@@ -817,15 +822,26 @@ D29_a$crop_num <- paste0("crop", D29_a$crop_num)
 D29_a$plotID <- ifelse(nchar(D29_a$plotID) == 1, paste0("plot_0", D29_a$plotID), paste0("plot_", D29_a$plotID))
 
   
+library(readr)
+bl6_plotAcre <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/bl6_plotAcre.csv")
 
 BL_plotAcre <- bl6_plotAcre %>% select(-farmers_hh) %>% rename(plotID =plot_num )  # A tibble: 3,455
 
+BL_plot.Crop.Yield <- bl_crop_plot_3s %>% 
+  select(hh_id ,plotID, season,crop_num , crop_name,crop_common) %>% 
+  right_join(D29_a %>% select(hh_id ,plotID,crop_num , season,yield))
 
 
 BL_plotCrop <- bl_crop_plot_3s %>% 
-  select(hh_id ,plotID, season,crop_num , crop_name) %>% 
+  select(hh_id ,plotID, season,crop_num , crop_name,crop_common) %>% 
   right_join(D29_a %>% select(hh_id ,plotID,crop_num , season,yield))
-BL_plotCrop$season[BL_plotCrop$crop_name=="Toor"] <- "kharif_2015"
+
+BL_plotCrop$Season[BL_plotCrop$crop_name=="Sorghum_jowar"] <- "rabi"
+BL_plotCrop$Season[BL_plotCrop$crop_name=="Bengal_gram"] <- "rabi"
+BL_plotCrop$Season[BL_plotCrop$crop_name=="Greengram"] <- "kharif"
+BL_plotCrop$Season[BL_plotCrop$crop_name=="Toor"] <- "kharif"
+BL_plotCrop$Season[BL_plotCrop$crop_name=="Maize"] <- "kharif"
+
 
 
 yield_per_acre_2015 <- 

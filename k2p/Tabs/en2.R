@@ -2,7 +2,7 @@
 library(dplyr)
 library(readxl)
 english_learning_ai_cleanDF <- read_excel("Copy_of_english_learning_ai_cleanDF.xlsx")
-
+english_learning_ai_cleanDF <- Copy_of_english_learning_ai_cleanDF
 names(english_learning_ai)
 
 english_learning_ai=english_learning_ai_cleanDF %>% 
@@ -170,16 +170,16 @@ library(sjPlot)
 #           self_efficacy Predictor for fearAI      ----
 
 m1 <- lm(fearAI_1 ~ self_efficacy + Post_course+
-           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
          data = english_learning_ai)
 m2 <- lm(fearAI_2 ~self_efficacy + Post_course+
-           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
          data = english_learning_ai)
 m3 <- lm(fearAI_3 ~  self_efficacy+ Post_course +
-           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
          data = english_learning_ai)
 m4 <- lm(fearAI ~  self_efficacy+ Post_course +
-           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
          data = english_learning_ai)
 sjPlot::tab_model(m1,m2,m3,m4, show.se = TRUE, show.ci = FALSE, digits = 4)
 
@@ -190,38 +190,38 @@ sjPlot::tab_model(m1,m2,m3,m4, show.se = TRUE, show.ci = FALSE, digits = 4)
 #           self_image Predictor for fearAI         ----
 
 m1 <- lm(fearAI_1 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
          data = english_learning_ai) 
 
 m2 <- lm(fearAI_2 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
          data = english_learning_ai)
 
 m3 <- lm(fearAI_3 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
          data = english_learning_ai)
 
 m0 <- lm(fearAI ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
          data = english_learning_ai)
 sjPlot::tab_model(m1,m2,m3,m0, show.se = TRUE, show.ci = FALSE, digits = 4)
 
 
 #           self_image Predictor for self_efficacy  ----
 m1 <- lm(self_efficacy_1 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
          data = english_learning_ai)
 
 m2 <- lm(self_efficacy_2 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
          data = english_learning_ai)
 
 m3 <- lm(self_efficacy_3 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
          data = english_learning_ai)
 
 m4 <- lm(self_efficacy_4 ~ self_image + Post_course+
-           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+           gander_1male_2Female + Generation + sector_2 + english_CERF_level, 
          data = english_learning_ai)
 
 sjPlot::tab_model(m1,m2, m3,m4, show.se = TRUE, show.ci = FALSE, digits = 4)
