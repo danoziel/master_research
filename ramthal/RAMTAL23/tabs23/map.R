@@ -1,3 +1,5 @@
+library(dplyr)
+library(stringr)
 
 # DF use in this script
 rmtl_InOut
@@ -13,7 +15,7 @@ rd_land_with_coords  # sf  Land usage  #  1,378 obs
 
 
 
-# Clean  the Ramthal_East_shp shapefile [Ramthal_clean]    ----
+############  Clean Ramthal_East_shp shapefile [Ramthal_clean]             ####
 library(sf)
 
 sf::sf_use_s2(FALSE)  # Disable S2 to avoid geometry engine issues
@@ -23,6 +25,7 @@ Ramthal_East_shp <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramtha
 
 dev.new()  # opens a new plotting window
 plot(st_geometry(Ramthal_East_shp))
+dev.new()  # opens a new plotting window
 
 st_crs(Ramthal_East_shp)
 # EPSG:4326 →  lat/lon
@@ -54,34 +57,96 @@ Ramthal_clean <- Ramthal_fixed_clean %>%
 st_crs(Ramthal_clean) <- 32643  # UTM zone 43N — coordinates are in meters
 
 
+### df status
+st_crs(Ramthal_clean)
+class(Ramthal_clean)
+rm(Ramthal_fixed,Ramthal_fixed_clean)
 
+############  Convert POLYGON to POINT [centroids_coords]                  ####
 
-
-# Convert POLYGON to POINT  [centroids_coords]             ----
 # Create centroids for each polygon (in meters)
-
 Ramthal_centroids_utm <- 
   Ramthal_clean %>% mutate(geometry = st_centroid(geometry))
+  # class(Ramthal_centroids_utm) # sf , tbl_df , tbl , data.frame
+
 
 # Extract X/Y coordinates from the centroids
-coords <- st_coordinates(Ramthal_centroids_utm)
+coords <- st_coordinates(Ramthal_centroids_utm) 
+       ## class(coords) # matrix , array
 
 # Combine coordinates with polygon id
 centroids_coords <- as.data.frame(coords)
 centroids_coords$id <- Ramthal_centroids_utm$id
 
+class(centroids_coords)
+rm(coords)
 
 # Allocate more coordinates  [multi_hh_df]                 ----
 
+
+# Missing coordinates
+miss_XY=list_shape_code %>% right_join(hh_2022) %>% 
+  select(hh_id, id) %>%
+  left_join(centroids_coords, by = "id") %>%
+  filter(is.na(X)) %>% 
+  left_join(a_plots_size %>% select(hh_id,plotSrvy ,plotVillage,plotID,acres ) ) %>%
+  select(-X,-Y)
+  mutate(row_num=1:578)
+# miss_XY[16:30,]
+# miss_XY %>% filter(row_num %in% c(8,11,17,21   ) )
+
+# library(stringer)
+# Remove anything after '-' or '/' AND trailing letters
+miss_XY$plotSrvy_clean <- sub("[-/_].*$", "", miss_XY$plotSrvy)
+miss_XY$plotSrvy_clean <- sub("[A-Za-z]+$", "", miss_XY$plotSrvy_clean)
+miss_XY$plotSrvy_clean <- as.numeric(miss_XY$plotSrvy_clean)
+miss_XY$id_new <-  floor(miss_XY$id / 1000) * 1000 # down to the nearest thousand
+
+miss_cc <-centroids_coords %>% rename(id_point=id )
+  
+miss_point <- miss_XY %>% 
+  filter(plotSrvy_clean<1000) %>% 
+  mutate(id_point = plotSrvy_clean + id_new) %>% 
+  left_join(miss_cc) %>% 
+  filter(!is.na(X)) %>% 
+  group_by(hh_id) %>% mutate(n=n()) %>% slice(1) %>% ungroup() %>% 
+  select(hh_id,id_point,X,Y) %>% rename(X2=X,Y2=Y)
+
+add_point = list_shape_code %>% right_join(hh_2022) %>% 
+  select(hh_id, id) %>%
+  left_join(centroids_coords) %>% rename(Xold=X,Yold=Y) %>%  
+  left_join(miss_point)
+
+add_point$id_point <- ifelse(is.na(add_point$id_point),add_point$id,add_point$id_point)
+add_point$X <- ifelse(is.na(add_point$X),add_point$Yold,add_point$X)
+add_point$Y <- ifelse(is.na(add_point$Y),add_point$Yold,add_point$Y)
+
+list_geom_POINT = add_point %>% 
+  select(hh_id, id_point, X, Y)
+
+
+
 # Adjust polygons with 2-3 farm
+multi_hh_df <-list_geom_POINT %>% 
+  filter(!is.na(X)) %>%  # remove hh_id and id without coords
+  group_by(id_point) %>% # %>% count(id_point) %>% count(n)
+  mutate(
+    hh_count     = n(),                     # number of households per polygon
+    offset_index = row_number(),            # row index within group
+    offset_m     = (offset_index - 1) * 25, # 25 meters per additional farmer
+    adj_X        = X + offset_m,            # shift east
+    adj_Y        = Y + offset_m             # shift north
+  ) 
+
+
 # Adjust farmer coordinates to offset multiple households per polygon 
 # (25m step in X and Y)
 
-multi_hh_df <- list_shape_code %>%
+multi_hh_df <- list_shape_code %>% right_join(hh_2022) %>% 
   select(hh_id, id) %>%
   left_join(centroids_coords, by = "id") %>%
   filter(!is.na(X)) %>%  # remove hh_id and id without coords
-  group_by(id) %>%
+  group_by(id) %>% # mutate(n= n()) %>% ungroup() %>% count(n)
   mutate(
     hh_count     = n(),                     # number of households per polygon
     offset_index = row_number(),            # row index within group

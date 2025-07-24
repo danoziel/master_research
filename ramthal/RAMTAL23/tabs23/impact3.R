@@ -246,7 +246,7 @@ func_drip <- function(data, outcome) {
   lm(form, data = data)
 }
 
-# reg for drip     ----
+# reg for drip       ----
 
 #| "MODEL 1" elevation_0m     TO impact_ir
 #| "MODEL 2" dist_to_south_km TO impact_ir
@@ -298,7 +298,7 @@ m3_6y <- impact_ir_south %>%  func_drip_dist("drip_use_6y")
 
 
 
-# reg TABLE        ----
+# reg TABLE          ----
 
 # "MODEL 1" elevation_0m TO impact_ir
 modelsummary(
@@ -345,7 +345,7 @@ sjPlot::tab_model(model_drip_6y ,show.se = T,digits = 5, show.stat=T )
 #|=============================================================================
 
 
-# PLOT reg         ----
+# PLOT reg           ----
 
 library(jtools)
 library(ggstance)
@@ -411,7 +411,7 @@ m3_plot + mp_theme+  ggtitle("`Distance to Boundary` as an Exogenous Variable [S
 #|=============================================================================
 
 
-# PLOT dist_rd     ----
+# PLOT dist_rd       ----
 
 dist_rd <- 
   irrigation_dist %>%
@@ -496,11 +496,9 @@ rdplot(dist_rd$drip_use_6y, dist_rd$dist_1.5Km,
 
 
 
-# CULTIVATED LAND ### ### ### ### ### ### ### ### ### ### ### ###-----
+#                    ###  CULTIVATED LAND ################             ###-----
 
-
-
-#### DS | {season} {farmers_hh} {acre_cult} {acre_drip} {acre_ir} --- --- ----
+#### DS {season} {acre cult drip ir} --- --- ----
 plots_crop_2022 %>%  
   select(hh_id,season,plotID) %>% distinct() %>% 
   left_join(a_plots_size %>% select(hh_id,plotID,acres)) %>% 
@@ -523,7 +521,7 @@ plots_crop_2022 %>%
             acre_ir=mean(acre_ir),.groups="drop"
             )
 
-### DF for reg CROP  ----
+#    DF for reg CROP  ----
 
 ### [crop_acre_22]
 ###
@@ -594,12 +592,7 @@ write_xlsx(crop_acre_BL, "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/cr
 
 
 
-#|=============================================================================
-
-
-
-
-### reg    ####
+### reg              ####
 
 library(readxl)
 crop_acre_22 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/crop_acre_22.xlsx")
@@ -687,7 +680,7 @@ summary(m1_Gg)
 sjPlot::tab_model(m1_Gg ,  show.se = T,digits = 5, show.stat  = F )
  ### 
  ###
- # reg TABLE        ----
+ # reg TABLE         ----
  library(modelsummary)
  # "MODEL 1" elevation_0m TO impact_ir
  # modelsummary(
@@ -745,7 +738,7 @@ sjPlot::tab_model(m1_Gg ,  show.se = T,digits = 5, show.stat  = F )
  #|=============================================================================
  
  
- # PLOT reg         ----
+ # PLOT reg          ----
  
  library(jtools)
  library(ggstance)
@@ -767,25 +760,26 @@ m1_plot + mp_theme + ggtitle("`Elevation` as an Exogenous Variable [Entire sampl
 
 
 
-#### YIELD		         ----					
+#                    ### 	YIELD 	########################	           ----					
 
 BL_plot.Crop.Yield %>% count(crop_common)
 plots_crop_2022 %>% count(common_n2_family)
 
 
-
+#######  DFs [df100]  [df300]            ####
 
 df100 <- 
   BL_plot.Crop.Yield %>% 
   select(hh_id,season,plotID,crop_common, yield) %>% 
   filter (yield >0) %>% 
-  left_join(BL_plotAcre %>% select(-X)) %>%  filter(plot_acre>0) %>% 
+  left_join(BL_plotAcre) %>%  filter(plot_acre>0) %>% 
   group_by(hh_id, season, plotID) %>% mutate(n=n()) %>% ungroup() %>% 
-  mutate(plot_acre = yield/(plot_acre/n)) %>% 
-  select(hh_id, season, plotID, crop_common, plot_acre) %>% 
-  rename(crop=crop_common) %>% mutate(survey="bl")
-
-
+  mutate(crop_acre = plot_acre/n ) %>% select(-n,-X) %>% 
+  mutate(yield =ifelse(yield<50,yield*100,yield) ) %>% 
+  rename(crop=crop_common, kg_crop =yield) %>% mutate(survey="bl")
+##
+##
+##
 df300 <- 
   plots_crop_2022 %>% 
   select(hh_id,season,plotID,crop_number ,common_n_family) %>% 
@@ -794,43 +788,204 @@ df300 <-
   left_join(total_acre_22) %>% 
   filter(kg_crop>0,acres>0)%>% select(-crop_number ) %>% 
   group_by(hh_id, season, plotID) %>% mutate(n=n()) %>% ungroup() %>% 
-  mutate(plot_acre = kg_crop/(acres/n))%>% 
-  select(hh_id, season, plotID, common_n_family, plot_acre) %>% 
-  rename(crop=common_n_family)%>% mutate(survey="mid2")
+  mutate(crop_acre = acres/n)%>% select(-n) %>% 
+  rename(crop=common_n_family, plot_acre=acres)%>% mutate(survey="mid2") 
 df300$crop[df300$crop=="Bengal gram"] <- "Bengal_gram"
 df300$crop[df300$crop=="Sorghum/jowar"] <- "Sorghum_jowar"
+
+
+#-#-#-#  [kharif] = [rabi]      
 
 df100 %>% count(crop) %>% as.data.frame()
 df300 %>% count(crop) %>% as.data.frame()
 
-df400 <- rbind(df100,df300) %>% mutate(Season = sub("_.*", "", season))
+#-# df300 %>% select(hh_id,plotID,season,crop) %>% group_by(hh_id,plotID,crop) %>% mutate(n=n())
+#-#-#
+#-#-#  אין חפיפה בין עונות - אף חלקה לא תיסכם פעמיים
+#-#-#  גידולים שנתיים ירשמו כדלקמן 
+#-#-# 
+#-#-#  [kharif_2015] = [rabi_2015_16]
+#-#-#  [kharif_2021] = [rabi_2021_22]
 
-df100 %>% select(hh_id,season,crop) %>% filter(crop=="Wheat") %>% distinct() %>% count(season)
-df300 %>% select(hh_id,season,crop) %>% filter(crop=="Wheat") %>% distinct() %>% count(season)
+#       ### Sorghum_jowar RABI
+# df100 %>% select(hh_id,season,crop) %>% filter(crop=="Sorghum_jowar") %>% distinct() %>% count(season)
+# df300 %>% select(hh_id,season,crop) %>% filter(crop=="Sorghum_jowar") %>% distinct() %>% count(season)
+df100$season[df100$crop=="Sorghum_jowar" & df100$season=="kharif_2015"] <- "rabi_2015_16"
+df300$season[df300$crop=="Sorghum_jowar" & df300$season=="kharif_2021"] <- "rabi_2021_22"
+
+#       ### Bengal_gram RABI
+# df100 %>% select(hh_id,season,crop) %>% filter(crop=="Bengal_gram") %>% distinct() %>% count(season)
+# df300 %>% select(hh_id,season,crop) %>% filter(crop=="Bengal_gram") %>% distinct() %>% count(season)
+df100$season[df100$crop=="Bengal_gram" & df100$season=="kharif_2015"] <- "rabi_2015_16"
+df300$season[df300$crop=="Bengal_gram" & df300$season=="kharif_2021"] <- "rabi_2021_22"
+
+#       ### Toor KHARIF
+# df100 %>% select(hh_id,season,crop) %>% filter(crop=="Toor") %>% distinct() %>% count(season)
+# df300 %>% select(hh_id,season,crop) %>% filter(crop=="Toor") %>% distinct() %>% count(season)
+df100$season[df100$crop=="Toor" & df100$season=="rabi_2015_16"] <- "kharif_2015"
+df300$season[df300$crop=="Toor" & df300$season=="rabi_2021_22"] <- "kharif_2021"
+
+#v      ### Greengram KHARIF
+# df100 %>% select(hh_id,season,crop) %>% filter(crop=="Greengram") %>% distinct() %>% count(season)
+# df300 %>% select(hh_id,season,crop) %>% filter(crop=="Greengram") %>% distinct() %>% count(season)
+df100$season[df100$crop=="Greengram" & df100$season=="rabi_2015_16"] <- "kharif_2015"
+df300$season[df300$crop=="Greengram" & df300$season=="rabi_2021_22"] <- "kharif_2021"
+
+#       ### Maize KHARIF
+# df100 %>% select(hh_id,season,crop) %>% filter(crop=="Maize") %>% distinct() %>% count(season)
+# df300 %>% select(hh_id,season,crop) %>% filter(crop=="Maize") %>% distinct() %>% count(season)
+df100$season[df100$crop=="Maize" & df100$season=="rabi_2015_16"] <- "kharif_2015"
+df300$season[df300$crop=="Maize" & df300$season=="rabi_2021_22"] <- "kharif_2021"
+
+#       ### Sunflower KHARIF
+# df100 %>% select(hh_id,season,crop) %>% filter(crop=="Sunflower") %>% distinct() %>% count(season)
+# df300 %>% select(hh_id,season,crop) %>% filter(crop=="Sunflower") %>% distinct() %>% count(season)
+df100$season[df100$crop=="Sunflower" & df100$season=="rabi_2015_16"] <- "kharif_2015"
+df300$season[df300$crop=="Sunflower" & df300$season=="rabi_2021_22"] <- "kharif_2021"
+
+#       ### Wheat RABI
+# df100 %>% select(hh_id,season,crop) %>% filter(crop=="Wheat") %>% distinct() %>% count(season)
+# df300 %>% select(hh_id,season,crop) %>% filter(crop=="Wheat") %>% distinct() %>% count(season)
+df100$season[df100$crop=="Wheat" & df100$season=="kharif_2015"] <- "rabi_2015_16"
+df300$season[df300$crop=="Wheat" & df300$season=="kharif_2021"] <- "rabi_2021_22"
 
 
-df400$Season[df400$crop=="Sorghum_jowar"] <- "rabi"
-df400$Season[df400$crop=="Bengal_gram"] <- "rabi"
-df400$Season[df400$crop=="Greengram"] <- "kharif"
-df400$Season[df400$crop=="Toor"] <- "kharif"
-df400$Season[df400$crop=="Maize"] <- "kharif"
-df400$Season[df400$crop=="Sunflower"] <- "kharif"
-df400$Season[df400$crop=="Wheat"] <- "rabi"
-df400$Season[df400$crop=="Wheat"] <- "rabi"
+### ###  kg per plot ### ### ----
+df400 <- rbind(df100,df300
+               ) %>% 
+  group_by(survey,hh_id, season, plotID) %>% # SUM plot kg
+  summarise(plot_kg=sum(kg_crop,na.rm = T),
+            plot_acre=sum(plot_acre,na.rm = T),.groups = "drop" 
+            ) %>% 
+  group_by(survey,hh_id, season) %>% 
+  summarise(hh_kg=sum(plot_kg,na.rm = T), # SUM HH kg 
+            hh_acre=sum(plot_acre,na.rm = T),.groups = "drop" 
+            ) %>% 
+  mutate(kg_per_acre= hh_kg/hh_acre) %>% 
+  mutate(Season = sub("_.*", "", season)) 
 
 
-df100 %>% group_by(hh_id, season, plotID) %>% 
-  summarise(kg_crop=sum(yield,na.rm = T)*100,
-            acres=sum(plot_acre,na.rm = T),.groups = "drop" ) %>% 
-  mutate(kg_per_acre= kg_crop/acres) 
+df400 %>% left_join(hh_2022) %>% 
+  group_by(survey, Season,farmers_hh) %>% summarise(mean(kg_per_acre))
 
-df300 %>% group_by(hh_id, season, plotID) %>% 
+
+### ###  kg per crop [kg_per_acre_15_22] ### ### ----
+
+# Too few observations  for "Vegetables","Fruits", "VegetablesANDFruits"  "Sugarcane" "Onions","Chillies",, "Oilseeds"
+
+df401 <- 
+  rbind(df100,df300) %>% 
+  filter(crop %in% c ( "Sunflower","Maize",  "Toor", "Bengal_gram","Sorghum", "Greengram") 
+         )%>% 
+  group_by(survey,hh_id, season, crop) %>% # SUM plot kg
   summarise(kg_crop=sum(kg_crop,na.rm = T),
-            acres=sum(acres,na.rm = T),.groups = "drop" )
+            crop_acre=sum(crop_acre,na.rm = T),.groups = "drop" 
+  ) %>% 
+  group_by(survey,hh_id, crop) %>% 
+  summarise(hh_kg=sum(kg_crop,na.rm = T), # SUM HH kg 
+            hh_acre=sum(crop_acre,na.rm = T),.groups = "drop" 
+  ) %>% 
+  mutate(kg_per_acre= hh_kg/hh_acre)
+
+kg_per_acre_15_22 <- 
+  df401 %>% 
+  mutate(crop_survey = paste(crop, survey, sep = "_")) %>% 
+  select(hh_id, crop_survey, kg_per_acre) %>% 
+  pivot_wider(names_from = crop_survey,values_from =kg_per_acre )%>% 
+  mutate(across(everything(), ~replace_na(.x, 0))
+         ) %>% 
+  right_join(rmtl_cntrl_vars)
 
 
+# REG ----
+
+# mod_10 <- lm (Sunflower_mid2 ~ in_project+Sunflower_bl+elevation_0m+
+#                 hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS +govPnsin_scheme +rent_property +total_livestock + total_farm_equipments,
+#                 data = kg_per_acre_15_22)
+# summary(mod_10)
+# sjPlot::tab_model(mod_10 ,  show.se = T,digits = 5, show.stat  = F )
+
+library(broom)
+library(dplyr)
+library(purrr)
+library(tibble)
+library(tidyr)
+
+# get crop names from the column names
+outcomes <- grep("_mid2$", names(kg_per_acre_15_22), value = TRUE)
+baselines <- grep("_bl$", names(kg_per_acre_15_22), value = TRUE)
+crop_names <- gsub("(_mid2|_bl)$", "", outcomes)
+controls <- "in_project + elevation_0m + hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property + total_livestock + total_farm_equipments"
+
+# library(purrr)
+models <- map(crop_names, function(crop) {
+  outcome <- paste0(crop, "_mid2")
+  baseline <- paste0(crop, "_bl")
+  formula <- as.formula(
+    paste(outcome, "~ in_project +", baseline, "+", controls)
+  )
+  lm(formula, data = kg_per_acre_15_22)
+})
+
+# library(broom)
+results <- map(models, tidy)
+summaries <- map(models, summary)
+
+# reg table ----
+# Extract "in_project" info and summary stats for each model
+summ_table <- map2_dfr(models, crop_names, function(model, crop) {
+  if (is.null(model)) return(tibble(crop = crop, coef = NA, sd = NA, p = NA, N = NA, R2 = NA))
+  tidy_mod <- tidy(model)
+  in_proj <- tidy_mod %>% filter(term == "in_project")
+  tibble(
+    crop = crop,
+    coef = in_proj$estimate,
+    sd = in_proj$std.error,
+    p = in_proj$p.value,
+    N = nobs(model),
+    R2 = summary(model)$r.squared
+  )
+})
 
 
+# df 1
+summ_table_fmt <- summ_table %>%
+  mutate_at(c(2:4,6), round, 3) %>%
+  pivot_longer(-crop, names_to = "stat", values_to = "value") 
+
+# control_mean
+df_control_mean <- df401 %>%
+  right_join(rmtl_cntrl_vars) %>%
+  filter(survey == "mid2", in_project == 0) %>%
+  group_by(crop) %>%
+  summarise(value = round(mean(kg_per_acre), 2)) %>% 
+  mutate(stat="Control mean") %>% select(crop,stat,value)
+
+# Bind this row to your existing summary table
+df_table_fmt <- 
+  bind_rows(summ_table_fmt,df_control_mean) %>% 
+  mutate(
+    value = ifelse(stat == "sd", paste0("(", value, ")"), as.character(value)),
+    value = ifelse(stat == "p", paste0("[", value, "]"), as.character(value))
+  ) %>%
+  pivot_wider(names_from = crop, values_from = value) %>% 
+  mutate(stat=ifelse(stat %in% c("sd","p"),"",
+              ifelse(stat=="coef","In project", stat)) ) %>% 
+  rbind(twoRows ) %>% rename(`_`= stat)
+
+df_html <- df_table_fmt[c(1:3,6:8,4:5) ,]
+
+df_html %>%  
+  kable("html", caption = "Yield | Kg per acre",align = "c") %>% 
+  kable_classic_2()  %>%
+  add_header_above(c(" ", "(1)" = 1, "(2)" = 1, "(3)" = 1, "(4)" = 1,"(5)" = 1 ))
+
+twoRows <- tribble( ~stat, ~Maize,  ~Toor, ~Sunflower, ~Bengal_gram	, ~Greengram,
+  "Control vars", "X", "X", "X", "X", "X", "Dist. boundary", "X", "X", "X", "X", "X"
+)
+twoRows <- tribble( ~stat, ~Maize,  ~Toor, ~Sunflower, ~Bengal_gram	, ~Greengram,
+                    "Control vars", "Yes", "Yes", "Yes", "Yes", "Yes", "Dist. boundary", "Yes", "Yes", "Yes", "Yes", "Yes"
+)
 
 
 
