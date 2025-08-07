@@ -6,9 +6,20 @@ library(ggplot2)
 library(scales)
 library(kableExtra)
 library(readxl)
-BLF_Interact <-    read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/BLF_satara/BLF_Interact_-_all_versions_-_False_-_2025-04-30-18-15-56.xlsx")
+BLF_Interact_1 <-    read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/BLF_satara/BLF_Interact_-_all_versions_-_False_-_2025-04-30-18-15-56.xlsx")
 # BLF_Interact_Qs <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/BLF_satara/BLF_Interact_-_all_versions_-_English_en_-_2025-04-30-18-17-43.xlsx")
-BLF_InteractCSV <- read.csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/BLF_satara/BLF_Interact_-_all_versions_-_labels_-_2025-05-03-20-01-16.csv", sep=";")
+BLF_InteractCSV_1 <- read.csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/BLF_satara/BLF_Interact_-_all_versions_-_labels_-_2025-05-03-20-01-16.csv", sep=";")
+
+# BLF_Interact <- read_excel("C:/Users/Dan/Downloads/BLF_Interact_-_all_versions_-_False_-_2025-07-28-07-02-55.xlsx")
+# BLF_InteractCSV <- read.csv("C:/Users/Dan/Downloads/BLF_Interact_-_all_versions_-_False_-_2025-07-28-07-03-23.csv", sep=";")
+
+BLF_Interact <- read_excel(
+  "C:/Users/Dan/Downloads/BLF_Interact_-_all_versions_-_False_-_2025-08-04-19-52-56.xlsx"
+  )
+BLF_InteractCSV <- read.csv(
+  "C:/Users/Dan/Downloads/BLF_Interact_-_all_versions_-_False_-_2025-08-04-19-53-11.csv", 
+  sep=";")
+
 
 ### uid and clean [shop_interact] ........................................ ----
 
@@ -28,7 +39,7 @@ shop_interact <- BLF_Interact %>% rename(index=`_index`,id=`_id` ) %>%
     index >= 117 & index <= 1025 ~ paste0("C", phone),
     TRUE ~ paste0("D", phone)
   )) %>% 
-  rename(crop_acre=decimal_tu4sx43)
+  rename(crop_acre=decimal_tu4sx43)%>% as_tibble()
 
 # 2nd df
 shop_interactCSV <- BLF_InteractCSV %>% filter(!is.na (X_index)) %>% 
@@ -39,7 +50,35 @@ shop_interactCSV <- BLF_InteractCSV %>% filter(!is.na (X_index)) %>%
     X_index >= 117 & X_index <= 1025 ~ paste0("C", phone),
     TRUE ~ paste0("D", phone)
   )) %>% 
-  rename(crop_acre=decimal_tu4sx43)
+  rename(crop_acre=decimal_tu4sx43) %>% as_tibble()
+
+
+### TABLE Data_collection_period  ........................................  ----
+
+library(kableExtra)
+
+shop_interact %>% select(start,uid) %>% 
+  mutate(date = as.Date(start)) %>%
+  summarise(
+    `Earliest date` = min(date, na.rm = TRUE),
+    `Latest date`   = max(date, na.rm = TRUE),
+    `Period in days`    = as.integer(max(date, na.rm = TRUE) - min(date, na.rm = TRUE)) + 1, # B
+    `Unique days`   = n_distinct(date),
+    `Total visitors` = n_distinct(uid),
+    `Total surveys` = n()
+  ) %>% 
+  mutate_at(5,round,2) %>% 
+  mutate(across(everything(), as.character)) %>% 
+  pivot_longer(1:6,names_to = "var", values_to = "value") %>% 
+  kbl() %>% kable_styling()
+
+
+
+
+
+
+
+
 
 
 ### crop ................................................................  ----
@@ -50,27 +89,70 @@ library(RColorBrewer)
 # Count individual crops in the crop_focus column when multiple crops are listed in a single observation
 # Remove NAs of "other_crop_1" in multiple crops obs ONLY
 
-df_crop <- 
+library(stringr)
+df_crop1 <- 
   shop_interact %>% filter(!is.na(crop_focus)) %>% 
-  select(uid,crop_focus,crop_focus_other) %>% 
-  mutate(crop_focus = strsplit(crop_focus, " ")) %>%
-  unnest(crop_focus)  %>% 
-  mutate(crop = ifelse(
-    crop_focus == "Other_crop_1","Other_crop",crop_focus )) %>% 
-  filter(!(crop == "Other_crop" & is.na(crop_focus_other))
-         ) %>% 
-  count(crop) %>% mutate(pct=n/sum(n)) %>% 
-  mutate(crop_focus = sapply(crop_focus, function(x) toTitleCase(x))) %>% # Capitalize the first letter
-  
+  select(index,uid,crop_focus,crop_focus_other) %>%   
+  mutate(
+    crop_category = tolower(as.character(crop_focus_other)), # Convert to character and lowercase
+    crop_category = str_trim(crop_category) # Remove leading/trailing whitespace
+) %>% mutate(
+  crop_category = case_when(
+    is.na(crop_focus_other) ~ NA,
+    str_detect(crop_category, "soyabean|soyaben|suyabean|सोयाबीन") ~ "Soybean",
+    str_detect(crop_category, "हळद") ~      "turmeric",
+    str_detect(crop_category, "ginger|gingrer") ~ "Ginger",
+    str_detect(crop_category, "grass|elephantgrass") ~ "Grass",
+    str_detect(crop_category, "groundnut|ground") ~ "Groundnut", # Grouping ground as likely related to groundnut
+    str_detect(crop_category, "banana") ~ "Banana",
+    str_detect(crop_category, "mango") ~ "Mango",
+    str_detect(crop_category, "strawberry") ~ "Strawberry",
+    str_detect(crop_category, "sugarcane") ~ "Sugarcane",
+    str_detect(crop_category, "jowar") ~ "Jowar",
+    str_detect(crop_category, "gahu") ~ "Wheat", # Assuming Gahu is Wheat
+    str_detect(crop_category, "basamati") ~ "rice",
+    # Handle non-crop related entries
+    str_detect(crop_category, "empty land|home|near home|none|pump|spray pump|2|ala|alavni|band|dukan|ghar|k|nahi|ran|tan|vand|गुलाब") ~ "Other",
+    TRUE ~ "Other" ))
 
-total_N <- shop_interact %>% filter(!is.na(crop_focus)) %>% nrow()
+# DF crop
+df_crop_wide <- df_crop1 %>% 
+  mutate(crop_focus  = stringr::str_squish(crop_focus )) %>%
+  separate(col = crop_focus ,
+           into = c("col1", "col2", "col3"), sep = " ",
+           fill = "right",extra = "merge") %>% 
+  mutate( crop_1st=ifelse(col1 %in% c("other_crop_1","other_crop"),crop_category,col1 ),
+          crop_2nd=ifelse(col2 == "other_crop_1",NA,col2)) %>% 
+  filter(!is.na(crop_1st)) %>% 
+  select(index, uid, crop_1st,crop_2nd )
+df_crop_wide$crop_1st[df_crop_wide$crop_1st=="Groundnut"] <- "groundnut"
+df_crop_wide$crop_2nd[df_crop_wide$crop_2nd=="Groundnut"] <- "groundnut"
 
+# DF crop
+library(tools)
+df_crop_long <-  df_crop_wide %>% 
+  pivot_longer(crop_1st : crop_2nd, 
+               names_to = "crop_num", values_to = "crop" ) %>% 
+  filter(!is.na(crop)) %>% 
+  mutate(crop = sapply(crop, function(x) toTitleCase(x))) # Capitalize the first letter
+
+
+# PLOT
 library(ggplot2)
 library(scales)
+
+total_N <- df_crop_long %>% nrow()
+
+df_crop_long %>% 
+  count(crop) %>% mutate(pct=n/sum(n)) %>% 
+  mutate(crop=ifelse(n < 20,"Other",crop)) %>% 
+  group_by(crop) %>% summarise(n=sum(n)) %>% 
+  mutate(pct= n/sum(n)
+         ) %>% 
 # 600 X 400
-ggplot(df_crop, aes(x = crop, y = pct, fill = crop)) +
+  ggplot(aes(x = crop, y = pct, fill = crop)) +
   geom_bar(stat = "identity") +
-  scale_y_continuous(labels = label_percent(scale = 100)) + 
+  # scale_y_continuous(labels = label_percent(scale = 100)) + 
   labs(title = "What crop have you come to shop for?", 
        subtitle = paste("Percent of all respondents, some gave more than one answer | N =", total_N, "\n___________________________________________________________________________________________________"),        
        x = "", y = "% of farmers") +

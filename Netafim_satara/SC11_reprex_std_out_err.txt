@@ -1,0 +1,12 @@
+✖ Install the styler package in order to use `style = TRUE`.
+running: python  -c "x = 'hello, python world!'
+print(x.split(' '))"
+Building shared library for Rcpp code chunk...
+Error in system(paste(MAKE, p1(paste("-f", shQuote(makefiles))), "compilers"),  : 
+  'make' not found
+Calls: <Anonymous> -> .shlib_internal -> system
+Execution halted
+
+Quitting from lines 68-75 [unnamed-chunk-6] (SC11_reprex.Rmd)
+Error in (function (file = "", code = NULL, env = globalenv(), embeddedR = TRUE,  : 
+  Error 1 occurred building shared library.

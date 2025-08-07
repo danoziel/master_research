@@ -1,0 +1,34 @@
+---
+title: "Sugarcane Irrigation Methods Report"
+output: pdf_document
+---  
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(readxl)
+```
+
+## Data Import
+
+```{r}
+df2_sugarcane <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/NETAFIM_2024/df2_sugarcane.xlsx")
+```
+
+## Irrigation Methods Plot
+
+```{r}
+df2_sugarcane %>% 
+  count(ir_method) %>% 
+  ggplot(aes(x = ir_method, y = n, fill = ir_method)) + 
+  geom_bar(stat = "identity", position = "stack") +
+  geom_text(aes(label = n),
+            position = position_stack(vjust = 0.85),
+            color = "black", size = 4) +
+  scale_fill_manual(values = c("Drip" = "dodgerblue3", "Flood" = "gray")) +
+  labs(title = "Number of Households by Irrigation Methods",
+       x = "", y = "No. of HH", fill = "") +
+  theme_minimal(base_family = "serif") +
+  theme(legend.position = "none")
+```

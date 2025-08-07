@@ -1,0 +1,152 @@
+---
+title: "Sugarcane Irrigation Methods Report"
+output:
+  pdf_document: default
+---  
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(readxl)
+library(gridExtra)  # for arranging plots
+library(grid)       # already included in R
+
+```
+
+Summary statistics on irrigation practices and farmer characteristics related to sugarcane cultivation in Satara district, Maharashtra.
+
+```{r}
+df12_sugarcane <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/NETAFIM_2024/df12_sugarcane.xlsx")
+df2_sugarcane <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/NETAFIM_2024/df2_sugarcane.xlsx")
+```
+
+#### Irrigation Methods Plot
+
+```{r}
+
+
+p1 <- df12_sugarcane %>% 
+  count(ir_method) %>% 
+  ggplot(aes(x = ir_method, y = n, fill = ir_method)) + 
+  geom_bar(stat = "identity", position = "stack") +
+  geom_text(aes(label = n),position = position_stack(vjust = 0.85),color="black", size=6) +
+  scale_fill_manual(values = c("Drip" = "dodgerblue3", "Flood" = "gray")) +
+  labs(title = "Number of Households by Irrigation Methods",
+       x = "", y = "No. of HH", fill = "") + 
+  theme_minimal(base_family= "serif") +
+  theme(
+  legend.position = "none",
+  plot.title = element_text(size = 20),
+  axis.title = element_text(size = 15), # "No. of HH"
+  axis.text = element_text(size = 15),
+  strip.text = element_text(size = 20))
+
+
+ci_summary <- df12_sugarcane %>%
+  select(ir_method, acre_sugarcane, plots_sugarcane) %>% 
+  rename(`Total Sugarcane Acre`= acre_sugarcane,
+         `Total Sugarcane Plots`= plots_sugarcane) %>% 
+  pivot_longer(cols=-ir_method, names_to="variable", values_to="value") %>%
+  group_by(ir_method, variable) %>%
+  summarise(mean = mean(value, na.rm = TRUE),
+            sd = sd(value, na.rm = TRUE),
+            n = sum(!is.na(value)),
+            se=sd/sqrt(n), ci_lower=mean-1.96*se, ci_upper=mean+1.96*se, .groups="drop") 
+
+
+p2 <- ggplot(ci_summary, aes(x = ir_method, y = mean, fill = ir_method)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper),width = 0.2,color = "black") +
+  geom_text(aes(label = paste0(round(mean, 2))), vjust = 7,size = 6  ) +
+  facet_wrap(~variable, scales = "free_y") +
+  scale_fill_manual(values = c("Drip" = "dodgerblue3", "Flood" = "gray")) +
+  labs(title = "",x = "", y = "", fill = "") +
+  theme_minimal(base_family = "serif") +
+  theme(
+  legend.position = "none",
+  plot.title = element_text(size = 20, face = "bold"),
+  axis.title = element_text(size = 15), # "No. of HH"
+  axis.text = element_text(size = 15),
+  strip.text = element_text(size = 20))
+
+grid.arrange(p1, p2, ncol = 2, widths = c(1, 1))
+
+
+```
+
+\vspace{1cm}
+
+### Water_source
+
+```{r, echo=FALSE, fig.show='hold', out.width='25%'}
+
+water_source <- 
+  df12_sugarcane %>%
+  select(ir_method, "ir_source", "ir_source_own_or_public") %>%
+  pivot_longer(-ir_method, names_to = "variable", values_to = "value") %>%
+  group_by(ir_method, variable, value) %>%
+  summarise(count = n(), .groups = "drop_last") %>%
+  group_by(ir_method, variable) %>%
+  mutate(freq_percent = round(100 * count / sum(count), 1)) %>%
+  arrange(ir_method, variable, desc(freq_percent))
+
+ir_source_colors <- c("skyblue", "skyblue2", "skyblue3", "skyblue4" )
+p1_source <- water_source %>%
+  filter(variable == "ir_source") %>%
+  ggplot(aes(x = ir_method, y = freq_percent, fill = value)) +
+  geom_bar(stat = "identity", position = "stack") +
+  geom_text(aes(label = paste0(round(freq_percent), "%")),
+    position = position_stack(vjust = 0.5),color = "black", size = 6) +
+  scale_fill_manual(values = ir_source_colors) +
+  labs(title="Water Source for Irrigation ",x="", y="% of HH") +
+  theme_minimal(base_family = "serif") +
+  theme(
+  legend.position = "none",
+  plot.title = element_text(size = 20),
+  axis.title = element_text(size = 15), # "No. of HH"
+  axis.text = element_text(size = 15),
+  strip.text = element_text(size = 20))
+
+OPsource_colors <- c("lightblue3", "lightblue2" )
+p2_source <- water_source %>%
+  filter(variable == "ir_source_own_or_public") %>%
+  ggplot(aes(x = ir_method, y = freq_percent, fill = value)) +
+  geom_bar(stat = "identity", position = "stack") +
+  geom_text(aes(label = paste0(round(freq_percent), "%")),
+            position = position_stack(vjust = 0.5),color = "black", size = 4) +
+  scale_fill_manual(values = OPsource_colors) +
+  labs(title = "Water Source | Own or Public",
+       x = "",y = "% of HH" , fill = "" ) +
+  theme_minimal(base_family = "serif") +
+  theme(
+  legend.position = "none",
+  plot.title = element_text(size = 20),
+  axis.title = element_text(size = 15), # "No. of HH"
+  axis.text = element_text(size = 15),
+  strip.text = element_text(size = 20))
+
+
+p1_source
+p2_source
+
+```
+
+
+
+
+
+# output: default
+
+\bigskip  % a bit of vertical space
+
+\medskip  % slightly less space
+
+\vspace{1cm}  % custom space
+
+This is some text.
+
+<br>
+
+This is text after an empty line.
+

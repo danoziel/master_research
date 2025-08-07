@@ -1,0 +1,41 @@
+---
+title: "Research Paper: AI Learning Course - Initial Results"
+author: "Dan"
+output: pdf_document
+---
+
+## Introduction
+
+This paper explores the initial results from an analysis of self-efficacy, fear of AI-related challenges, and self-image before and after a course that incorporated AI components. The data was collected from students who participated in the course.
+
+## Data Preparation
+
+We begin by loading and preparing the dataset.
+
+```{r setup, include=TRUE}
+library(readxl)
+library(dplyr)
+
+# Load the data
+Copy_of_english_learning_ai_cleanDF <- read_excel("~/Copy_of_english_learning_ai_cleanDF.xlsx")
+
+# Rename columns for easier reference
+english_learning_ai <- Copy_of_english_learning_ai_cleanDF %>%
+  rename(
+    fearAI_1 = threat_challenge_categoryA_intimidating,
+    fearAI_2 = threat_challenge_categoryB_Unpleasant_feeling,
+    fearAI_3 = threat_challenge_categoryC_original_Uplifting_challenge,
+    fearAI = threat_challenge
+  )
+
+# Create a new variable for pre/post-course distinction
+english_learning_ai$Post_course <- ifelse(english_learning_ai$Timestamp == "pre_course", 0, 1)
+
+# Show variable names
+names(english_learning_ai)
+
+
+
+
+```
+

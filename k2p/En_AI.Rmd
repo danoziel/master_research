@@ -1,0 +1,64 @@
+---
+title: "Research Paper: AI Learning Course - Initial Results"
+output:
+  pdf_document: default
+  hpdf_document: default
+---
+
+## Introduction
+
+This paper explores the initial results from an analysis of self-efficacy, fear of AI-related challenges, and self-image before and after a course that incorporated AI components. The data was collected from students who participated in the course.
+
+## Data Preparation
+
+We begin by loading and preparing the dataset.
+
+```{r setup, echo=FALSE}
+
+library(readxl)
+library(dplyr)
+
+# Load the data
+Copy_of_english_learning_ai_cleanDF <- read_excel("~/Copy_of_english_learning_ai_cleanDF.xlsx")
+
+# Rename columns for easier reference
+english_learning_ai <- Copy_of_english_learning_ai_cleanDF %>%
+  rename(
+    fearAI_1 = threat_challenge_categoryA_intimidating,
+    fearAI_2 = threat_challenge_categoryB_Unpleasant_feeling,
+    fearAI_3 = threat_challenge_categoryC_original_Uplifting_challenge,
+    fearAI = threat_challenge
+  )
+english_learning_ai$Post_course <- ifelse(english_learning_ai$Timestamp == "pre_course", 0, 1)
+
+df_self_efficacy <- english_learning_ai %>%
+  select(Timestamp, self_efficacy_1:self_efficacy_4)
+
+# Perform t-tests for each self-efficacy variable
+t_test_results_self_efficacy <- lapply(paste0("self_efficacy_", 1:4), function(var) {
+  t.test(df_self_efficacy[[var]][df_self_efficacy$Timestamp == "pre_course"],
+         df_self_efficacy[[var]][df_self_efficacy$Timestamp == "post_course"],
+         var.equal = TRUE)  # Assume equal variance
+})
+
+# Extract t-test summary for each variable
+t_test_self_efficacy <- data.frame(
+  variable = paste0("self_efficacy_", 1:4),
+  t_value = sapply(t_test_results_self_efficacy, function(x) x$statistic),
+  p_value = sapply(t_test_results_self_efficacy, function(x) x$p.value),
+  mean_pre = sapply(t_test_results_self_efficacy, function(x) x$estimate[1]),
+  mean_post = sapply(t_test_results_self_efficacy, function(x) x$estimate[2]),
+  df = sapply(t_test_results_self_efficacy, function(x) x$parameter)
+)
+
+t_test_self_efficacy
+
+# Display the results
+library(rempsyc)
+nice_table(t_test_self_efficacy)
+
+
+```
+
+
+

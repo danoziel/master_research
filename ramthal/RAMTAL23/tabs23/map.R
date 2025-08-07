@@ -15,7 +15,7 @@ rd_land_with_coords  # sf  Land usage  #  1,378 obs
 
 
 
-############  Clean Ramthal_East_shp shapefile [Ramthal_clean]             ####
+############  Clean Ramthal_East.shp       [Ramthal_clean]              ####
 library(sf)
 
 sf::sf_use_s2(FALSE)  # Disable S2 to avoid geometry engine issues
@@ -62,7 +62,7 @@ st_crs(Ramthal_clean)
 class(Ramthal_clean)
 rm(Ramthal_fixed,Ramthal_fixed_clean)
 
-############  Convert POLYGON to POINT [centroids_coords]                  ####
+############  Convert POLYGON to POINT     [centroids_coords]           ####
 
 # Create centroids for each polygon (in meters)
 Ramthal_centroids_utm <- 
@@ -81,19 +81,17 @@ centroids_coords$id <- Ramthal_centroids_utm$id
 class(centroids_coords)
 rm(coords)
 
-# Allocate more coordinates  [multi_hh_df]                 ----
+############  Allocate more coordinates    [multi_hh_df]                ----
 
 
 # Missing coordinates
 miss_XY=list_shape_code %>% right_join(hh_2022) %>% 
   select(hh_id, id) %>%
-  left_join(centroids_coords, by = "id") %>%
-  filter(is.na(X)) %>% 
+  left_join(centroids_coords) %>%
+  # filter(is.na(X)) %>% 
   left_join(a_plots_size %>% select(hh_id,plotSrvy ,plotVillage,plotID,acres ) ) %>%
-  select(-X,-Y)
-  mutate(row_num=1:578)
-# miss_XY[16:30,]
-# miss_XY %>% filter(row_num %in% c(8,11,17,21   ) )
+  # select(-X,-Y)
+  
 
 # library(stringer)
 # Remove anything after '-' or '/' AND trailing letters
@@ -101,6 +99,13 @@ miss_XY$plotSrvy_clean <- sub("[-/_].*$", "", miss_XY$plotSrvy)
 miss_XY$plotSrvy_clean <- sub("[A-Za-z]+$", "", miss_XY$plotSrvy_clean)
 miss_XY$plotSrvy_clean <- as.numeric(miss_XY$plotSrvy_clean)
 miss_XY$id_new <-  floor(miss_XY$id / 1000) * 1000 # down to the nearest thousand
+
+miss_point <- miss_XY %>% 
+  mutate(plotSrvy_clean = ifelse(plotSrvy_clean>1000,NA,plotSrvy_clean),
+         id_new= plotSrvy_clean+id_new,
+         id_point=ifelse(id==id_new,id,id_new)
+  )
+
 
 miss_cc <-centroids_coords %>% rename(id_point=id )
   
@@ -110,7 +115,7 @@ miss_point <- miss_XY %>%
   left_join(miss_cc) %>% 
   filter(!is.na(X)) %>% 
   group_by(hh_id) %>% mutate(n=n()) %>% slice(1) %>% ungroup() %>% 
-  select(hh_id,id_point,X,Y) %>% rename(X2=X,Y2=Y)
+  select(hh_id,id_point,X,Y)
 
 add_point = list_shape_code %>% right_join(hh_2022) %>% 
   select(hh_id, id) %>%
@@ -124,9 +129,13 @@ add_point$Y <- ifelse(is.na(add_point$Y),add_point$Yold,add_point$Y)
 list_geom_POINT = add_point %>% 
   select(hh_id, id_point, X, Y)
 
+rm(miss_XY,miss_cc, miss_point ,add_point)
 
 
 # Adjust polygons with 2-3 farm
+# Adjust farmer coordinates to offset multiple households per polygon 
+# (25m step in X and Y)
+
 multi_hh_df <-list_geom_POINT %>% 
   filter(!is.na(X)) %>%  # remove hh_id and id without coords
   group_by(id_point) %>% # %>% count(id_point) %>% count(n)
@@ -136,186 +145,150 @@ multi_hh_df <-list_geom_POINT %>%
     offset_m     = (offset_index - 1) * 25, # 25 meters per additional farmer
     adj_X        = X + offset_m,            # shift east
     adj_Y        = Y + offset_m             # shift north
-  ) 
-
-
-# Adjust farmer coordinates to offset multiple households per polygon 
-# (25m step in X and Y)
-
-multi_hh_df <- list_shape_code %>% right_join(hh_2022) %>% 
-  select(hh_id, id) %>%
-  left_join(centroids_coords, by = "id") %>%
-  filter(!is.na(X)) %>%  # remove hh_id and id without coords
-  group_by(id) %>% # mutate(n= n()) %>% ungroup() %>% count(n)
-  mutate(
-    hh_count     = n(),                     # number of households per polygon
-    offset_index = row_number(),            # row index within group
-    offset_m     = (offset_index - 1) * 25, # 25 meters per additional farmer
-    adj_X        = X + offset_m,            # shift east
-    adj_Y        = Y + offset_m             # shift north
-  ) %>%
-  ungroup() %>% 
-  select(hh_id ,id ,adj_X ,adj_Y) %>%  
+  ) %>% ungroup() %>% 
+  select(hh_id ,id_point ,adj_X ,adj_Y) %>%  
   rename(X= adj_X ,Y= adj_Y)
 
 
 
 
-# df to Sothe boundary   [south_edge_sf]                   =====================================
+############  df to Ramthal boundary       [ramthal_border_utm]         ----
+#|==============================================================================
 library(sf)
+ramthal_border <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/ramthal_border.shp")
 
+# Fix the ramthal_border (project boundary lines)
+# Drop Z dimension (from LINESTRING Z to LINESTRING)
+st_crs(ramthal_border)
+ramthal_border_utm <- st_zm(ramthal_border, drop = TRUE)
+st_crs(ramthal_border_utm)
+
+dev.new()
+plot(st_geometry(ramthal_border))
+st_crs(ramthal_border)
+
+#'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+library(sf)
 south1_in <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/1 south-in.shp")
 north2_in <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/2 north-in.shp")
+south3_out <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/3 south-out.shp")
+north4_out <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/4 north-out.shp")
+inner4_in <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/5 innner.shp")
 
-plot(st_geometry(south1_in ),main = "Project's South Boundary")
+st_crs(south1_in)
 dev.new()
 plot(st_geometry(south1_in))
 
-#|==============================
-#       Southern Border
-#|==============================
-
-st_crs(south1_in)
 south1_utm <- st_transform(south1_in, crs = 32643)
-st_crs(south1_utm)
+north2_utm <- st_transform(north2_in, crs = 32643)
 
 # Step 1: Extract boundary coordinates from polygon
-boundary_coords <- st_coordinates(south1_utm)
+boundary_coords1 <- st_coordinates(south1_utm)
+boundary_coords2 <- st_coordinates(north2_utm)
 
 # Step 2: Visualize coordinates to identify problematic points
-plot(boundary_coords[, "X"], boundary_coords[, "Y"],
-     type = "l", col = "gray", main = "Polygon Coordinates")
+dev.new()  
+plot(boundary_coords[, "X"], boundary_coords[, "Y"],type = "l", col = "gray", main = "Polygon Coordinates")
 points(boundary_coords[, "X"], boundary_coords[, "Y"], col = "yellow", pch = 19)
-text(boundary_coords[, "X"], boundary_coords[, "Y"],
-     labels = seq_len(nrow(boundary_coords)), cex = 0.5, pos = 3)
+text(boundary_coords[, "X"], boundary_coords[, "Y"],labels = seq_len(nrow(boundary_coords)), cex = 0.5, pos = 3)
 
-
-# Step 3: Remove bad points (retain only the clean southern segment)
-#             Manual selection to remove points 2-75 from step 2 plot
-boundary_coords_clean <- boundary_coords[76:nrow(boundary_coords), ]
+# Step 3: Remove bad points
+boundary_coords_clean1 <- boundary_coords1 [75:nrow(boundary_coords1), ]
+boundary_coords_clean2 <- boundary_coords2 [94:189, ]
 
 # Step 4: Create a LINESTRING from cleaned coordinates
-southern_edge_line <- st_linestring(as.matrix(boundary_coords_clean[, c("X", "Y")]))
+south1_edge_line  <- st_linestring(as.matrix(boundary_coords_clean1[, c("X", "Y")]))
+north2_edge_line  <- st_linestring(as.matrix(boundary_coords_clean2[, c("X", "Y")]))
 
 # Step 5: Wrap into an sf object using the original CRS (UTM zone 43N)
-southern_edge_sf <- st_sfc(southern_edge_line, crs = st_crs(south1_utm))
+south1_edge_sf      <- st_sfc(south1_edge_line, crs = st_crs(south1_utm))
+north2_edge_sf      <- st_sfc(north2_edge_line, crs = st_crs(north2_utm))
 
-#️ Step 6: Plot the final cleaned southern edge
-plot(st_geometry(southern_edge_sf), col = "red3", lwd = 2,
-     main = "Southern Border")
-
-# Step 7 😄:  Ensure centroids are in sf format
-centroids_sf <- st_as_sf(centroids_coords, coords = c("X", "Y"), crs = 32643)
-library(sf)
-
-# Read the shapefile back into R
-centroids_sf <- st_read("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/centroids_sf.shp", stringsAsFactors = F, quiet=F)
+dev.new()
+plot(st_geometry(north2_edge_sf), col = "blue", lwd = 2,)
 
 
+###### Combined  EdgeS
 
+# Step 1: Extract coordinates as separate matrices
+coords_south1 <- st_coordinates(south1_edge_sf)[, c("X", "Y")]
+coords_north2 <- st_coordinates(north2_edge_sf)[, c("X", "Y")]
 
-#|==============================
-# Completion to Southern Border 
-#|==============================
+# Step 2: Wrap both in a list
+edge_segments <- list(coords_south1, coords_north2)
 
-st_crs(north2_utm)
-north2_utm <- st_transform(north2_in, crs = 32643)
-st_crs(north2_utm)
+# Step 3: Create MULTILINESTRING
+ramthal_multiline <- st_multilinestring(edge_segments)
 
-boundary_north2_coords <- st_coordinates(north2_utm)
-plot(boundary_north2_coords[, "X"], boundary_north2_coords[, "Y"],
-     type = "l", col = "gray", main = "Polygon Coordinates")
-points(boundary_north2_coords[, "X"], boundary_north2_coords[, "Y"], col = "orange", pch = 19)
-text(boundary_coords[, "X"], boundary_north2_coords[, "Y"],
-     labels = seq_len(nrow(boundary_north2_coords)), cex = 0.5, pos = 3)
+# Step 4: Convert to sf object with same CRS
+ramthal_edge_sf <- st_sfc(ramthal_multiline, crs = st_crs(south1_edge_sf))
+# south_edge_sf <- 
 
-boundary_north2_clean <- boundary_north2_coords[174:nrow(boundary_north2_coords), ]
-north2_edge_line <- st_linestring(as.matrix(boundary_north2_clean[, c("X", "Y")]))
-north2_edge_sf <- st_sfc(north2_edge_line, crs = st_crs(north2_utm))
-plot(st_geometry(north2_edge_sf), col = "red3", lwd = 2)
+# Plot result
+plot(ramthal_edge_sf, col = "red3", lwd = 2, main = "Combined Project Edge (Unconnected)")
+
+# ----
 
 
 
 
 # # Final - Calculate shortest distance to the boundary
-# centroids_coords$dist_to_boundary <- st_distance(
-#   centroids_sf,
-#   southern_edge_sf
-# )
-
-#|======================================================================
-#  combine [southern_edge_sf] & [north2_edge_sf] into a single LINESTRING
-#|======================================================================
-
-# Step 1: Extract coordinates as separate matrices
-coords_south <- st_coordinates(southern_edge_sf)[, c("X", "Y")]
-coords_north <- st_coordinates(north2_edge_sf)[, c("X", "Y")]
-
-# Step 2: Wrap both in a list
-edge_segments <- list(coords_south, coords_north)
-
-# Step 3: Create MULTILINESTRING
-combined_multiline <- st_multilinestring(edge_segments)
-# south_edge <- 
-
-# Step 4: Convert to sf object with same CRS
-combined_edge_sf <- st_sfc(combined_multiline, crs = st_crs(southern_edge_sf))
-# south_edge_sf <- 
-
-# Plot result
-plot(combined_edge_sf, col = "red3", lwd = 2, main = "Combined Project Edge (Unconnected)")
-
-rm(south1_in,south1_utm,boundary_coords,boundary_coords_clean, 
-   southern_edge_line,southern_edge_sf )
-rm(north2_in,north2_utm, boundary_north2_coords, boundary_north2_clean,
-   north2_edge_line,north2_edge_sf)
-rm(coords_south, coords_north, edge_segments)
-
-# df to Ramthal boundary [ramthal_border_utm]              =====================================
-library(sf)
-
-ramthal_border <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/ramthal_border.shp")
-
-dev.new()
-plot(st_geometry(ramthal_border ),main = "Project's Boundary")
-
-st_crs(ramthal_border)
-
-dev.new()  # opens a new plotting window
-plot(st_geometry(ramthal_border))
-st_crs(ramthal_border)
-
-library(sf)
-
-# 1. Fix the ramthal_border (project boundary lines)
-# Drop Z dimension (from LINESTRING Z to LINESTRING)
-ramthal_border_utm <- st_zm(ramthal_border, drop = TRUE)
-
-# The original file had wrong CRS label (WGS84), but it's actually in UTM meters
-# So: we assign (not transform) the correct UTM CRS — EPSG:32643
-st_crs(ramthal_border_utm) <- 32643
+centroids_coords$dist_to_boundary <- st_distance( centroids_sf, ramthal_edge_sf )
 
 
-# 2. Convert centroids_coords to spatial points
-# Convert to sf object with correct CRS
-centroids_sf <- st_as_sf(
-  centroids_coords,
-  coords = c("X", "Y"),
-  crs = 32643)  # UTM zone 43N (meters)
 
-ggplot() +
-  geom_sf(data = ramthal_border_utm, color = "black", linewidth = 1) +
-  geom_sf(data = centroids_sf, color = "firebrick4", size = 1.5, alpha = 0.6) +
-  labs(
-    title = "Ramthal Project Boundaries and Farmer Centroids",
-    subtitle = "Black lines: Project zone boundaries | Blue dots: Farmer locations",
-    x = NULL, y = NULL
-  ) +
-  theme_minimal(base_family = "serif")
 
-#|=============================================================================
 
-# extract elevation data from coordinates [elev_data_sf] [elev_data_tbl] ----
+centroids_sf <- st_read("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/centroids_sf.shp", stringsAsFactors = F, quiet=F)
+
+sf::st_write(
+  ramthal_border_sf, 
+  "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_border_sf.shp"
+)
+
+sf::st_write(
+  ramthal_border_sf, 
+  "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_border_sf.gpkg"
+)
+
+https://rcn.montana.edu/resources/Converter.aspx
+
+
+
+
+ramthal_border_sf
+multi_hh_df
+rmtl_InOut
+
+# 1. Bind the df's
+rd_water_with_coords <- 
+  multi_hh_df %>% select(hh_id, X, Y) %>%
+  inner_join(df_for_water_map, by = "hh_id")
+
+# 2. Conver to sf format
+rd_water_with_coords <- rd_water_with_coords %>%
+  st_as_sf(coords = c("X", "Y"), crs = 32643) # UTM
+
+# 3. Compute distance to the southern boundary line  (south_edge_sf) (combined_edge_sf)
+rd_water_with_coords$dist_to_south_m <- st_distance(
+  rd_water_with_coords,
+  ramthal_b)
+
+# 3. Convert from units to numeric meters (optional but clearer)
+rd_water_with_coords$dist_to_south_m <- as.numeric(rd_water_with_coords$dist_to_south_m)
+rd_water_with_coords$elevation <- as.factor(rd_water_with_coords$elevation)
+
+
+
+
+
+
+
+
+
+############  elevation data               [elev_data_sf] [elev_data_tbl]    ----
+# extract elevation data from coordinates
 #|=============================================================================
 
 library(elevatr)
@@ -347,10 +320,9 @@ elev_df <- cbind(st_drop_geometry(elev_data2),st_coordinates(elev_data2))
 
 
 
+# __________________________________________________________________________ ====
 
-
-# =============================================================================
-# DF 2022 [df_for_Land_map] [df_for_water_map]----
+########  DF 2022    [df_for_Land_map] [df_for_water_map]       ----
 
 # [df_for_water_map] 
 df_for_water_map <- 
@@ -406,7 +378,7 @@ rd_water_with_coords <- rd_water_with_coords %>%
 rd_water_with_coords$dist_to_south_m <- st_distance(
   rd_water_with_coords,
   combined_edge_sf)
-  # south_edge_sf)
+  # southern_edge_sf)
 
 # 3. Convert from units to numeric meters (optional but clearer)
 rd_water_with_coords$dist_to_south_m <- as.numeric(rd_water_with_coords$dist_to_south_m)
@@ -472,7 +444,8 @@ rd_land_with_coords %>% st_drop_geometry() %>%
 
 
 
-# =============================================================================
+# __________________________________________________________________________ ====
+
 # MAPS ----
 library(ggplot2)
 library(sf)
@@ -638,9 +611,81 @@ BrBG
 
 
 
-# =============================================================================
+# __________________________________________________________________________ ====
+
+
+
 # OLD CODE ............................................................. ----
-# library(raster)
+
+############  df to south_ boundary         [south_edge_sf]              =====================================
+library(sf)
+
+south1_in <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/1 south-in.shp")
+north2_in <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/2 north-in.shp")
+
+plot(st_geometry(south1_in ),main = "Project's South Boundary")
+dev.new()
+
+# Southern Border
+#|===============
+st_crs(south1_in)
+south1_utm <- st_transform(south1_in, crs = 32643)
+st_crs(south1_utm)
+
+boundary_coords <- st_coordinates(south1_utm)
+#  Visualize coordinates to identify problematic points
+boundary_coords_clean <- boundary_coords[76:nrow(boundary_coords), ]
+southern_edge_line <- st_linestring(as.matrix(boundary_coords_clean[, c("X", "Y")]))
+southern_edge_sf <- st_sfc(southern_edge_line, crs = st_crs(south1_utm))
+
+dev.new()
+plot(st_geometry(southern_edge_sf), col = "red3", lwd = 2,
+     main = "Southern Border")
+
+# Step 7 😄:  Ensure centroids are in sf format
+centroids_sf <- st_as_sf(centroids_coords, coords = c("X", "Y"), crs = 32643)
+library(sf)
+
+# Read the shapefile back into R
+centroids_sf <- st_read("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/centroids_sf.shp", stringsAsFactors = F, quiet=F)
+
+#|==============================
+# Completion to Southern Border 
+#|==============================
+st_crs(north2_in)
+north2_utm <- st_transform(north2_in, crs = 32643)
+st_crs(north2_utm)
+
+boundary_north2_coords <- st_coordinates(north2_utm)
+
+boundary_north2_clean <- boundary_north2_coords[174:nrow(boundary_north2_coords), ]
+north2_edge_line <- st_linestring(as.matrix(boundary_north2_clean[, c("X", "Y")]))
+north2_edge_sf <- st_sfc(north2_edge_line, crs = st_crs(north2_utm))
+
+dev.new()
+plot(st_geometry(north2_edge_sf), col = "red3", lwd = 2)
+
+#|====================================================================== 
+#  combine [southern_edge_sf] & [north2_edge_sf] into a single LINESTRING
+#|======================================================================
+coords_south <- st_coordinates(southern_edge_sf)[, c("X", "Y")]
+coords_north <- st_coordinates(north2_edge_sf)[, c("X", "Y")]
+edge_segments <- list(coords_south, coords_north)
+combined_multiline <- st_multilinestring(edge_segments)
+combined_edge_sf <- st_sfc(combined_multiline, crs = st_crs(southern_edge_sf))
+plot(combined_edge_sf, col = "red3", lwd = 2, main = "Combined Project Edge (Unconnected)")
+rm(south1_in,south1_utm,boundary_coords,boundary_coords_clean, 
+   southern_edge_line,southern_edge_sf )
+rm(north2_in,north2_utm, boundary_north2_coords, boundary_north2_clean,
+   north2_edge_line,north2_edge_sf)
+rm(coords_south, coords_north, edge_segments)
+
+
+
+
+
+
+# library(raster) ----
 # shp <- shapefile("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/villages/Ramthal_East.shp")
 library(dplyr)
 library(ggplot2)
@@ -992,4 +1037,26 @@ erupt + scico::scale_fill_scico(palette = "bilbao") # the default
 erupt + scico::scale_fill_scico(palette = "vik")
 erupt + scico::scale_fill_scico(palette = "lajolla")
 
+
+
+
+
+# terror_11012024 ----
+library(readr)
+dt_peace <- read.csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/terror_and_peace/terror_df_16102023/dt_peace.csv", header=T)
+View(dt_peace)
+
+
+dt_peace2=dt_peace %>% filter(survey_year >2013, survey_year<2015)
+
+
+dt_terror <- read.csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/terror_and_peace/terror_df_16102023/dt_terror.csv", header=T)
+dt_terror2=dt_terror %>% filter(date  < "2014-08-01" )
+
+
+panel_jews_6_94_till_4_17_273_panels <- read.csv(
+  "C:/Users/Dan/OneDrive - mail.tau.ac.il/terror_and_peace/terror_df_16102023/panel_jews_6_94_till_4_17_273_panels.csv", header=T)
+
+terror_11012024 <- read.csv(
+  "C:/Users/Dan/OneDrive - mail.tau.ac.il/terror_and_peace/terror_11012024.csv", header=T)
 
