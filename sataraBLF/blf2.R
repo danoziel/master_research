@@ -27,7 +27,9 @@ BLF_InteractCSV <- read.csv(
 #     version 1 | 2024.10.24 - 2024.10.24 | _index 1:8
 #     version 2 | 2024.10.24 - 2024.11.26 | _index 9:116
 #     version 3 | 2024.11.26 - 2025.04.06 | _index 117:1025
-#     version 4 | 2025-04-06 - ____.__.__ | _index 1026: ____
+#     version 4 | 2025-04-06 - onward     | _index 1026: ____
+# photo per item  2025-04-11   onward     |  index 1035 onward
+
 
 # Create uniqe id by version
 

@@ -7,20 +7,26 @@ library(summarytools)
 
 ## DFs  ________________________________________________________________ _ ----
 library(readr)
-BL_2015_16_crop_IRsource_IRmethod <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/BL_2015_16_crop_IRsource_IRmethod.csv")
-rmtl_16_18_22_sample <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_16_18_22_sample.csv")
+BL_2015_16_crop_IRsource_IRmethod <- 
+  read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/BL_2015_16_crop_IRsource_IRmethod.csv")
+
+rmtl_16_18_22_sample <- 
+  read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_16_18_22_sample.csv")
+
 demographic_vars_2016 <- # baseline vars
   read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/demographic_vars_2016.csv")
 
-centroids_coords <- 
-  read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/centroids_coords.csv")
-
-library(sf)
-centroids_sf <- st_read("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/centroids_sf.shp", stringsAsFactors = F, quiet=F)
 
 library(readxl)
 elevation_points_tbl<- 
   read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/elevation_points_tbl.xlsx")
+
+elevation_points_tbl <- 
+  read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/elevation_points_tbl.xlsx")
+
+Ramthal_dist_elev <- 
+  read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/Ramthal_dist_elev.xlsx")
+
 
 
 control_vars <- #  1,612
@@ -29,49 +35,36 @@ control_vars <- #  1,612
            ifelse(is.na(hh_haed_edu_level),0,
                   hh_haed_edu_level ) ) 
 
-dist_var <- #  1,409
-  rd_water_with_coords %>% st_drop_geometry() %>% 
-  select(in_project,hh_id,dist_to_south_m) %>% 
-  mutate(dist_to_south_km= # transform `out` to negative & "m" to "km"
-           ifelse(in_project==0,dist_to_south_m*(-0.001),
-                  dist_to_south_m*0.001)) %>% select(-in_project)
+dist_elev_var  <-  # former [dist_var]
+  Ramthal_dist_elev  %>% left_join(hh_2022) %>% 
+  select(in1_out0,hh_id, dist_to_boundary_m, elevation_m) %>% # former var dist_to_south_m
+  mutate(dist_Km_boundary =  dist_to_boundary_m*0.001,
+         dist_Km_boundary = ifelse(in1_out0==0, dist_Km_boundary*-1,dist_Km_boundary)
+         ) %>% 
+  mutate(elevation = elevation_m-506,
+         elevation= ifelse(in1_out0==0, elevation*-1 ,elevation))%>% 
+  select(-in1_out0)
 
 geo_var <- #  1,612
   rmtl_InOut %>% 
-  select(hh_id, elevation , south1_north0, a5)
-
-elv_var <- 
-  list_shape_code %>% left_join(elevation_points_tbl) %>% 
-  right_join(
-    rmtl_InOut %>% select(hh_id, elevation , south1_north0, a5)
-  ) %>% select(hh_id , elevation_m, south1_north0 ,a5)
+  select(hh_id, elevation , south1_north0, a5) %>% 
+  rename(elev_cat = elevation,village=a5) %>% 
+  mutate(elev_cat=ifelse(elev_cat=="7+",7,elev_cat),
+         elev_cat=as.numeric(elev_cat))
 
 Qmm2=rmtl_srvy22 %>% select(hh_id,mm2) %>% 
   mutate(im_in_project = ifelse(mm2==1,1,0)) %>% select(hh_id,im_in_project)
 
-rmtl_con_vars <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_con_vars.csv")
+rmtl_con_vars <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_con_vars.xlsx")
+
 rmtl_con_vars <- 
   as_tibble(control_vars) %>% rename(in_project= in1_out0) %>% 
-  left_join(elv_var) %>% 
-  left_join(dist_var) 
-
-
-library(readxl)
-rmtl_cntrl_vars <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_cntrl_vars.xlsx")
-rmtl_cntrl_vars <- rmtl_con_vars %>% 
-  left_join(elv_var) %>% rename(village=a5) %>% 
-  left_join(Qmm2) %>% 
-  mutate(dist_to_south_km=
-           ifelse(in_project==0,dist_to_south_km*(-1),dist_to_south_km)) %>% 
-  mutate(elevation_0m = ifelse(in_project==0,(elevation_m-511)*(-1),elevation_m-511)) %>% 
-  mutate(elevation_km = elevation_0m * 0.001) %>% 
-  mutate(elevation_sqrt = ifelse(in_project==0,(elevation_km^2)*(-1),(elevation_km^2)))  %>% 
-  select(-elevation_m)
-
+  left_join(dist_elev_var) %>% 
+  left_join(geo_var) %>% 
+  left_join(Qmm2)
 
 library(writexl)
-write_xlsx(rmtl_cntrl_vars, "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_cntrl_vars.xlsx")
-rmtl_cntrl_vars <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_cntrl_vars.xlsx")
+write_xlsx(rmtl_con_vars, "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_con_vars.xlsx")
 
 
 #### IRRIGATION   _________________________________________________________ ----
@@ -102,7 +95,7 @@ irrigation_BL_to_22 <-
 # irrigation_dist <- rmtl_con_vars %>% left_join(irrigation_BL_to_22)
 
 impact_ir <- irrigation_BL_to_22 %>% 
-  right_join(rmtl_cntrl_vars)
+  right_join(rmtl_con_vars) %>% as_tibble()
 
 # Histogram                              ----
 ### df [dist]    500m bins | up to 10 Km
@@ -199,7 +192,7 @@ P2 + theme + labs(title = "Distance Distribution | Up to 10 Km in 500m bins")
 
 func_drip_elv <- function(data, outcome) {
   covariates <- c(
-    "in_project","elevation_0m","drip_use_BL",
+    "in_project","elevation","drip_use_BL",
     "hh_haed_age",
     "hh_haed_gendar",
     "hh_haed_edu_level",
@@ -215,7 +208,7 @@ func_drip_elv <- function(data, outcome) {
 }
 func_drip_dist <- function(data, outcome) {
   covariates <- c(
-    "in_project","dist_to_south_km","drip_use_BL",
+    "in_project","dist_Km_boundary","drip_use_BL",
     "hh_haed_age",
     "hh_haed_gendar",
     "hh_haed_edu_level",
@@ -230,38 +223,27 @@ func_drip_dist <- function(data, outcome) {
   lm(form, data = data)
 }
 func_drip <- function(data, outcome) {
-  covariates <- c(
-    "in_project","drip_use_BL",
-    "hh_haed_age",
-    "hh_haed_gendar",
-    "hh_haed_edu_level",
-    "total_acre16",
-    "housing_str321",
-    "job_income_sourceS",
-    "govPnsin_scheme",
-    "rent_property",
-    "total_livestock",
-    "total_farm_equipments") 
+  covariates <- c("in_project") 
   form <- reformulate(covariates, response = outcome)
   lm(form, data = data)
 }
 
 # reg for drip       ----
-
-#| "MODEL 1" elevation_0m     TO impact_ir
-#| "MODEL 2" dist_to_south_km TO impact_ir
-#| "MODEL 3" dist_to_south_km TO impact_ir_south
+#| "MODEL 0" in_project only
+#| "MODEL 1" elevation        TO impact_ir # former elevation_0m
+#| "MODEL 2" dist_Km_boundary TO impact_ir # dist_to_south_km
+#| "MODEL 3" dist_Km_boundary TO impact_ir_south
 
 
 # df <- irrigation_dist %>% filter(dist_to_south_m <1500)
 # df <- irrigation_dist %>% filter(south1_north0 == 1)
 
-impact_ir_south <- impact_ir %>% filter(dist_to_south_m <1500)
+impact_ir_south <- impact_ir %>% filter(dist_to_boundary_m <1500,south1_north0 == 1)
 impact_ir_south <- impact_ir %>% filter(south1_north0 == 1)
 
 
 mod_10 <-  # acre_drip acre_ir acre_cult
-  lm(drip_use_6y  ~ in_project + elevation_0m + drip_use_BL + 
+  lm(drip_use_6y  ~ in_project + dist_Km_boundary + drip_use_BL + 
        hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS +govPnsin_scheme +rent_property +total_livestock + total_farm_equipments,
      data = impact_ir)
 summary(mod_10)
@@ -295,97 +277,163 @@ m3_22 <- impact_ir_south %>%  func_drip_dist("drip_use_2022")
 m3_6y <- impact_ir_south %>%  func_drip_dist("drip_use_6y")
 
 
-
-
+m0_iam <- impact_ir %>% func_drip("im_in_project")
+m0_ins <- impact_ir %>% func_drip("DI_installed")
+m0_6y <- impact_ir %>% func_drip("drip_use_6y")
+m0_17 <- impact_ir %>% func_drip("drip_use_2017")
+m0_18 <- impact_ir %>% func_drip("drip_use_2018")
+m0_19 <- impact_ir %>% func_drip("drip_use_2019")
+m0_20 <- impact_ir %>% func_drip("drip_use_2020")
+m0_22 <- impact_ir %>% func_drip("drip_use_2022")
 
 # reg TABLE          ----
 
-# "MODEL 1" elevation_0m TO impact_ir
-modelsummary(
-  list("I'm in Project"= m1_iam, "DI installed"= m1_ins,
-       "DI usage 2021-22"= m1_22, "DI usage 2020"= m1_20,
-       "DI usage 2019"= m1_19, "DI usage 2018"= m1_18,
-       "DI usage 2017"= m1_17, "DI usage 6 years"= m1_6y),
-  coef_map = c( in_project = "In Project",elevation_0m = "Elevation",
-                drip_use_BL= "Baseline Value",`(Intercept)`="Constant"), 
-  estimate  = "{estimate}",statistic = c("{std.error}", "{p.value}"),
-  title= "Drip‐Use Regression Results | Elevation")
+library(modelsummary)
 
-# Regression Results | South 1.5 Km cutoff
-modelsummary(
-  list("I'm in Project"= m2_iam, "DI installed"= m2_ins,
-       "DI usage 2021-22"= m2_22, "DI usage 2020"= m2_20,
-       "DI usage 2019"= m2_19, "DI usage 2018"= m2_18,
-       "DI usage 2017"= m2_17, "DI usage 6 years"= m2_6y),
-  coef_map = c(
-    in_project = "In Project",dist_to_south_km = "Distance to Boundary (Km)",
-    drip_use_BL= "Baseline Value",`(Intercept)`="Constant"), 
-  estimate  = "{estimate}", statistic = c("{std.error}", "{p.value}"),
-  title= "Drip‐Use Regression Results | Distance Boundary")
+# "MODEL 1" elevation     TO impact_ir # former elevation_0m
+
+# modelsummary(
+#   list("I'm in Project"= m1_iam, "DI installed"= m1_ins,
+#        "DI usage 2021-22"= m1_22, "DI usage 2020"= m1_20,
+#        "DI usage 2019"= m1_19, "DI usage 2018"= m1_18,
+#        "DI usage 2017"= m1_17, "DI usage 6 years"= m1_6y),
+#   coef_map = c( in_project = "In Project",elevation = "Elevation",
+#                 drip_use_BL= "Baseline Value",`(Intercept)`="Constant"), 
+#   estimate  = "{estimate}",statistic = c("{std.error}", "{p.value}"),
+#   title= "Drip‐Use Regression Results | Elevation")
+
+usage_tbl_1 <- 
+  modelsummary(
+    list("I'm in Project"= m1_iam, "DI installed"= m1_ins, "DI usage 6 years"= m1_6y,
+         "DI usage 2021-22"= m1_22,"DI usage 2020"= m1_20,"DI usage 2019"= m1_19, 
+         "DI usage 2018"= m1_18,"DI usage 2017"= m1_17),
+    coef_map = c( in_project = "In Project"), 
+    estimate  = "{estimate}",statistic = c("({std.error})", "[{p.value}]"),
+    gof_omit = "R2 Adj.|AIC|BIC|Log.Lik.|RMSE|F",
+    output = "data.frame")
+usage_tbl_1$term[usage_tbl_1$term=="In Project"] <- "In Project \n[elev]"
+
+usage_tbl_2 <- 
+  modelsummary(
+    list("I'm in Project"= m2_iam, "DI installed"= m2_ins, "DI usage 6 years"= m2_6y,
+         "DI usage 2021-22"= m2_22,"DI usage 2020"= m2_20,"DI usage 2019"= m2_19, 
+         "DI usage 2018"= m2_18,"DI usage 2017"= m2_17),
+    coef_map = c( in_project = "In Project"), 
+    estimate  = "{estimate}",statistic = c("({std.error})", "[{p.value}]"),
+    gof_omit = "R2 Adj.|AIC|BIC|Log.Lik.|RMSE|F",
+    output = "data.frame")
+usage_tbl_2$term[usage_tbl_2$term=="In Project"] <- "In Project \n[dist]"
+
+usage_tbl_3 <- 
+  modelsummary(
+    list("I'm in Project"= m3_iam, "DI installed"= m3_ins, "DI usage 6 years"= m3_6y,
+         "DI usage 2021-22"= m3_22,"DI usage 2020"= m3_20,"DI usage 2019"= m3_19, 
+         "DI usage 2018"= m3_18,"DI usage 2017"= m3_17),
+    coef_map = c( in_project = "In Project"), 
+    estimate  = "{estimate}",statistic = c("({std.error})", "[{p.value}]"),
+    gof_omit = "R2 Adj.|AIC|BIC|Log.Lik.|RMSE|F",
+    output = "data.frame")
+usage_tbl_3$term[usage_tbl_3$term=="In Project"] <- "In Project \n[dist south]"
+
+usage_tbl_0 <- 
+  modelsummary(
+    list("I'm in Project"= m0_iam, "DI installed"= m0_ins, "DI usage 6 years"= m0_6y,
+         "DI usage 2021-22"= m0_22,"DI usage 2020"= m0_20,"DI usage 2019"= m0_19, 
+         "DI usage 2018"= m0_18,"DI usage 2017"= m0_17),
+    coef_map = c(`(Intercept)`= "Constant", in_project = "In Project"), 
+    estimate  = "{estimate}",statistic = c("({std.error})", "[{p.value}]"),
+    gof_omit = "R2 Adj.|AIC|BIC|Log.Lik.|RMSE|F",
+    output = "data.frame")
+usage_tbl_0$term[usage_tbl_0$term=="In Project"] <- "In Project \n[model 0]"
+
+## CONTROL MEAN
+control_mean <- 
+  impact_ir %>%
+  filter(in_project==0, !is.na(elevation) ) %>% 
+  select(im_in_project, DI_installed, drip_use_6y,starts_with("drip_use_20")) %>%
+  summarise(across(everything(), ~ round(mean(.x, na.rm = TRUE), 3))) %>% 
+  mutate(term="Control mean") %>% select(term,everything())
+control_mean[] <- lapply(control_mean, as.character)
+names(control_mean) <- c('term', "I'm in Project", "DI installed", "DI usage 6 years",
+                         "DI usage 2021-22", "DI usage 2020",
+                         "DI usage 2019", "DI usage 2018","DI usage 2017")
 
 
-# Regression Results | Elevation | South 1.5 Km cutoff
-modelsummary(
-  list("I'm in Project"= m3_iam, "DI installed"= m3_ins,
-       "DI usage 2021-22"= m3_22, "DI usage 2020"= m3_20,
-       "DI usage 2019"= m3_19, "DI usage 2018"= m3_18,
-       "DI usage 2017"= m3_17, "DI usage 6 years"= m3_6y),
-  coef_map = c(
-    in_project = "In Project",dist_to_south_km = "Distance to Boundary (Km)",
-    drip_use_BL= "Baseline Value",`(Intercept)`="Constant"), 
-  estimate  = "{estimate}", statistic = c("{std.error}", "{p.value}"),
-  title= "Drip‐Use Regression Results | 1.5 Km Southern Boundary")
+# REG TABLE FOR PAPER
+usage_tbl_1 %>% # usage_tbl_2 %>%  # usage_tbl_3 %>% 
+  select(-part, -statistic) %>% 
+  bind_rows(control_mean
+  ) %>% 
+  kable("html", caption = "",align = "c") %>%
+  kable_classic( full_width = F) %>%
+  add_header_above(c(" ", "(1)" = 1, "(2)" = 1, "(3)" = 1, "(4)" = 1,
+                     "(5)" = 1, "(6)" = 1, "(7)" = 1, "(8)" = 1))%>%   
+  collapse_rows(columns = 1, valign = "top")
 
-# summary(model_drip_6y)
-# summ(model_drip_6y)
-# tidy(model_drip_22, conf.int = TRUE) 
-# modelsummary(list("Simple" = model_small, "Full" = model_big))
-sjPlot::tab_model(model_drip_6y ,show.se = T,digits = 5, show.stat=T )
+
+usage_tbl_0 %>%
+  select(-part, -statistic) %>% 
+  kable("html", caption = "",align = "c") %>%
+  kable_classic( full_width = F) %>%
+  add_header_above(c(" ", "(1)" = 1, "(2)" = 1, "(3)" = 1, "(4)" = 1,
+                     "(5)" = 1, "(6)" = 1, "(7)" = 1, "(8)" = 1))%>%   
+  collapse_rows(columns = 1, valign = "top")
+
+
+
+
 
 #|=============================================================================
 
 
 # PLOT reg           ----
-
+library(ggplot2)
 library(jtools)
 library(ggstance)
 library(RColorBrewer)
-my_colors <- brewer.pal(8, "Paired")
+my_colors <- brewer.pal(8, "BrBG")
+my_colors <- brewer.pal(8, "RdBu")
+
+my_colors <- colorRampPalette(c("#eff3ff", "#6baed6", "#08519c"))(5)
+my_colors <- colorRampPalette(c("#ccebc5", "#66a61e", "#005824"))(8)
 
 m1_plot <- 
-  plot_summs(m1_iam,m1_ins,m1_22, m1_20, m1_19,m1_18, m1_17, m1_6y,
+  plot_summs(m1_iam,m1_ins,m1_6y,m1_22, m1_20, m1_19,m1_18, m1_17,
              coefs = c("In Project" = "in_project"),
-             model.names = c("Im in Project","DI installed","DI usage 2021-22", "DI usage 2020",
-                             "DI usage 2019","DI usage 2018","DI usage 2017","DI usage 6 years"),
+             model.names = c("Im in Project","DI installed","DI usage 6 years",
+                             "DI usage 2021-22", "DI usage 2020",
+                             "DI usage 2019","DI usage 2018","DI usage 2017"),
              inner_ci_level = NULL,
              point.shape = FALSE,
              colors = my_colors
   ) + labs(
     # subtitle = "Elevation as an Exogenous Variable [N=1,612]",
     # caption = "Note: Estimates reflect standardized coefficients with 95% CIs.",
-    x = "Beta Estimate", y = NULL)
+    x = NULL, y = NULL)
 
 m2_plot <- 
   plot_summs(
-    m2_iam, m2_ins, m2_22, m2_20, m2_19, m2_18, m2_17, m2_6y,
+    m2_iam, m2_ins, m2_6y, m2_22, m2_20, m2_19, m2_18, m2_17, 
     coefs = c("In Project" = "in_project"),
-    model.names = c("Im in Project","DI installed","DI usage 2021-22", "DI usage 2020",
-                    "DI usage 2019","DI usage 2018","DI usage 2017","DI usage 6 years"),
+    model.names = c("Im in Project","DI installed","DI usage 6 years",
+                    "DI usage 2021-22", "DI usage 2020",
+                    "DI usage 2019","DI usage 2018","DI usage 2017"),
     inner_ci_level = NULL,
     point.shape = FALSE,
     colors = my_colors) +
-  labs(x = "Beta Estimate",y = NULL)
+  labs(x = NULL,y = NULL)
 
 
 m3_plot <- 
-  plot_summs(m3_iam,m3_ins, m3_22, m3_20, m3_19, m3_18, m3_17, m3_6y,
+  plot_summs(m3_iam,m3_ins,  m3_6y, m3_22, m3_20, m3_19, m3_18, m3_17,
              coefs = c("In Project" = "in_project"),
-             model.names = c("Im in Project","DI installed","DI usage 2021-22", "DI usage 2020",
-                             "DI usage 2019","DI usage 2018","DI usage 2017","DI usage 6 years"),
+             model.names = c("Im in Project","DI installed","DI usage 6 years",
+                             "DI usage 2021-22", "DI usage 2020",
+                             "DI usage 2019","DI usage 2018","DI usage 2017"),
              inner_ci_level = NULL,
              point.shape = FALSE,
              colors = my_colors
-  ) + labs(x = "Beta Estimate", y = NULL)
+  ) + labs(x = NULL, y = NULL)
 
 
 
@@ -403,9 +451,9 @@ mp_theme=theme_bw()+
 
 
 # PLOT THE REG COFF
-m1_plot + mp_theme + ggtitle("`Elevation` as an Exogenous Variable [Entire sample]")
-m2_plot + mp_theme + ggtitle("`Distance to Boundary` as an Exogenous Variable [Entire sample]")
-m3_plot + mp_theme+  ggtitle("`Distance to Boundary` as an Exogenous Variable [Southern sample]")
+m1_plot + mp_theme + ggtitle("`Elevation` as an Exogenous Variable [Entire sample]")+ xlim(-0.06,0.45)
+m2_plot + mp_theme + ggtitle("`Distance to Boundary` as an Exogenous Variable [Entire sample]")+ xlim(-0.06,0.45)
+m3_plot + mp_theme+  ggtitle("`Distance to Boundary` as an Exogenous Variable [Southern sample]")+ xlim(-0.06,0.45)
 # + xlim(-0.1,0.55)
 
 #|=============================================================================

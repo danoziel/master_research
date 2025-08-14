@@ -238,7 +238,7 @@ ml18_plots_size
 
 
 # village_code ----
-village_code <- a_rmtl_srvy22 %>%
+village_code <- rmtl_srvy22 %>%
   mutate(village_code=ifelse(a5 %in% c("Amaravati", "amaravati",'Amaravathi',"AMARAVATHI"),"01",a5)) %>%
   mutate(village_code=ifelse(a5 %in% c("Bekamaladinni","bekamaladinni" ,"Bekamaldinni","BEKAMALADINNI"),"02",village_code)) %>% 
   mutate(village_code=ifelse(a5 %in% c("Binjawadgi" ,"binjawadagi","Binjawadagi","BINJAWADAGI"),"03",village_code)) %>% 

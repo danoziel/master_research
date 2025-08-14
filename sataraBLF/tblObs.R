@@ -168,13 +168,14 @@ tb1_obs_old <- tb_obs_old %>%
          reason_come_in,
          id_pest_problem,id_disease_problem,
          consult
-         ) %>% mutate(id_fertilizer_problem=NA)
+         ) %>% mutate(id_fertilizer_problem=NA,buy_weed_control=NA)
 ###
 tb1_obs <- tb_obs %>%  
   select(end,Farmer_Name,phone,
          crop_focus,
          reason_come_in,
-         id_pest_problem,id_disease_problem,id_fertilizer_problem,
+         id_pest_problem,id_disease_problem,
+         id_fertilizer_problem,buy_weed_control,
          consult
          ) 
 ###
@@ -182,7 +183,8 @@ tb1_int <- tb_int %>%
   select(location,end, name, phone,
          crop_focus,
          reason_come_in,
-         id_pest_problem,id_disease_problem,id_fertilizer_problem,
+         id_pest_problem,id_disease_problem,
+         id_fertilizer_problem,buy_weed_control,
          consult
   )
 ###
@@ -195,7 +197,7 @@ tb_comb1 <- rbind(tb1_obs_old,tb1_obs) %>%
 library(dplyr)
 library(stringr)
 library(purrr)
- ## crop_focus ----
+ ## mC crop_focus ----
 tb_comb2 <- tb_comb1 %>%
   mutate( 
     match_crop = map2_int(  # at least one match
@@ -207,17 +209,17 @@ tb_comb2 <- tb_comb1 %>%
       }
     )) %>% 
   mutate(match = match_crop >= 1) %>% 
-  mutate(match_Ex = # Exactly the same answer
+  mutate(match_precisely = # Exactly the same answer
            ifelse(crop_focus.x == crop_focus.y,T,F))
 
-tb_comb2 %>% summarise( 
+mC = tb_comb2 %>% summarise( 
   n = n(),
-  match_true_pct = paste0(round(mean(match) * 100, 1), "%"),
-  match_Ex_true_pct = paste0(round(mean(match_Ex) * 100, 1), "%")
-  )
+  match = round(mean(match),3),
+  match_precisely = round(mean(match_precisely),3)
+  ) %>% mutate(Subject = "Target crop")
 
   
- ## reason_come_in  ----
+ ## mR reason_come_in  ----
 tb_comb3 <- tb_comb1 %>%
   mutate(
     match_reason = map2_int(
@@ -228,17 +230,14 @@ tb_comb3 <- tb_comb1 %>%
       sum(x_reason %in% y_reason) }
     )) %>% 
   mutate(match = match_reason >= 1,
-         match_Ex = reason_come_in.x == reason_come_in.y # Exactly the same answer
+         match_precisely = reason_come_in.x == reason_come_in.y # Exactly the same answer
   )
 
-
-
-
-tb_comb3 %>% summarise( 
+mR = tb_comb3 %>% summarise( 
   n = n(),
-  match_true_pct = paste0(round(mean(match) * 100, 1), "%"),
-  match_Ex_true_pct = paste0(round(mean(match_Ex) * 100, 1), "%")
-  )
+  match = round(mean(match),3),
+  match_precisely = round(mean(match_precisely),3)
+  ) %>% mutate(Subject = "Store visit reason")
 
 
 ## id_pest_problem  ----
@@ -267,18 +266,18 @@ tb_comb4 <- tb_comb1 %>%
     )
   ) %>% 
   mutate(match = pest_match >= 1,
-         match_Ex = id_pest_problem.x == id_pest_problem.y # Exactly the same answer
+         match_precisely = id_pest_problem.x == id_pest_problem.y # Exactly the same answer
   )# %>% 
   select(end,id_pest_problem.x,id_pest_problem.y ,pest_match,match,match_Ex)
 
 
-tb_comb4 %>% 
+mP = tb_comb4 %>% 
   filter(!is.na(pest_match)) %>% 
   summarise( 
   n = n(),
-  match_true_pct = paste0(round(mean(match) * 100, 1), "%"),
-  match_Ex_true_pct = paste0(round(mean(match_Ex) * 100, 1), "%")
-  )
+  match = round(mean(match),3),
+  match_precisely = round(mean(match_precisely),3)
+  ) %>% mutate(Subject = "Visit reason | Pest problem ")
 
 
 
@@ -301,27 +300,22 @@ tb_comb5 <- tb_comb1 %>%
         }
       }
     ),
-    match_disease = disease_match >= 1,
-    match_disease_Ex = id_disease_problem.x == id_disease_problem.y
+    match = disease_match >= 1,
+    match_precisely = id_disease_problem.x == id_disease_problem.y
   ) # %>% 
   select(end,id_disease_problem.x,id_disease_problem.y ,disease_match, match_disease,match_disease_Ex)
 
 # Summary for percentage matches:
-tb_comb5 %>%
+mD = tb_comb5 %>%
   filter(!is.na(disease_match)) %>%
   summarise(
     n = n(),
-    match_true_pct = paste0(round(mean(match_disease) * 100, 1), "%"),
-    match_Ex_true_pct = paste0(round(mean(match_disease_Ex) * 100, 1), "%")
-  )
+    match = round(mean(match),3),
+    match_precisely = round(mean(match_precisely),3)
+    ) %>% mutate(Subject = "Visit reason | Disease problem ")
 
 
 ## id_fertilizer_problem   ----
-
-
-library(dplyr)
-library(stringr)
-library(purrr)
 
 tb_comb6 <- tb_comb1 %>%
   mutate(
@@ -339,34 +333,55 @@ tb_comb6 <- tb_comb1 %>%
         }
       }
     ),
-    match_fertilizer = fertilizer_match >= 1,
-    match_fertilizer_Ex = id_fertilizer_problem.x == id_fertilizer_problem.y
-  ) %>% 
-  select(end,id_fertilizer_problem.x,id_fertilizer_problem.y ,
-         fertilizer_match, match_fertilizer,match_fertilizer_Ex)
+    match = fertilizer_match >= 1,
+    match_precisely = id_fertilizer_problem.x == id_fertilizer_problem.y
+  )
 
 # Summary for fertilizer problem matches:
-tb_comb6 %>%
+mF = tb_comb6 %>%
   filter(!is.na(fertilizer_match)) %>%
   summarise(
     n = n(),
-    match_true_pct = paste0(round(mean(match_fertilizer) * 100, 1), "%"),
-    match_Ex_true_pct = paste0(round(mean(match_fertilizer_Ex) * 100, 1), "%")
+    match = round(mean(match),3),
+    match_precisely = round(mean(match_precisely),3)
+  ) %>% mutate(Subject = "Visit reason | Buying fertilizer ")
+
+
+
+
+
+## mW buy_weed_control   ----
+
+tb_comb8 <- tb_comb1 %>%
+  mutate(
+    weed_match = map2_int(
+      buy_weed_control.x, buy_weed_control.y,
+      ~{
+        x_na <- is.na(.x) || .x == ""
+        y_na <- is.na(.y) || .y == ""
+        if (x_na && y_na) {
+          return(NA_integer_)
+        } else {
+          x_vec <- str_split(ifelse(is.na(.x), "", .x), "\\s+")[[1]]
+          y_vec <- str_split(ifelse(is.na(.y), "", .y), "\\s+")[[1]]
+          sum(x_vec %in% y_vec)
+        }
+      }
+    ),
+    match = weed_match >= 1,
+    match_precisely = buy_weed_control.x == buy_weed_control.y
   )
 
+mW = tb_comb8 %>%
+  filter(!is.na(weed_match)) %>%
+  summarise(
+    n = n(),
+    match = round(mean(match),3),
+    match_precisely = round(mean(match_precisely),3)
+  ) %>% mutate(Subject = "Visit reason | Buying Weed control")
 
 
-
-
-## id_disease_problem   ----
-
-
-
-## id   ----
-
-library(dplyr)
-library(stringr)
-library(purrr)
+## consult_match   ----
 
 tb_comb7 <- tb_comb1 %>%
   mutate(
@@ -384,23 +399,77 @@ tb_comb7 <- tb_comb1 %>%
         }
       }
     ),
-    match_consult = consult_match >= 1,
-    match_consult_Ex = consult.x == consult.y
+    match = consult_match >= 1,
+    match_precisely = consult.x == consult.y
   )
 
 
-
-tb_comb7 %>%
+mCons = tb_comb7 %>%
   filter(!is.na(consult_match)) %>%
   summarise(
     n = n(),
-    match_true_pct = paste0(round(mean(match_consult) * 100, 1), "%"),
-    match_Ex_true_pct = paste0(round(mean(match_consult_Ex) * 100, 1), "%")
+    match = round(mean(match),3),
+    match_precisely = round(mean(match_precisely),3)
+  ) %>% mutate(Subject = "Consultation regarding treatment")
+
+
+
+  # general match ----
+
+g_match <- tb_comb2 %>% 
+  select(end,phone,location,match,match_precisely) %>% 
+  rbind( tb_comb3 %>% select(end,phone,location,match,match_precisely)
+  ) %>% 
+  rbind( tb_comb4  %>% filter(!is.na(pest_match))%>% select(end,phone,location,match,match_precisely)
+  ) %>% 
+  rbind( tb_comb5 %>%  filter(!is.na(disease_match)) %>% select(end,phone,location,match,match_precisely)
+  ) %>% 
+  rbind( tb_comb6 %>% filter(!is.na(fertilizer_match)) %>% select(end,phone,location,match,match_precisely)
+  ) %>%   
+  rbind( tb_comb8 %>% filter(!is.na(weed_match)) %>% select(end,phone,location,match,match_precisely)
+  ) %>% 
+  rbind( tb_comb7 %>% filter(!is.na(consult_match)) %>% select(end,phone,location,match,match_precisely)
   )
 
 
+g_match_1 <- g_match %>%
+  summarise(
+    n = n(),
+    match = round(mean(match),3),
+    match_precisely = round(mean(match_precisely),3)
+  ) %>% mutate(Subject = "Entire Survey")
 
-  
+
+g_match_2 <- 
+  rbind(mC,mR) %>% 
+  rbind(mP) %>% 
+  rbind(mD) %>% 
+  rbind(mF) %>% 
+  rbind(mW) %>% 
+  rbind(mCons) 
+
+g_match %>%
+  group_by(location) %>% 
+  summarise(
+    n = n(),
+    Match = paste0(round(mean(match) * 100, 1), "%"),
+    `Match precisely` = paste0(round(mean(match_precisely) * 100, 1), "%")
+    )%>% rename(Store = location ) %>% 
+  select(Store , Match, `Match precisely`, n) %>% 
+  kable() %>% kable_styling()
+
+
+rbind(g_match_1 ,g_match_2) %>% 
+  mutate(
+    Match = paste0(round(match * 100, 1), "%"),
+    `Match precisely` = paste0(round(match_precisely * 100, 1), "%")
+  ) %>% 
+  select(Subject, Match, `Match precisely`, n) %>% 
+  kable() %>% kable_styling()
+
+
+
+
 
 
 
@@ -540,6 +609,56 @@ df_weed_URL
 
 library(writexl)
 write_xlsx(df_pest_URL, "df_pest_URL.xlsx")
+
+# downloud  receipt_URL
+# In the first step, 
+# we will scan the receipts that 
+# # do not have a photo per item 
+# # and that are related to a "pest" "disease" or "weeding"
+
+receipt_photos <- shop_interactCSV %>% 
+  filter(X_index>116 ) %>% 
+  select(end ,X_index, contains("URL"), location,
+         "reason_come_in_new.pest_problems",
+         "reason_come_in.pest_problems",
+         "reason_come_in_new.disease_issue" , 
+         "reason_come_in.disease_issue" ,
+         "reason_come_in_new.weed_control"
+  ) %>%
+  mutate(
+    itemPic_01 = if_else(
+      !(is.na(weed_control_photo_URL) | weed_control_photo_URL == "") |
+        !(is.na(pest_problem_photo_URL)  | pest_problem_photo_URL == "") |
+        !(is.na(disease_problem_photo_URL) | disease_problem_photo_URL == ""),
+      1, 0
+    ),
+    receipt_01 = if_else(
+      !(is.na(receipt_URL) | receipt_URL == ""), 1, 0
+    ),
+    buy_pest    = if_else(reason_come_in_new.pest_problems    == 1 | reason_come_in.pest_problems    == 1, 1, 0),
+    buy_disease = if_else(reason_come_in_new.disease_issue    == 1 | reason_come_in.disease_issue    == 1, 1, 0),
+    buy_weed    = if_else(reason_come_in_new.weed_control     == 1, 1, 0)
+    )  %>% 
+  filter(itemPic_01 == 0,
+         if_any(c(buy_pest, buy_disease, buy_weed), ~ .x == 1)) %>% 
+  rename(index=X_index) %>% 
+  left_join(df_crop_wide) %>% filter(!is.na(crop_1st)) %>% # NA are obs of "other crop" without followup "what other?" Q 
+  select(end ,index,buy_pest,buy_disease,buy_weed,crop_1st, crop_2nd,location,receipt_URL )
+  
+
+
+
+# import the URLs to google sheet
+library(googlesheets4)
+
+sheetURL1 <- "https://docs.google.com/spreadsheets/d/11nlKWx_njQx04jdUx6maef2-56MeVlUXfKMeV0r91mY/edit?gid=0#gid=0"
+
+# Write the data frame to a specific sheet (e.g., named "R_data")
+# If the sheet "R_data" exists, its content will be overwritten.
+# If it doesn't exist, a new sheet will be created.
+sheet_write(receipt_photos, ss = sheetURL1, sheet = "receipt_photos")
+
+
 
 
 #| ----------------

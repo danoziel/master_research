@@ -52,13 +52,7 @@ library(rempsyc)
 stats_num=d_1 %>% group_by(HH_project) %>% get_summary_stats(total_plots, type = "mean_sd")
 
 
-# Save the data in different vector ----
-women_weight <- genderweight %>%
-  filter(group == "F") %>%
-  pull(weight)
 
-# arrange ----
-arrange(desc(Grp))
 
 # summary_stats ----
 library(rstatix)

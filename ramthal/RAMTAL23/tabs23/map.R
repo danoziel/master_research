@@ -9,10 +9,12 @@ Ramthal_East_shp # 7274 obs sf         # original file #
 Ramthal_clean    # 3548 obs sf         # cols: id,geometry=POLYGON [m]
 centroids_coords # 3548 obs data.frame # cols: X, Y, id
 
-multi_hh_df          # hh_id X Y       #  1,489 obs
-rd_water_with_coords # sf  Water usage #  1,409 obs
-rd_land_with_coords  # sf  Land usage  #  1,378 obs
 
+centroids_coords <- 
+  read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/centroids_coords.csv")
+
+library(sf)
+centroids_sf <- st_read("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/centroids_sf.shp", stringsAsFactors = F, quiet=F)
 
 
 ############  Clean Ramthal_East.shp       [Ramthal_clean]              ####
@@ -81,73 +83,112 @@ centroids_coords$id <- Ramthal_centroids_utm$id
 class(centroids_coords)
 rm(coords)
 
-############  Allocate more coordinates    [multi_hh_df]                ----
+############  Allocate more coordinates    [Ramthal_points_XY]                ----
 
 
 # Missing coordinates
-miss_XY=list_shape_code %>% right_join(hh_2022) %>% 
+Ramthal_points_XY = 
+  list_shape_code %>% right_join(hh_2022) %>% 
   select(hh_id, id) %>%
-  left_join(centroids_coords) %>%
-  # filter(is.na(X)) %>% 
-  left_join(a_plots_size %>% select(hh_id,plotSrvy ,plotVillage,plotID,acres ) ) %>%
-  # select(-X,-Y)
-  
+  left_join(centroids_coords)
+
+# There are polygon ids' in list_shape_code that dontt exist in Ramthal_East_shp
+
+Ramthal_points_XY %>% filter(is.na(X))   
+Ramthal_points_XY %>% filter(is.na(X), !is.na(id)) 
+Ramthal_points_XY %>% filter(is.na(id))   
+# 203 hh_id dont have matched polygon 
+# Of those:
+#          200 hh_id polygons' dont matched polygon
+#            3 hh_id dont have polygon at all
+
+Ramthal_points_XY %>% filter(!is.na(X))   
+
+Ramthal_points_XY %>% filter(!is.na(X))  %>% group_by(id) %>% mutate(n=n()) %>% ungroup() %>% filter(n==1) %>% count(n)
+Ramthal_points_XY %>% filter(!is.na(X))  %>% group_by(id) %>% mutate(n=n()) %>% ungroup() %>% filter(n>1) %>% count(n)
+#  1,409 hh_id have matched polygon
+# Of those:
+#          1233 obs :  One "hh_id" per ONE "id" (polygon)
+#           164 obs :  Two "hh_id" per ONE id (polygon)
+#            12 obs :  Three "hh_id" per ONE id (polygon)
+
+
+# # What to do with cases of 
+#  A. hh_id with "no polygon" (203)
+#  B. 2-3 hh_id in ONE polygon (164+12)
+
+
+# For A : Generate a new  polygon id for the HH 
+#         based on the HH's survey/village plots
+# For B : Will add 25 meters from the point of one HH to second HH 
+#              and 50 to third HH
+
+
+
+# For A : Generate a new  polygon
+# Generate a new  polygon
+
+
+miss_xy_A <- Ramthal_points_XY %>% filter(is.na(X)) %>% select(hh_id) %>% 
+  left_join(a_plots_size %>% select(hh_id,plotSrvy ,plotVillage,plotID,acres ) ) %>% 
+  mutate(plotVillage = tools::toTitleCase(plotVillage))
+
+# Replace variants with correct spellings
+miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Amaravati"]        <- "Amaravathi"
+miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Binjawadagi"]      <-  "Binjawadgi"
+miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Chikkabadawadagi"] <- "Chikkabadwadgi"
+miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Chittavadagi"]     <- "Chittawadagi"
+miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Ghattiganur"]     <- "Ghattignur"
+miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Hegedal"]     <- "Hagedal"
+miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Hirebadawadagi"]     <- "Hirebadawadgi"
+miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Hirehunkunti"] <- "Hirehunakunti"
+miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Kesarabhavi"]     <- "Kesarbhavi"
+miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Thumba"]     <- "Tumba"
+miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Virapur"]     <- "Veerapur"
+
+list_villages <- read.csv("~/master_research/DATAs/list_villages.csv")
+
+miss_xy_A <-  Ramthal_points_XY_A %>% left_join(list_villages %>% rename(plotVillage = village) )
 
 # library(stringer)
 # Remove anything after '-' or '/' AND trailing letters
-miss_XY$plotSrvy_clean <- sub("[-/_].*$", "", miss_XY$plotSrvy)
-miss_XY$plotSrvy_clean <- sub("[A-Za-z]+$", "", miss_XY$plotSrvy_clean)
-miss_XY$plotSrvy_clean <- as.numeric(miss_XY$plotSrvy_clean)
+miss_xy_A$plotSrvy_clean <- sub("[-/_].*$", "", miss_xy_A$plotSrvy)
+miss_xy_A$plotSrvy_clean <- sub("[A-Za-z]+$", "", miss_xy_A$plotSrvy_clean)
+miss_xy_A$plotSrvy_clean <- as.numeric(miss_xy_A$plotSrvy_clean)
 miss_XY$id_new <-  floor(miss_XY$id / 1000) * 1000 # down to the nearest thousand
 
-miss_point <- miss_XY %>% 
-  mutate(plotSrvy_clean = ifelse(plotSrvy_clean>1000,NA,plotSrvy_clean),
-         id_new= plotSrvy_clean+id_new,
-         id_point=ifelse(id==id_new,id,id_new)
-  )
-
-
-miss_cc <-centroids_coords %>% rename(id_point=id )
-  
-miss_point <- miss_XY %>% 
-  filter(plotSrvy_clean<1000) %>% 
-  mutate(id_point = plotSrvy_clean + id_new) %>% 
-  left_join(miss_cc) %>% 
+miss_point_A <- miss_xy_A %>% 
+  mutate(plotSrvy_clean = ifelse(plotSrvy_clean>1000,NA,plotSrvy_clean)) %>% 
+  mutate(id_new=100000+(village_code*1000)+ plotSrvy_clean ) %>% 
+  mutate(id=id_new) %>% 
+  left_join(centroids_coords) %>% 
   filter(!is.na(X)) %>% 
-  group_by(hh_id) %>% mutate(n=n()) %>% slice(1) %>% ungroup() %>% 
-  select(hh_id,id_point,X,Y)
+  arrange(plotID) %>%  group_by(hh_id) %>%  slice(1) %>% ungroup() %>% 
+  select(hh_id,id_new,X,Y)
 
-add_point = list_shape_code %>% right_join(hh_2022) %>% 
-  select(hh_id, id) %>%
-  left_join(centroids_coords) %>% rename(Xold=X,Yold=Y) %>%  
-  left_join(miss_point)
 
-add_point$id_point <- ifelse(is.na(add_point$id_point),add_point$id,add_point$id_point)
-add_point$X <- ifelse(is.na(add_point$X),add_point$Yold,add_point$X)
-add_point$Y <- ifelse(is.na(add_point$Y),add_point$Yold,add_point$Y)
-
-list_geom_POINT = add_point %>% 
-  select(hh_id, id_point, X, Y)
-
-rm(miss_XY,miss_cc, miss_point ,add_point)
-
+# combin [Ramthal_points]  ----
 
 # Adjust polygons with 2-3 farm
 # Adjust farmer coordinates to offset multiple households per polygon 
 # (25m step in X and Y)
 
-multi_hh_df <-list_geom_POINT %>% 
-  filter(!is.na(X)) %>%  # remove hh_id and id without coords
-  group_by(id_point) %>% # %>% count(id_point) %>% count(n)
+
+Ramthal_points <- 
+  Ramthal_points_XY %>% 
+  left_join(miss_point_A, by = join_by(hh_id)) %>% 
+  mutate(X.z=ifelse(is.na(X.x),X.y,X.x),
+         Y.z=ifelse(is.na(Y.x),Y.y,Y.x)) %>% 
+  group_by(X.z) %>%
   mutate(
     hh_count     = n(),                     # number of households per polygon
     offset_index = row_number(),            # row index within group
     offset_m     = (offset_index - 1) * 25, # 25 meters per additional farmer
-    adj_X        = X + offset_m,            # shift east
-    adj_Y        = Y + offset_m             # shift north
-  ) %>% ungroup() %>% 
-  select(hh_id ,id_point ,adj_X ,adj_Y) %>%  
-  rename(X= adj_X ,Y= adj_Y)
+    X        = X.z + offset_m,            # shift east
+    Y        = Y.z + offset_m             # shift north
+  ) %>%  ungroup() %>% 
+  select(hh_id,id,id_new,X,Y)
+
 
 
 
@@ -172,9 +213,9 @@ st_crs(ramthal_border)
 library(sf)
 south1_in <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/1 south-in.shp")
 north2_in <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/2 north-in.shp")
-south3_out <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/3 south-out.shp")
-north4_out <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/4 north-out.shp")
-inner4_in <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/5 innner.shp")
+# south3_out <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/3 south-out.shp")
+# north4_out <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/4 north-out.shp")
+# inner4_in <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/5 innner.shp")
 
 st_crs(south1_in)
 dev.new()
@@ -206,6 +247,7 @@ south1_edge_sf      <- st_sfc(south1_edge_line, crs = st_crs(south1_utm))
 north2_edge_sf      <- st_sfc(north2_edge_line, crs = st_crs(north2_utm))
 
 dev.new()
+plot(st_geometry(south1_edge_sf), col = "blue", lwd = 2,)
 plot(st_geometry(north2_edge_sf), col = "blue", lwd = 2,)
 
 
@@ -228,13 +270,59 @@ ramthal_edge_sf <- st_sfc(ramthal_multiline, crs = st_crs(south1_edge_sf))
 # Plot result
 plot(ramthal_edge_sf, col = "red3", lwd = 2, main = "Combined Project Edge (Unconnected)")
 
-# ----
+
+
+# # Calculate shortest distance to the boundary  ----
+
+library(dplyr)
+library(sf)
+library(elevatr)
+
+# 1) Rows with coordinates
+pts_with_coords <- Ramthal_points %>%
+  filter(!is.na(X) & !is.na(Y))
+
+# 2) Rows without coordinates
+pts_no_coords <- Ramthal_points %>%
+  filter(is.na(X) | is.na(Y)) %>%
+  mutate(dist_to_boundary_m = NA_real_,
+         elevation_m = NA_real_)
+
+# 3) Convert to sf
+pts_sf <- st_as_sf(pts_with_coords, coords = c("X", "Y"), crs = 32643, remove = FALSE)
+
+# 4) Boundary sf
+edge <- st_sf(geometry = ramthal_edge_sf)
+
+# 5) Distance to boundary
+pts_sf$dist_to_boundary_m <- as.numeric(st_distance(pts_sf, edge)[, 1])
+
+# 6) Elevation (convert to lat/lon first)
+pts_wgs <- st_transform(pts_sf, 4326)
+elev_data <- get_elev_point(pts_wgs, src = "aws", z = 10, units = "meters")
+pts_sf$elevation_m <- elev_data$elevation
+
+# 7) Drop geometry for regression
+pts_with_vals <- st_drop_geometry(pts_sf)
+
+# 8) Combine back with NA rows
+Ramthal_dist_elev <- bind_rows(pts_with_vals, pts_no_coords) %>%
+  arrange(hh_id)
+
+# final_df now has all rows with dist_to_boundary_m and elevation_m
+library(writexl)
+
+write_xlsx(Ramthal_dist_elev,
+           "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/Ramthal_dist_elev.xlsx")
 
 
 
+centroids_coords <- 
+  read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/centroids_coords.csv")
 
-# # Final - Calculate shortest distance to the boundary
-centroids_coords$dist_to_boundary <- st_distance( centroids_sf, ramthal_edge_sf )
+library(sf)
+centroids_sf <- st_read("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/centroids_sf.shp", stringsAsFactors = F, quiet=F)
+
 
 
 
@@ -257,27 +345,24 @@ https://rcn.montana.edu/resources/Converter.aspx
 
 
 
-ramthal_border_sf
-multi_hh_df
-rmtl_InOut
 
-# 1. Bind the df's
-rd_water_with_coords <- 
-  multi_hh_df %>% select(hh_id, X, Y) %>%
-  inner_join(df_for_water_map, by = "hh_id")
-
-# 2. Conver to sf format
-rd_water_with_coords <- rd_water_with_coords %>%
-  st_as_sf(coords = c("X", "Y"), crs = 32643) # UTM
-
-# 3. Compute distance to the southern boundary line  (south_edge_sf) (combined_edge_sf)
-rd_water_with_coords$dist_to_south_m <- st_distance(
-  rd_water_with_coords,
-  ramthal_b)
-
-# 3. Convert from units to numeric meters (optional but clearer)
-rd_water_with_coords$dist_to_south_m <- as.numeric(rd_water_with_coords$dist_to_south_m)
-rd_water_with_coords$elevation <- as.factor(rd_water_with_coords$elevation)
+# # 1. Bind the df's
+# rd_water_with_coords <- 
+#   multi_hh_df %>% select(hh_id, X, Y) %>%
+#   inner_join(df_for_water_map, by = "hh_id")
+# 
+# # 2. Conver to sf format
+# rd_water_with_coords <- rd_water_with_coords %>%
+#   st_as_sf(coords = c("X", "Y"), crs = 32643) # UTM
+# 
+# # 3. Compute distance to the southern boundary line  (south_edge_sf) (combined_edge_sf)
+# rd_water_with_coords$dist_to_south_m <- st_distance(
+#   rd_water_with_coords,
+#   ramthal_b)
+# 
+# # 3. Convert from units to numeric meters (optional but clearer)
+# rd_water_with_coords$dist_to_south_m <- as.numeric(rd_water_with_coords$dist_to_south_m)
+# rd_water_with_coords$elevation <- as.factor(rd_water_with_coords$elevation)
 
 
 
@@ -322,7 +407,7 @@ elev_df <- cbind(st_drop_geometry(elev_data2),st_coordinates(elev_data2))
 
 # __________________________________________________________________________ ====
 
-########  DF 2022    [df_for_Land_map] [df_for_water_map]       ----
+########  DF 2022    [df_for_Land_map] [df_for_water_map]     OLD
 
 # [df_for_water_map] 
 df_for_water_map <- 
@@ -363,7 +448,7 @@ rd_water_with_coords
 rd_land_with_coords
 
 
-# ##      [rd_water_with_coords]       ----
+# ##      [rd_water_with_coords]  OLD
 
 # 1. Bind the df's
 rd_water_with_coords <- 
