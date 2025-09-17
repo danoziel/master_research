@@ -184,6 +184,138 @@ df0 %>%
        title = "Ramthal as water source") +
   theme_minimal(base_family = "serif")
 
+
+
+# ==17.09.2025 ===================================
+
+library(googlesheets4)
+
+gs4_auth()  # browser pops up -> choose your Google account (one-time per session)
+ss_url <- "https://docs.google.com/spreadsheets/d/12CU3bkAGrlywwUxqqxVqerI6X9AKhyXsTtBxqQyDQIs/edit?gid=579200740#gid=579200740"
+why_no_use <- read_sheet(ss_url, sheet = "why_no_use")        # tab name
+
+# pipeline_location_24 
+pipeline_location_24 <- 
+  rmtl_2024 %>% 
+  select(hh_id,farmers_B4_u ) %>% 
+  rename(location_on_pipe=farmers_B4_u) %>% 
+  mutate(location_on_pipe = ifelse(location_on_pipe=="dont_know",-999,location_on_pipe),
+         location_on_pipe=as.numeric(location_on_pipe)) %>% 
+  filter(!is.na(location_on_pipe)) %>% 
+  mutate(
+    location = ifelse(location_on_pipe %in% c(4:30),"far",
+                      ifelse(location_on_pipe %in% c(1:3),"close","dont_know")))
+
+
+names(why_no_use)
+
+pipeline_location_24 %>% 
+  left_join(why_no_use) %>% filter(!is.na(`5.WHY`)) %>% 
+  count( location ,no_water_supply) %>% 
+  group_by(location) %>% mutate(N=sum(n),n/N ) %>% 
+  filter( location != "dont_know", !is.na(no_water_supply))
+
+# pipeline_location_22
+
+pipeline_location_22 <- 
+  rmtl_srvy22_24  %>% 
+  filter(farmers_hh=="inside_ramthal",
+         !is.na(mm9)) %>% 
+  select(hh_id,mm9) %>% 
+  mutate(location_on_pipe= mm9+1) %>% 
+  select(hh_id,location_on_pipe) %>%
+  mutate(
+  location = ifelse(location_on_pipe %in% c(4:51),"far",
+             ifelse(location_on_pipe %in% c(1:3),"close","dont_know")))
+  
+
+rmtl_srvy22_24
+
+##### 1	The main piping was never functional
+# 2	The laterals was never installed in my field
+##### 3	The laterals in my field was damaged
+# 4	Rainfall was sufficient
+# 5	I wanted to irrigate, but other farmers took all the water
+#| 6	Water was supplied only after I already sowed a rainfed crop
+#| 7	Water was not supplied when needed
+#| 8	I did not know when water was supplied
+# 9	I do not trust the company
+#| 10	Water supply is unpredictable I cant count on it
+# -888 other
+
+library(dplyr)
+library(tidyr)
+
+# mapping table
+map_tbl <- tibble::tribble(
+  ~why, ~group,
+  "2",  "company","9", "company","8",  "company",
+  "1",  "pipe_damage","3",  "pipe_damage",
+  "4",  "rain",
+  "5",  "farmer_took",
+  "6",  "supply","7",  "supply","8",  "supply", "10", "supply",
+  "6",  "timing","8",  "timing","10", "timing")
+
+# get total N of original separated reasons
+N_total <- rmtl_srvy22_24 %>%
+  select(hh_id, mw1c) %>%filter(!is.na(mw1c)) %>%
+  separate_rows(mw1c, sep = " ") %>%
+  filter(mw1c != "") %>%
+  nrow()
+
+# count groups using that fixed N_total
+mw1c_counts <- rmtl_srvy22_24 %>%
+  select(hh_id, mw1c) %>% rename(why = mw1c) %>% filter(!is.na(why)) %>%
+  separate_rows(why, sep = " ") %>% filter(why != "")
+
+mw1c_pct <- mw1c_counts %>% 
+  left_join(map_tbl, by = "why",relationship = "many-to-many") %>% filter(!is.na(group)) %>%
+  count(group, name = "n") %>%
+  mutate(pct = round(n / N_total * 100, 2) )
+
+pipeline_location_22 %>% 
+  inner_join(mw1c_counts,relationship = "many-to-many") %>% 
+  left_join(map_tbl, by = "why",relationship = "many-to-many") %>% 
+  filter(!is.na(group)
+         ) %>%
+  group_by(group,location) %>% summarise(n=n()) %>% 
+  group_by(location) %>% 
+  mutate(n_loc=sum(n),pct = round(n / n_loc * 100) ) %>% 
+  filter(location != "dont_know")
+
+
+
+
+
+
+
+
+# rabi_2020=rmtl_srvy22_24 %>% 
+#   select(hh_id,farmers_hh,mw10_rabi_2020) %>% 
+#   rename(why=mw10_rabi_2020) %>% ...
+#   
+# rbind(rabi_2022,rabi_2021,rabi_2020,
+#       rabi_2019,rabi_2018,rabi_2017,
+#       kharif_2017,kharif_2018,kharif_2019,
+#       kharif_2020,kharif_2021,kharif_2022) %>% 
+#   group_by(group ) %>% 
+#   summarise(n=sum(n)) %>% mutate(pct=n/sum(n))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # [3] "drip_trust"   =========================================================
 
 # Is a drip system trustworthy?

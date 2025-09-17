@@ -141,15 +141,9 @@ R_Lands_I_Baseline_2018_[6,3]<- 40
 
 
 #renam column-----
-R_intensity_Baseline %>% 
-  rename(new = old) #renam column old TO new
-
 names(crop) <- c('ID', 'svy', 'hisa', 'crop1','crop2')
 
 
-# copy column----
-R.Agriculture_Baseline_2018_ <- R.Agriculture_Baseline_2018_ %>%
-  mutate( name_of_crop_detail = name_of_crop ) #(copy=original)
 
 #subset----
 Treats_Lands <- subset(R.Lands_Endline_EPC_2019_,  TC == 1) 
@@ -167,7 +161,7 @@ mutate(label_percent()(x))
  
 
 
-# digits after point
+# digits after dote
 coords$print <- as.numeric((coords$`2`),digits=8)
 
 # column 1-nth
@@ -177,36 +171,7 @@ mutate (observation = 1:n())
 add_column(Column_After = "After",.after = "A") 
 
 
-#from rows to column ----
 
-
-#short to long
-library(rstatix)
-library(ggpubr)
-
-mydata.long <- tse %>% 
-  pivot_longer(-gender, names_to = "variables", values_to = "value")
-
-   pivot_wider(names_from = D12_, values_from = n) 
-  
-#ifelse----
-at_btselem <- at_btselem %>% 
-  mutate(total_events_located_IL  = ifelse(location == 1, "1",NA))
-
-df <-data.frame(Name = c("Tom","Mary","Tim","Chris") )
-# if name starting with T
-# if name include i
-# if name ends with s
-
-ifelse(grepl('^T', df$Name), 'YES', 'NO')
-ifelse(grepl('i', df$Name), 'YES', 'NO')
-ifelse(grepl('s$', df$Name), 'YES', 'NO')
-
-#location- old, total_events_located_IL-new
-
-# convert first letter to uppercase----
-library(stringr)
-village_list$village <- str_to_title(village_list$village) 
 
 #round ----
 mutate_at(3,round,2) # (column ,round ,digits)

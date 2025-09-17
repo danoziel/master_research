@@ -3,7 +3,7 @@ library(dplyr)
 library(lmtest)
 library(sandwich)
 library(summarytools)
-
+library(ggplot2)
 
 ## DFs  ________________________________________________________________ _ ----
 library(readr)
@@ -391,11 +391,12 @@ library(ggplot2)
 library(jtools)
 library(ggstance)
 library(RColorBrewer)
-my_colors <- brewer.pal(8, "BrBG")
-my_colors <- brewer.pal(8, "RdBu")
 
-my_colors <- colorRampPalette(c("#eff3ff", "#6baed6", "#08519c"))(5)
-my_colors <- colorRampPalette(c("#ccebc5", "#66a61e", "#005824"))(8)
+display.brewer.pal(n = 11, name = 'Paired')
+my_colors <- brewer.pal(8, "Dark2") # Paired, Set1
+
+cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
 
 m1_plot <- 
   plot_summs(m1_iam,m1_ins,m1_6y,m1_22, m1_20, m1_19,m1_18, m1_17,
@@ -405,7 +406,7 @@ m1_plot <-
                              "DI usage 2019","DI usage 2018","DI usage 2017"),
              inner_ci_level = NULL,
              point.shape = FALSE,
-             colors = my_colors
+             colors = my_colors # cbbPalette
   ) + labs(
     # subtitle = "Elevation as an Exogenous Variable [N=1,612]",
     # caption = "Note: Estimates reflect standardized coefficients with 95% CIs.",
@@ -441,8 +442,10 @@ m3_plot <-
 #custom theme to format 
 mp_theme=theme_bw()+
   theme(
+    panel.grid.major.y =element_blank(),
     panel.grid.minor=element_blank(),
     axis.line=element_line(),
+    
     text=element_text(family="serif"),
     legend.title=element_blank(), 
     axis.text=element_text(size=14),
@@ -646,7 +649,7 @@ library(readxl)
 crop_acre_22 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/crop_acre_22.xlsx")
 crop_acre_BL <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/crop_acre_BL.xlsx")
 
-### DF to acre_cult [  ]
+### DF to acre_cult [  ] Sunflower VegetablesANDFruits Oilseeds Sugarcane Toor Bengal_gram Sorghum_jowar Greengram
 ##
 df1_Sunf<-
   crop_acre_22 %>% filter(crop=="Sunflower") %>% 
@@ -811,39 +814,68 @@ m1_plot + mp_theme + ggtitle("`Elevation` as an Exogenous Variable [Entire sampl
 #                    ### 	YIELD 	########################	           ----					
 
 BL_plot.Crop.Yield %>% count(crop_common)
-plots_crop_2022 %>% count(common_n2_family)
 
 
-#######  DFs [df100]  [df300]            ####
+#   [df_kg_acre]            ####
 
+#  VegetablesANDFruits Sunflower Oilseeds Sugarcane 
+#  Toor Bengal_gram Sorghum_jowar Greengram
 df100 <- 
   BL_plot.Crop.Yield %>% 
+  filter(crop_common %in% c(
+    "VegetablesANDFruits", "Sunflower", "Oilseeds", "Sugarcane", 
+    "Toor", "Bengal_gram", "Sorghum_jowar", "Greengram"    
+  )) %>% 
   select(hh_id,season,plotID,crop_common, yield) %>% 
   filter (yield >0) %>% 
-  left_join(BL_plotAcre) %>%  filter(plot_acre>0) %>% 
-  group_by(hh_id, season, plotID) %>% mutate(n=n()) %>% ungroup() %>% 
-  mutate(crop_acre = plot_acre/n ) %>% select(-n,-X) %>% 
-  mutate(yield =ifelse(yield<50,yield*100,yield) ) %>% 
-  rename(crop=crop_common, kg_crop =yield) %>% mutate(survey="bl")
+  left_join(BL_plotAcre) %>%  filter(plot_acre>0
+                                     ) %>% 
+  group_by(hh_id,season,plotID) %>% 
+  mutate(n=n(),
+         plot_acre = plot_acre/n,
+         yield =ifelse(yield<50,yield*100,yield)
+         ) %>% 
+  group_by(hh_id,season,crop_common) %>% 
+  summarise(yield=sum(yield),plot_acre=sum(plot_acre)) %>% ungroup() %>% 
+  mutate(yield_per_acre=yield/plot_acre
+         ) %>% 
+  group_by(hh_id,crop_common) %>% 
+  summarise(yield_per_acre=mean(yield_per_acre)) %>% ungroup() %>% 
+  rename(crop=crop_common, kg_per_acre_BL =yield_per_acre)
 ##
 ##
 ##
+plots_crop_2022 %>% count(common_n2_family)
+
 df300 <- 
   plots_crop_2022 %>% 
-  select(hh_id,season,plotID,crop_number ,common_n_family) %>% 
+  filter(common_n2_family %in% c(
+    "VegetablesANDFruits", "Sunflower", "Oil seeds", "Sugarcane", 
+    "Toor", "Bengal gram", "Sorghum/jowar", "Greengram"    
+  )) %>% 
+  select(hh_id,season,plotID,crop_number ,common_n2_family) %>% 
   left_join(
     a_total_yield %>% select(-farmers_hh ) ) %>% 
   left_join(total_acre_22) %>% 
-  filter(kg_crop>0,acres>0)%>% select(-crop_number ) %>% 
-  group_by(hh_id, season, plotID) %>% mutate(n=n()) %>% ungroup() %>% 
-  mutate(crop_acre = acres/n)%>% select(-n) %>% 
-  rename(crop=common_n_family, plot_acre=acres)%>% mutate(survey="mid2") 
+  filter(kg_crop>0,acres>0)%>% select(-crop_number 
+                                      ) %>% 
+  group_by(hh_id, season, plotID) %>% 
+  mutate(n=n(),
+         plot_acre = acres/n ) %>% ungroup() %>% select(-n) %>% 
+  
+  group_by(hh_id,season,common_n2_family) %>% 
+  summarise(kg_crop=sum(kg_crop),plot_acre=sum(plot_acre)) %>% ungroup() %>% 
+  mutate(yield_per_acre=kg_crop/plot_acre
+  ) %>% 
+  group_by(hh_id,common_n2_family) %>% 
+  summarise(yield_per_acre=mean(yield_per_acre)) %>% ungroup() %>% 
+  rename(crop=common_n2_family, kg_per_acre =yield_per_acre) 
 df300$crop[df300$crop=="Bengal gram"] <- "Bengal_gram"
 df300$crop[df300$crop=="Sorghum/jowar"] <- "Sorghum_jowar"
+df300$crop[df300$crop=="Oil seeds"] <- "Oilseeds"
 
-
+# Analysis for season level ----
 #-#-#-#  [kharif] = [rabi]      
-
 df100 %>% count(crop) %>% as.data.frame()
 df300 %>% count(crop) %>% as.data.frame()
 
@@ -898,144 +930,537 @@ df100$season[df100$crop=="Wheat" & df100$season=="kharif_2015"] <- "rabi_2015_16
 df300$season[df300$crop=="Wheat" & df300$season=="kharif_2021"] <- "rabi_2021_22"
 
 
-### ###  kg per plot ### ### ----
-df400 <- rbind(df100,df300
-               ) %>% 
-  group_by(survey,hh_id, season, plotID) %>% # SUM plot kg
-  summarise(plot_kg=sum(kg_crop,na.rm = T),
-            plot_acre=sum(plot_acre,na.rm = T),.groups = "drop" 
-            ) %>% 
-  group_by(survey,hh_id, season) %>% 
-  summarise(hh_kg=sum(plot_kg,na.rm = T), # SUM HH kg 
-            hh_acre=sum(plot_acre,na.rm = T),.groups = "drop" 
-            ) %>% 
-  mutate(kg_per_acre= hh_kg/hh_acre) %>% 
-  mutate(Season = sub("_.*", "", season)) 
 
 
-df400 %>% left_join(hh_2022) %>% 
-  group_by(survey, Season,farmers_hh) %>% summarise(mean(kg_per_acre))
 
 
-### ###  kg per crop [kg_per_acre_15_22] ### ### ----
 
-# Too few observations  for "Vegetables","Fruits", "VegetablesANDFruits"  "Sugarcane" "Onions","Chillies",, "Oilseeds"
+### ###  kg per crop [df_kg_acre] ### ### ----
 
-df401 <- 
-  rbind(df100,df300) %>% 
-  filter(crop %in% c ( "Sunflower","Maize",  "Toor", "Bengal_gram","Sorghum", "Greengram") 
-         )%>% 
-  group_by(survey,hh_id, season, crop) %>% # SUM plot kg
-  summarise(kg_crop=sum(kg_crop,na.rm = T),
-            crop_acre=sum(crop_acre,na.rm = T),.groups = "drop" 
-  ) %>% 
-  group_by(survey,hh_id, crop) %>% 
-  summarise(hh_kg=sum(kg_crop,na.rm = T), # SUM HH kg 
-            hh_acre=sum(crop_acre,na.rm = T),.groups = "drop" 
-  ) %>% 
-  mutate(kg_per_acre= hh_kg/hh_acre)
-
-kg_per_acre_15_22 <- 
-  df401 %>% 
-  mutate(crop_survey = paste(crop, survey, sep = "_")) %>% 
-  select(hh_id, crop_survey, kg_per_acre) %>% 
-  pivot_wider(names_from = crop_survey,values_from =kg_per_acre )%>% 
-  mutate(across(everything(), ~replace_na(.x, 0))
-         ) %>% 
-  right_join(rmtl_cntrl_vars)
+df400 <- full_join(df300,df100 )
+df400[is.na(df400)] <- 0 
+df_kg_acre <- rmtl_con_vars %>% left_join(df400) %>% 
+  filter(!is.na(kg_per_acre),!is.na (kg_per_acre_BL),!is.na (crop))
 
 
-# REG ----
+df_kg_acre$crop[df_kg_acre$crop == "Greengram"] <- "Mung"
+df_kg_acre$crop[df_kg_acre$crop == "VegetablesANDFruits"] <- "Vegetables"
+df_kg_acre$crop[df_kg_acre$crop == "Bengal_gram"] <- "Chickpea"
+df_kg_acre$crop[df_kg_acre$crop == "Sorghum_jowar"] <- "Jowar"
 
-# mod_10 <- lm (Sunflower_mid2 ~ in_project+Sunflower_bl+elevation_0m+
-#                 hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS +govPnsin_scheme +rent_property +total_livestock + total_farm_equipments,
-#                 data = kg_per_acre_15_22)
-# summary(mod_10)
-# sjPlot::tab_model(mod_10 ,  show.se = T,digits = 5, show.stat  = F )
 
-library(broom)
+
+# TEST
+ml <- lm(kg_per_acre ~ in_project + dist_Km_boundary + kg_per_acre_BL +
+      hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
+      housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property +
+      total_livestock + total_farm_equipments,
+    data = df_kg_acre  %>% filter(crop=="Toor") )
+summary(ml)
+sjPlot::tab_model(ml ,  show.se = T,digits = 5, show.stat  = F )
+
+
 library(dplyr)
-library(purrr)
-library(tibble)
 library(tidyr)
+library(purrr)
+library(broom)
 
-# get crop names from the column names
-outcomes <- grep("_mid2$", names(kg_per_acre_15_22), value = TRUE)
-baselines <- grep("_bl$", names(kg_per_acre_15_22), value = TRUE)
-crop_names <- gsub("(_mid2|_bl)$", "", outcomes)
-controls <- "in_project + elevation_0m + hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property + total_livestock + total_farm_equipments"
+# Your formula (response is also named kg_per_acre)
+fml <- kg_per_acre ~ in_project + dist_Km_boundary + kg_per_acre_BL +
+  hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
+  housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property +
+  total_livestock + total_farm_equipments
 
-# library(purrr)
-models <- map(crop_names, function(crop) {
-  outcome <- paste0(crop, "_mid2")
-  baseline <- paste0(crop, "_bl")
-  formula <- as.formula(
-    paste(outcome, "~ in_project +", baseline, "+", controls)
-  )
-  lm(formula, data = kg_per_acre_15_22)
-})
-
-# library(broom)
-results <- map(models, tidy)
-summaries <- map(models, summary)
-
-# reg table ----
-# Extract "in_project" info and summary stats for each model
-summ_table <- map2_dfr(models, crop_names, function(model, crop) {
-  if (is.null(model)) return(tibble(crop = crop, coef = NA, sd = NA, p = NA, N = NA, R2 = NA))
-  tidy_mod <- tidy(model)
-  in_proj <- tidy_mod %>% filter(term == "in_project")
-  tibble(
-    crop = crop,
-    coef = in_proj$estimate,
-    sd = in_proj$std.error,
-    p = in_proj$p.value,
-    N = nobs(model),
-    R2 = summary(model)$r.squared
-  )
-})
-
-
-# df 1
-summ_table_fmt <- summ_table %>%
-  mutate_at(c(2:4,6), round, 3) %>%
-  pivot_longer(-crop, names_to = "stat", values_to = "value") 
-
-# control_mean
-df_control_mean <- df401 %>%
-  right_join(rmtl_cntrl_vars) %>%
-  filter(survey == "mid2", in_project == 0) %>%
+# 1) Keep only needed columns (+ crop) and drop rows with NA in model vars
+dat_clean <- df_kg_acre %>%
+  select(all_of(c("crop", vars))) %>%
+  drop_na(all_of(vars))
+  
+# 2) Nest by crop and fit
+fits <- dat_clean %>%
   group_by(crop) %>%
-  summarise(value = round(mean(kg_per_acre), 2)) %>% 
-  mutate(stat="Control mean") %>% select(crop,stat,value)
-
-# Bind this row to your existing summary table
-df_table_fmt <- 
-  bind_rows(summ_table_fmt,df_control_mean) %>% 
+  nest() %>%
   mutate(
-    value = ifelse(stat == "sd", paste0("(", value, ")"), as.character(value)),
-    value = ifelse(stat == "p", paste0("[", value, "]"), as.character(value))
-  ) %>%
+    model = map(data, ~ lm(fml, data = .x)),
+    coefs = map(model, tidy),
+    stats = map(model, glance)
+  )
+
+# 3) Stacked outputs
+coef_tbl  <- fits %>% unnest(coefs) %>% 
+  filter(term == "in_project") %>%
+  select(crop, estimate, std.error, p.value) %>% 
+  ungroup()
+  
+fit_stats <- fits %>% unnest(stats) %>%  select(crop,nobs, r.squared) %>% 
+  rename(Num.Obs.=nobs,R2=r.squared ) %>% ungroup()
+
+# 4) Join with model summary stats
+inproj_with_fit <- coef_tbl %>%
+  left_join(fit_stats,by = "crop") %>% 
+  ungroup()
+
+# 5) Bild df for control group
+control_mean <- 
+  df_kg_acre %>% group_by(in_project,crop) %>% 
+  summarise(`Control mean`=mean(kg_per_acre)) %>% ungroup() %>% 
+  filter(in_project == 0) %>% 
+  select(-in_project)
+
+#     creat rows YES
+twoRows <- 
+  tribble( ~metric, ~Vegetables,  ~Sunflower, ~Oilseeds, ~Sugarcane	,~Toor, ~Chickpea, ~Jowar, ~Mung,
+           "Control vars", "Yes", "Yes", "Yes", "Yes","Yes", "Yes", "Yes", "Yes",
+           "Dist. boundary", "Yes", "Yes", "Yes", "Yes","Yes", "Yes", "Yes", "Yes")
+
+
+# LM Outcomes Table ----
+  
+df_html <- inproj_with_fit %>%
+  left_join(control_mean) %>% 
+  pivot_longer(-crop, names_to = "metric", values_to = "value") %>%
   pivot_wider(names_from = crop, values_from = value) %>% 
-  mutate(stat=ifelse(stat %in% c("sd","p"),"",
-              ifelse(stat=="coef","In project", stat)) ) %>% 
-  rbind(twoRows ) %>% rename(`_`= stat)
+  select(metric, Vegetables, Sunflower, Oilseeds, Sugarcane,
+         Toor, Chickpea, Jowar, Mung) %>%
+  # Format values by row type; keep as characters for kable
+  mutate(across(-metric, ~ case_when(
+    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
+    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
+    TRUE                  ~ as.character(round(.x,3))
+  ))) %>% 
+  rbind(twoRows)
 
-df_html <- df_table_fmt[c(1:3,6:8,4:5) ,]
 
-df_html %>%  
-  kable("html", caption = "Yield | Kg per acre",align = "c") %>% 
-  kable_classic_2()  %>%
-  add_header_above(c(" ", "(1)" = 1, "(2)" = 1, "(3)" = 1, "(4)" = 1,"(5)" = 1 ))
+df_html[c(1:3,7:8,4:6),] %>% 
+  kable("html", caption = "Yield | Kg per Acre",align = "c") %>%
+  kable_classic( full_width = F) %>%
+  add_header_above(c(" ", "(1)" = 1, "(2)" = 1, "(3)" = 1, "(4)" = 1,
+                     "(5)" = 1, "(6)" = 1, "(7)" = 1, "(8)" = 1))%>%   
+  add_header_above(c("Crop type", "High-value" = 4, "Traditional" = 4))%>%
+  collapse_rows(columns = 1, valign = "top")
 
-twoRows <- tribble( ~stat, ~Maize,  ~Toor, ~Sunflower, ~Bengal_gram	, ~Greengram,
-  "Control vars", "X", "X", "X", "X", "X", "Dist. boundary", "X", "X", "X", "X", "X"
+
+# PLOT reg          ----
+
+
+library(jtools)
+# library(rlang)  # for !!!
+library(RColorBrewer)
+
+my_colors <- brewer.pal(8,"Paired")
+"Vegetables","#A6CEE3", 
+"Sunflower",  "#1F78B4",  
+"Oilseeds", "#B2DF8A",
+"Sugarcane",   "#33A02C",
+"Toor",  "#FB9A99",
+"Chickpea",  "#E31A1C",
+"Jowar",   "#FDBF6F", 
+"Mung" , "#FF7F00"
+
+
+my_5colors <- c("#1F78B4",   "#B2DF8A", "#FB9A99", "#E31A1C", "#FDBF6F")
+my_2colors <- c("#A6CEE3",  "#FF7F00")
+my_1colors <- c("#33A02C", "#33A02C") # second color is dummy
+
+
+# Put models in a named list in the order you want to show
+models_list <- fits %>% 
+  filter(! crop %in% c("Sugarcane","Mung","Vegetables")) %>% 
+  arrange(crop) %>%                # choose your order
+  { setNames(.$model, .$crop) }    # names become model names in the legend
+
+models_veg_mung <- fits %>% 
+  filter(crop %in% c("Mung","Vegetables")) %>% 
+  arrange(crop) %>%                # choose your order
+  { setNames(.$model, .$crop) }    # names become model names in the legend
+
+models_Sugarcane <- fits %>%
+  filter(crop %in% c("Sugarcane","Oilseeds")) %>% # Oilseeds is dummy
+  arrange(crop) %>%                # choose your order
+  { setNames(.$model, .$crop) }    # names become model names in the legend
+
+
+# library(jtools)
+# library(ggstance)
+
+m1_plot <- 
+  plot_summs(models_list ,
+             coefs = c("In Project" = "in_project"),
+             model.names = names(models_list),
+             inner_ci_level = NULL, point.shape = FALSE, colors = my_5colors) + 
+  labs(x = "Kg per Acre", y = NULL) 
+
+m2_plot <- 
+  plot_summs(models_veg_mung ,
+             coefs = c("In Project" = "in_project"),
+             model.names = names(models_veg_mung),
+             inner_ci_level = NULL, point.shape = FALSE, colors = my_2colors) + 
+  labs(x = "Kg per Acre", y = NULL) 
+
+m3_plot <- 
+  plot_summs(models_Sugarcane ,
+             coefs = c("In Project" = "in_project"),
+             model.names = names(models_Sugarcane),
+             inner_ci_level = NULL, point.shape = FALSE, colors = my_1colors) + 
+  labs(x = "Kg per Acre", y = NULL) 
+
+# PLOT THE REG COFF  #custom theme in IRRIGATIN in this  R script
+m1_plot + mp_theme + ggtitle("`Distance from boundary` as an Exogenous Variable [Entire sample]")
+m2_plot + mp_theme + ggtitle("`Distance from boundary` as an Exogenous Variable [Entire sample]")
+m3_plot + mp_theme + ggtitle("`Distance from boundary` as an Exogenous Variable [Entire sample]")
+
+
+
+
+# _________________________________________CROPPING PATTERN___________________________________----
+
+library(readr)
+list_crop <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/list_crop.csv")
+
+# Cotton IS Oilseeds
+
+#🟡 BASELINE
+crop_2016_A= bl_crop_plot_3s %>% select(hh_id,season,"crop_name","crop_common") 
+crop_2016_A$crop_common[crop_2016_A$crop_name=="ONION"] <- "Onions"
+crop_2016_A$crop_common[crop_2016_A$crop_name=="Chillies"] <- "Chillies"
+crop_2016_A$crop_common[crop_2016_A$crop_name=="GREENCHILLY"] <- "Chillies"
+crop_2016_A$crop_common[crop_2016_A$crop_common =="VegetablesANDFruits"] <- "Vegetables"
+
+crop_2016_A <- crop_2016_A %>% 
+  filter(!is.na(crop_common),crop_common !="Other") %>% 
+  select(hh_id,crop_common) %>% distinct()
+
+
+croping_pattern_2016 <- crop_2016_A %>% 
+  mutate(
+    crop = ifelse(crop_common %in% c("Chillies","Onions") ,
+                  "Vegetables", crop_common))  %>% 
+  mutate(
+    crop = case_when( # Recode crop names
+      crop == "Bengal_gram"   ~ "Chickpea",
+      crop == "Sorghum_jowar" ~ "Jowar",
+      crop == "Greengram"     ~ "Mung",
+      TRUE ~ crop
+    ),
+    crop_type = case_when( # Classify crop type
+      crop %in% c("Vegetables","Sunflower","Oilseeds","Sugarcane") ~ "High-value",
+      crop %in% c("Toor","Chickpea","Jowar","Mung")               ~ "Traditional",
+      TRUE~ NA_character_) ) %>% 
+  left_join(rmtl_16_18_22_sample) %>%
+  mutate(Project= ifelse(sample == 1, "In","Out")) %>% 
+  select(hh_id, Project, crop, crop_type)
+
+
+## Cropping pattern at Baseline ----
+crop_summary_bl <- croping_pattern_2016 %>% 
+  filter(!is.na(crop_type) ) %>% 
+  count(Project,crop) %>% 
+  group_by(Project) %>% 
+  mutate(pct=n/sum(n),pct=round(pct, 2)) 
+
+my_crop_colors <- c(
+  Vegetables   = "#A6CEE3",
+  Sunflower    = "#1F78B4",
+  Oilseeds     = "#B2DF8A",
+  Sugarcane    = "#33A02C",
+  Toor         = "#FB9A99",
+  Chickpea     = "#E31A1C",
+  Sorghum      = "#FDBF6F",
+  Mung         = "#FF7F00"
 )
-twoRows <- tribble( ~stat, ~Maize,  ~Toor, ~Sunflower, ~Bengal_gram	, ~Greengram,
-                    "Control vars", "Yes", "Yes", "Yes", "Yes", "Yes", "Dist. boundary", "Yes", "Yes", "Yes", "Yes", "Yes"
+
+library(ggplot2)
+library(treemapify)
+
+ggplot(crop_summary_bl,
+       aes(area = pct, fill = crop, label = paste0(crop, "\n", pct*100, "%"))) +
+  geom_treemap(color = "white") +
+  geom_treemap_text(colour = "black", place = "centre", grow = TRUE, family = "serif") +
+  scale_fill_manual(values = my_crop_colors, guide = "none") +  # guide="none" removes legend
+  facet_wrap(~Project) +
+  theme_minimal(base_size = 14, base_family = "serif") +
+  labs(
+    title = "Cropping pattern at Baseline"
+  )
+
+
+
+
+
+
+
+# High-value crop adoption
+
+# dfs----
+#🟡 BASELINE
+
+crop_2016 = crop_2016_A %>% 
+  filter(crop_common %in% c("Onions","Chillies","Sunflower","Oilseeds","Sugarcane") ) %>% 
+  mutate(n16=1)
+
+
+# 🟠 MIDELINE  t6ty6
+
+crop_2018 <- ml18_crop_plot_3s %>% 
+  select(hh_id,crop_ml18) %>% 
+  rename(crop_code= crop_ml18) %>% 
+  left_join(list_crop %>% select(crop_code,crop_name ,crop_common)  ) %>%
+  select(hh_id,crop_common) %>% distinct() %>% 
+  filter(crop_common %in% c("Onions","Chillies","Sunflower","Oilseeds","Sugarcane") ) %>% 
+  mutate(n18=1)
+
+
+#🟣 SURVEY 22
+
+crop_2022 <- plots_crop_2022 %>% 
+  select(hh_id,crop_code,crop_name, common_n_family) %>% 
+  left_join(list_crop %>% select(crop_code ,crop_common)  ) %>% 
+  select(hh_id,crop_common) %>% distinct() %>% 
+  filter(crop_common %in% c("Onions","Chillies","Sunflower","Oilseeds","Sugarcane") ) %>% 
+  mutate(n22=1)
+
+
+  
+  crop_2022_id <- plots_crop_2022  %>% select(hh_id) %>% distinct()
+  
+  high_value_crops <- c("Onions","Chillies", "Sunflower", "Oilseeds", "Sugarcane")
+  
+  crop_2022_expanded <- crop_2022_id %>%
+    mutate(dummy = 1) %>%
+    left_join( tibble(crop_common = high_value_crops, dummy = 1), by = "dummy") %>%
+    select(-dummy)
+  
+
+cropping_16_18_22 <- crop_2022_expanded %>% 
+  left_join(crop_2016) %>% 
+  left_join(crop_2018) %>% 
+  left_join(crop_2022) %>% 
+  left_join(rmtl_16_18_22_sample %>% select(hh_id,sample)) %>% 
+  mutate(sample = ifelse(sample==1,"In","Out")) 
+  
+
+
+library(tidyr)
+library(scales)
+
+transitions <- cropping_16_18_22 %>%
+  mutate(
+    n16 = replace_na(n16, 0),
+    n18 = replace_na(n18, 0),
+    n22 = replace_na(n22, 0),
+    status_6Y= case_when(
+      n16 == 0 & n22 == 0 ~ "Never cultivated",
+      n16 == 0 & n22 == 1 ~ "Adopted",
+      n16 == 1 & n22 == 0 ~ "Dropped",
+      n16 == 1 & n22 == 1 ~ "Kept cultivating" 
+      ),
+      status_1Y= case_when(
+      n16 == 0 & n18 == 0 ~ "Never cultivated",
+      n16 == 0 & n18 == 1 ~ "Adopted",
+      n16 == 1 & n18 == 0 ~ "Dropped",
+      n16 == 1 & n18 == 1 ~ "Kept cultivating" ) )
+
+# PLOT high_value_crops ----
+
+### Order rows nicely
+status_levels <-  # for bars
+  c("Never cultivated", "Adopted","Dropped", "Kept cultivating")
+# status_levels <- # for legend
+#   c("Kept cultivating", "Adopted","Dropped","Never cultivated")
+
+
+crop_transitions_6 <- transitions %>%
+  group_by(sample, crop_common, status_6Y) %>%
+  summarise(n = n(), .groups = "drop_last") %>%
+  mutate(pct = n / sum(n)) %>%
+  ungroup() %>% mutate(survey="6Y") %>% 
+  mutate(
+    status = factor(status_6Y, levels = status_levels),
+    crop_common = factor(crop_common)  )
+
+crop_transitions_1 <- transitions %>%
+  group_by(sample, crop_common, status_1Y) %>%
+  summarise(n = n(), .groups = "drop_last") %>%
+  mutate(pct = n / sum(n)) %>%
+  ungroup() %>%  mutate(survey="1Y") %>% 
+  mutate(
+    status = factor(status_1Y, levels = status_levels),
+    crop_common = factor(crop_common)  )
+
+crop_transitions <-
+  crop_transitions_1 %>% select(-status_1Y) %>% 
+  rbind(
+    crop_transitions_6 %>% select(-status_6Y)
+  )
+
+### arrange color to crop
+status_cols <- c(
+  "Never cultivated"  = "#C0C0C0",  # slightly lighter gray
+  "Adopted"            = "#66BD66",  # medium-light green
+  "Dropped"             = "#F26C6C",  # medium-light red
+  "Kept cultivating"    = "#5BA3E0"   # medium-light blue
 )
 
 
+### plot
+crop_transitions %>% filter(status != "Never cultivated"
+                            ) %>% 
+  ggplot(aes(x = crop_common, y = pct, fill = status)) +
+  geom_col(color = "white") +
+  scale_fill_manual(values = status_cols, name = NULL) +
+  coord_flip() +
+  facet_grid(survey ~ sample) +  # ⬅️ Rows = survey (1Y vs 6Y), columns = sample (In vs Out)
+  labs(x = NULL, y = "Households (%)",
+       title = "Crop transitions 1 and 6 years after DI installed") +
+  theme_minimal(base_family = "serif") +
+  theme(legend.text = element_text(size = 16))
+
+
+
+ # REG ----
+
+adopte_crop <- cropping_16_18_22 %>% 
+  mutate(in_project=ifelse(sample == "In",1,0)) %>%
+  select(-sample) %>% 
+  rename(adopte_6Y=n22,adopte_1Y=n18, adopte_BL=n16,crop=crop_common)
+adopte_crop[is.na(adopte_crop)] <- 0 
+adopte_crop <- adopte_crop %>% left_join(rmtl_con_vars) 
+
+
+# df400 <- full_join(df300,df100 ) %>% 
+# df400[is.na(df400)] <- 0 
+# df_kg_acre <- rmtl_con_vars %>% left_join(df400) %>% 
+#   filter(!is.na(kg_per_acre),!is.na (kg_per_acre_BL),!is.na (crop))
+
+  
+  
+# TEST
+ml <- lm(adopte_6Y ~ in_project + dist_Km_boundary + adopte_BL +
+           hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
+           housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property +
+           total_livestock + total_farm_equipments,
+         data = adopte_crop  %>% filter(crop =="Sunflower") )
+summary(ml)
+sjPlot::tab_model(ml ,  show.se = T,digits = 5, show.stat  = F )
+
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(broom)
+
+# model formula 
+fml_adopte_6Y <- adopte_6Y ~ in_project + dist_Km_boundary + adopte_BL +
+  hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
+  housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property +
+  total_livestock + total_farm_equipments
+
+fml_adopte_1Y <- adopte_1Y ~ in_project + dist_Km_boundary + adopte_BL +
+  hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
+  housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property +
+  total_livestock + total_farm_equipments
+
+
+# 2) Nest by crop and fit
+
+fits_adopte_6Y <- adopte_crop %>%
+  group_by(crop) %>%
+  nest() %>%
+  mutate(
+    model = map(data, ~ lm(fml_adopte_6Y, data = .x)),
+    coefs = map(model, tidy),
+    stats = map(model, glance))
+
+fits_adopte_1Y <- adopte_crop %>%
+  group_by(crop) %>%nest() %>%
+  mutate(
+    model = map(data, ~ lm(fml_adopte_1Y, data = .x)),
+    coefs = map(model, tidy),
+    stats = map(model, glance))
+
+# 3) Stacked outputs
+coef_tbl_6  <- fits_adopte_6Y %>% unnest(coefs) %>% 
+  filter(term == "in_project") %>%
+  select(crop, estimate, std.error, p.value) %>% ungroup()
+
+coef_tbl_1  <- fits_adopte_1Y %>% unnest(coefs) %>% 
+  filter(term == "in_project") %>%
+  select(crop, estimate, std.error, p.value) %>% ungroup()
+##
+fit_stats_6 <- fits_adopte_6Y %>% unnest(stats) %>%  select(crop,nobs, r.squared) %>% 
+  rename(Num.Obs.=nobs,R2=r.squared ) %>% ungroup()
+
+fit_stats_1 <- fits_adopte_1Y %>% unnest(stats) %>%  select(crop,nobs, r.squared) %>% 
+  rename(Num.Obs.=nobs,R2=r.squared ) %>% ungroup()
+
+# 4) Join with model summary stats
+inproj_with_fit_6 <- coef_tbl_6 %>%
+  left_join(fit_stats_6,by = "crop") %>% ungroup()
+
+inproj_with_fit_1 <- coef_tbl_1 %>%
+  left_join(fit_stats_1,by = "crop") %>% ungroup()
+
+# 5) Bild df for control group
+control_mean <- 
+  adopte_crop %>% group_by(in_project,crop) %>% 
+  summarise(
+    `Control_mean_6`=mean(adopte_6Y),
+    `Control_mean_1`=mean(adopte_1Y)
+    ) %>% ungroup() %>% 
+  filter(in_project == 0) %>% 
+  select(-in_project)
+
+#     creat rows YES
+twoRows <- 
+  tribble( ~metric,  ~Sunflower, ~Sugarcane, ~Onions, ~Oilseeds	,~Chillies,
+           "Control vars", "Yes", "Yes", "Yes", "Yes","Yes",
+           "Dist. boundary", "Yes", "Yes", "Yes", "Yes","Yes")
+
+    
+
+# ML Outcomes Table ----
+df_html_6 <- inproj_with_fit_6 %>%
+  left_join(control_mean %>% select(crop,`Control_mean_6`)) %>% 
+  pivot_longer(-crop, names_to = "metric", values_to = "value") %>%
+  pivot_wider(names_from = crop, values_from = value) %>% 
+  select(metric,Sunflower,Sugarcane,Onions, Oilseeds, Chillies)%>% 
+  mutate(across(-metric, ~ case_when(
+    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
+    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
+    TRUE                  ~ as.character(round(.x,3))
+  ))) %>% 
+  rbind(twoRows)
+
+df_html_1 <- inproj_with_fit_1 %>%
+  left_join(control_mean %>% select(crop,`Control_mean_1`)) %>% 
+  pivot_longer(-crop, names_to = "metric", values_to = "value") %>%
+  pivot_wider(names_from = crop, values_from = value) %>% 
+  select(metric,Sunflower,Sugarcane,Onions, Oilseeds, Chillies) %>% 
+  mutate(across(-metric, ~ case_when(
+    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
+    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
+    TRUE                  ~ as.character(round(.x,3))
+  ))) %>% 
+  rbind(twoRows)
+
+
+library(kableExtra)
+df_html_6[c(1:3,7:8,4:6),] %>% 
+  kable("html", caption = "Adoption of high-value crops | HH (%)",align = "c") %>%
+  kable_classic( full_width = F) %>%
+  add_header_above(c("", "After 6 years"= 5))%>%
+  collapse_rows(columns = 1, valign = "top")
+
+df_html_1[c(1:3,7:8,4:6),] %>% 
+  kable("html", caption = "Adoption of high-value crops | HH (%)",align = "c") %>%
+  kable_classic( full_width = F) %>%
+  add_header_above(c("", "After 1 year"= 5))%>%
+  collapse_rows(columns = 1, valign = "top")
+
+
+
+
+
+rmtl_srvy22 %>% select(hh_id,farmers_hh,mm5,mw1a) %>% count(mw1a)
 
 
 

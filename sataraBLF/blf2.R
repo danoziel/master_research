@@ -55,6 +55,24 @@ shop_interactCSV <- BLF_InteractCSV %>% filter(!is.na (X_index)) %>%
   rename(crop_acre=decimal_tu4sx43) %>% as_tibble()
 
 
+
+shop_interactCSV %>% mutate(date = as.Date(start)) %>%
+  filter(date  > "2024-11-26" ) %>% count(location) %>% arrange(desc(n))
+
+april_minus = shop_interactCSV %>% mutate(date = as.Date(start)) %>%
+  filter(date < "2025-04-01" ) %>% count(location) %>% rename(up_to_april=n)
+
+april_plus = shop_interactCSV %>% mutate(date = as.Date(start)) %>%
+  filter(date > "2025-04-01" ) %>% count(location) %>% rename(april_onward=n)
+
+april_minus %>% left_join(april_plus)
+
+shop_interactCSV %>% mutate(date = as.Date(start)) %>%
+  filter(date > "2025-07-03" ) %>% 
+  count(date,location) %>% arrange(desc(n))
+
+
+
 ### TABLE Data_collection_period  ........................................  ----
 
 library(kableExtra)

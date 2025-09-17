@@ -9,8 +9,7 @@ library(readxl)
 # DF [rmtl_2024] ----
 rmtl_interviews_june24 <- 
   read_excel(
-    "C:/Users/Dan/OneDrive - mail.tau.ac.il/
-    Ramthal Data/rmtl_interviews_june24.xlsx", 
+    "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_interviews_june24.xlsx", 
               sheet = "clean_df")
 
 library(readxl)
