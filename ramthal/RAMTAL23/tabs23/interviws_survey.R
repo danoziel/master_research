@@ -203,44 +203,46 @@ pipeline_location_24 <-
          location_on_pipe=as.numeric(location_on_pipe)) %>% 
   filter(!is.na(location_on_pipe)) %>% 
   mutate(
-    location = ifelse(location_on_pipe %in% c(4:30),"far",
-                      ifelse(location_on_pipe %in% c(1:3),"close","dont_know")))
+    location = ifelse(location_on_pipe %in% c(4:30),"Far",
+                      ifelse(location_on_pipe %in% c(1:3),"Close","dont_know")))
 
+# pipeline_location_22 
+
+pipeline_location_22 <- 
+  rmtl_srvy22_24  %>% 
+  filter(farmers_hh=="inside_ramthal",!is.na(mm9)) %>% 
+  select(hh_id,mm9) %>% 
+  mutate(location_on_pipe= mm9+1) %>% 
+  select(hh_id,location_on_pipe) %>%
+  mutate(
+    location = ifelse(location_on_pipe %in% c(4:51),"Far",
+                      ifelse(location_on_pipe %in% c(1:3),"Close","dont_know")))
+
+
+# why no use drip      .................................................... ----
+
+# [Int24] why_no_use    __________________________ 
 
 names(why_no_use)
-
 pipeline_location_24 %>% 
   left_join(why_no_use) %>% filter(!is.na(`5.WHY`)) %>% 
   count( location ,no_water_supply) %>% 
   group_by(location) %>% mutate(N=sum(n),n/N ) %>% 
   filter( location != "dont_know", !is.na(no_water_supply))
 
-# pipeline_location_22
+# [Srvy22] mw1c         __________________________ 
 
-pipeline_location_22 <- 
-  rmtl_srvy22_24  %>% 
-  filter(farmers_hh=="inside_ramthal",
-         !is.na(mm9)) %>% 
-  select(hh_id,mm9) %>% 
-  mutate(location_on_pipe= mm9+1) %>% 
-  select(hh_id,location_on_pipe) %>%
-  mutate(
-  location = ifelse(location_on_pipe %in% c(4:51),"far",
-             ifelse(location_on_pipe %in% c(1:3),"close","dont_know")))
-  
-
-rmtl_srvy22_24
-
-##### 1	The main piping was never functional
+###  If No (use the drip), Why?
+# 1	The main piping was never functional
 # 2	The laterals was never installed in my field
-##### 3	The laterals in my field was damaged
+# 3	The laterals in my field was damaged
 # 4	Rainfall was sufficient
 # 5	I wanted to irrigate, but other farmers took all the water
-#| 6	Water was supplied only after I already sowed a rainfed crop
-#| 7	Water was not supplied when needed
-#| 8	I did not know when water was supplied
+# 6	Water was supplied only after I already sowed a rainfed crop
+# 7	Water was not supplied when needed
+# 8	I did not know when water was supplied
 # 9	I do not trust the company
-#| 10	Water supply is unpredictable I cant count on it
+# 10	Water supply is unpredictable I cant count on it
 # -888 other
 
 library(dplyr)
@@ -269,7 +271,8 @@ mw1c_counts <- rmtl_srvy22_24 %>%
   separate_rows(why, sep = " ") %>% filter(why != "")
 
 mw1c_pct <- mw1c_counts %>% 
-  left_join(map_tbl, by = "why",relationship = "many-to-many") %>% filter(!is.na(group)) %>%
+  left_join(map_tbl, by = "why",relationship = "many-to-many") %>%
+  filter(!is.na(group)) %>%
   count(group, name = "n") %>%
   mutate(pct = round(n / N_total * 100, 2) )
 
@@ -277,7 +280,7 @@ pipeline_location_22 %>%
   inner_join(mw1c_counts,relationship = "many-to-many") %>% 
   left_join(map_tbl, by = "why",relationship = "many-to-many") %>% 
   filter(!is.na(group)
-         ) %>%
+  ) %>%
   group_by(group,location) %>% summarise(n=n()) %>% 
   group_by(location) %>% 
   mutate(n_loc=sum(n),pct = round(n / n_loc * 100) ) %>% 
@@ -285,21 +288,127 @@ pipeline_location_22 %>%
 
 
 
+# pipline damages       ................................................... ----
+
+# [Int24]   tap_status_1damged_0not
+tap_status_count <- 
+  rmtl_2024 %>% 
+  select(hh_id,tap_status_1damged_0not ) %>% 
+  filter(!is.na(tap_status_1damged_0not)) %>% 
+  inner_join(pipeline_location_24 ) %>% 
+  rename(status = tap_status_1damged_0not )%>% 
+  mutate(status=ifelse(status==1,"Damaged","Works")) %>% 
+  count(location,status) %>% 
+  group_by(location) %>% 
+  mutate( pct = round(n / sum(n) * 100,2) ) %>% ungroup() %>% 
+  filter(location != "dont_know")
+  
+
+
+# [Survy22] m35 
+# What is the status of the main pipe coming into your land ?
+
+m35_counts <- rmtl_srvy22_24 %>%
+  select(hh_id, m35) %>% filter(!is.na(m35)) %>% 
+  rename(status = m35 )%>% 
+  mutate(status=ifelse(status==1,"Works","Damaged"))
+
+m35_pct <- pipeline_location_22 %>% 
+  inner_join(m35_counts) %>% 
+  group_by(status,location) %>% summarise(n=n()) %>% 
+  group_by(location) %>% 
+  mutate(pct = round(n / sum(n) * 100,2) ) %>% 
+  filter(location != "dont_know")
+
+
+# [Survy22] [Int24]  
+
+pip24 <- tap_status_count %>% select(-n) %>% 
+
+m35_pct
 
 
 
 
 
-# rabi_2020=rmtl_srvy22_24 %>% 
-#   select(hh_id,farmers_hh,mw10_rabi_2020) %>% 
-#   rename(why=mw10_rabi_2020) %>% ...
-#   
-# rbind(rabi_2022,rabi_2021,rabi_2020,
-#       rabi_2019,rabi_2018,rabi_2017,
-#       kharif_2017,kharif_2018,kharif_2019,
-#       kharif_2020,kharif_2021,kharif_2022) %>% 
-#   group_by(group ) %>% 
-#   summarise(n=sum(n)) %>% mutate(pct=n/sum(n))
+
+# [Int24] tap_damage_yr ....................................................----      
+
+tap_damage_yr_pct <- rmtl_2024 %>% count(tap_damage_yr) %>% 
+  filter(!is.na(tap_damage_yr)) %>%
+  mutate(tap_damage_yr = as.integer(tap_damage_yr),
+         tap_damage_yr = if_else(tap_damage_yr == 2017,2017L, tap_damage_yr - 1L) ) %>% 
+  mutate(pct = round(n / sum(n) * 100, 2) )
+tap_damage_yr_pct$pct[tap_damage_yr_pct$tap_damage_yr==2019] <- 25.2
+tap_damage_yr_pct$pct[tap_damage_yr_pct$tap_damage_yr==2017] <- 3.84
+
+tap_damage_yr_pct %>% mutate(pct = round(pct) )
+
+ggplot(tap_damage_yr_pct, aes(x = factor(tap_damage_yr), y = pct)) +
+  geom_col(width = 0.5,fill = "lightgray") +
+  labs(x =NULL,y = "Households (%)",title = "Plotpipe Damage by Year (Int24)" ) +
+  theme_classic(base_family = "serif") +
+  theme(axis.text = element_text(size = 12),axis.title = element_text(size = 13))
+
+
+
+
+# [Survy22] last/first year you         ..............................................----
+
+# [mw1a] in which year did you first make use of the water? 
+# [mw4b]	What was the last year you use of the water? 
+
+mw1a_counts <- rmtl_srvy22_24 %>%
+  select(hh_id, mw1a) %>% filter(!is.na(mw1a))
+
+pipeline_location_22 %>% 
+  inner_join(mw1a_counts) %>% 
+  rename(first_use=mw1a) %>% 
+  group_by(first_use,location) %>% summarise(n=n()) %>% 
+  group_by(location) %>% 
+  mutate(n_loc=sum(n),pct = round(n / n_loc * 100,2) ) %>% 
+  filter(location != "dont_know")
+
+
+mw4b_counts <- rmtl_srvy22_24 %>%
+  select(hh_id, mw4b) %>% filter(!is.na(mw4b))
+
+mw4b_pct <- 
+  pipeline_location_22 %>% 
+  inner_join(mw4b_counts) %>% 
+  rename(last_use=mw4b) %>% 
+  group_by(last_use,location) %>% summarise(n=n()) %>% 
+  group_by(location) %>% 
+  mutate(n_loc=sum(n),pct = round(n / n_loc * 100) ) %>% ungroup() %>% 
+  filter(location != "dont_know")
+
+
+library(ggplot2)
+
+ggplot(mw4b_pct, aes(x = last_use, y = pct, color = location)) +
+  geom_line(linewidth = 2) +
+  geom_point(shape = 21,  size = 3.5, stroke = 1.2, fill = "white" ) +
+  scale_color_manual( values = c("Close" = "darkblue", "Far" = "lightblue")
+  ) +
+  scale_x_continuous(breaks = unique(mw4b_pct$last_use)) +
+  labs( x = "",y = "Households (%)",color = NULL,
+    title = "Last Use by Proximity to Water Outlet (Int24)" ) +
+  theme_classic(base_family = "serif") +
+  theme(axis.text = element_text(size = 11),axis.title = element_text(size = 11) )
+
+
+
+
+
+
+# [mw14]  often water is provided   ........................................----
+# Typically, in your experience, during the period water is provided, how often is it provided?
+
+
+mw14_counts <- rmtl_srvy22_24 %>%
+  select(hh_id, mw14,mw14_int) %>% filter(!is.na(mw14))
+
+mw14_counts %>% count(mw14)
 
 
 

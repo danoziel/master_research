@@ -5,7 +5,7 @@ library(sandwich)
 library(summarytools)
 library(ggplot2)
 
-## DFs  ________________________________________________________________ _ ----
+## General DFs  ________________________________________________________ _ ----
 library(readr)
 BL_2015_16_crop_IRsource_IRmethod <- 
   read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/BL_2015_16_crop_IRsource_IRmethod.csv")
@@ -67,7 +67,7 @@ library(writexl)
 write_xlsx(rmtl_con_vars, "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_con_vars.xlsx")
 
 
-#### IRRIGATION   _________________________________________________________ ----
+#________________________________ IRRIGATION   ___________________________ ----
 
 # df to drip use [irrigation_BL_to_22]       ----        
 irrigation_2022         # in part1_WaterUsage.R
@@ -547,7 +547,7 @@ rdplot(dist_rd$drip_use_6y, dist_rd$dist_1.5Km,
 
 
 
-#                    ###  CULTIVATED LAND ################             ###-----
+# _____________________________  CULTIVATED LAND  ______________________   ###-----
 
 #### DS {season} {acre cult drip ir} --- --- ----
 plots_crop_2022 %>%  
@@ -811,12 +811,9 @@ m1_plot + mp_theme + ggtitle("`Elevation` as an Exogenous Variable [Entire sampl
 
 
 
-#                    ### 	YIELD 	########################	           ----					
+#_______________________________  YIELD 	________________________________  ----					
 
 BL_plot.Crop.Yield %>% count(crop_common)
-
-
-#   [df_kg_acre]            ####
 
 #  VegetablesANDFruits Sunflower Oilseeds Sugarcane 
 #  Toor Bengal_gram Sorghum_jowar Greengram
@@ -933,9 +930,7 @@ df300$season[df300$crop=="Wheat" & df300$season=="kharif_2021"] <- "rabi_2021_22
 
 
 
-
-
-### ###  kg per crop [df_kg_acre] ### ### ----
+# Analysis for  kg per crop [df_kg_acre]  ----
 
 df400 <- full_join(df300,df100 )
 df400[is.na(df400)] <- 0 
@@ -1112,7 +1107,7 @@ m3_plot + mp_theme + ggtitle("`Distance from boundary` as an Exogenous Variable 
 
 
 
-# _________________________________________CROPPING PATTERN___________________________________----
+# ____________________________  CROPPING PATTERN____________________________----
 
 library(readr)
 list_crop <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/list_crop.csv")
@@ -1415,8 +1410,6 @@ twoRows <-
            "Control vars", "Yes", "Yes", "Yes", "Yes","Yes",
            "Dist. boundary", "Yes", "Yes", "Yes", "Yes","Yes")
 
-    
-
 # ML Outcomes Table ----
 df_html_6 <- inproj_with_fit_6 %>%
   left_join(control_mean %>% select(crop,`Control_mean_6`)) %>% 
@@ -1460,7 +1453,430 @@ df_html_1[c(1:3,7:8,4:6),] %>%
 
 
 
-rmtl_srvy22 %>% select(hh_id,farmers_hh,mm5,mw1a) %>% count(mw1a)
+
+
+
+
+
+
+
+# ___________________________ YIELD Sold Kept Lost__________________________----					
+
+# NO BASLINE "YIELD %" VALUES IN THIS REG
+
+
+#🟠 D60
+d60a <- rmtl_midline2018 %>% select(2,starts_with("d60a")) %>% 
+  pivot_longer(-hh_id,names_to = "d60",values_to = "Sold") %>% 
+  mutate(d60 = str_remove(d60, "^d60a_"))
+
+  
+d60b <- rmtl_midline2018 %>% select(2,starts_with("d60b"))%>% 
+  pivot_longer(-hh_id,names_to = "d60",values_to = "Self_consume") %>% 
+  mutate(d60 = str_remove(d60, "^d60b_"))
+
+d60c <- rmtl_midline2018 %>% select(2,starts_with("d60c"))%>% 
+  pivot_longer(-hh_id,names_to = "d60",values_to = "Lost_in_harvest") %>% 
+  mutate(d60 = str_remove(d60, "^d60c_"))
+
+d60d <- rmtl_midline2018 %>% select(2,starts_with("d60d"), -contains("os"))%>% 
+  pivot_longer(-hh_id,names_to = "d60",values_to = "other") %>% 
+  mutate(d60 = str_remove(d60, "^d60d_"))
+
+
+D60 <- d60a %>% 
+  inner_join(d60b) %>% inner_join(d60c) %>%inner_join(d60d) %>%
+  mutate(
+    total_amount = Sold + Self_consume + Lost_in_harvest + other,
+    d60 = case_when(
+      grepl("^s1_", d60) ~ "rabi_201718",
+      grepl("^s2_", d60) ~ "kharif_2017",
+      TRUE ~ d60
+    )) %>%
+  filter(total_amount > 0, d60 %in% c("rabi_201718", "kharif_2017")) %>%
+  group_by(hh_id, d60) %>%
+  summarise(across(Sold:total_amount, \(x) sum(x, na.rm = TRUE)),.groups = "drop") %>%
+  mutate(
+    Sold = (Sold / total_amount) * 100,
+    Self_consume = (Self_consume / total_amount) * 100,
+    Lost_in_harvest = (Lost_in_harvest / total_amount) * 100
+  )
+
+yield_prt_MID <- D60 %>% 
+  pivot_longer(-c(hh_id,d60), names_to = "status",values_to = "yield_pct_MID") %>% 
+  filter(! status %in% c("total_amount", "other") )
+
+
+
+# How much of the yield was [%]	# [percentage at Season-Crop]
+# [L52] Sold # [L53] Kept for HH consumption # [L54] Lost in post-harves
+
+yield_prt_season <- 
+  yield_prt %>%  # in DF_22.R
+  mutate(season=ifelse(season=="rabi_2021_22","Rabi","Kharif")) %>% 
+  group_by(hh_id,season) %>% 
+  summarise(Sold=mean(prt_sold ,na.rm=T)/100,
+            Stored=mean(prt_stored,na.rm=T)/100,
+            Self_consumption=mean(prt_consum,na.rm=T)/100,
+            Lost_in_harvest=mean(prt_lost,na.rm=T)/100
+            ) %>% 
+  ungroup() %>%
+  pivot_longer(-c(hh_id ,season),
+               names_to = "status",
+               values_to = "pct") %>% 
+  left_join(rmtl_con_vars) 
+
+# PLOT desc ----
+
+plot_yield_prt <- yield_prt_season %>% 
+  group_by(season,in_project,status) %>%
+  summarise(pct=mean(pct,na.rm=T)) %>% ungroup() %>% 
+  mutate(status = recode(status,
+                         "Self_consumption" = "Self\nConsume",
+                         "Lost_in_harvest"  = "Lost in\nHarvest"))
+# 600X300
+plot_yield_prt %>% filter(status != "Stored" )%>% 
+  ggplot(aes(x = status, y = pct, fill = factor(in_project))) +
+  geom_col(position = "dodge", color = "white") +
+  geom_text(aes( label = if_else(
+    status %in% c("Lost in\nHarvest", "Self\nConsume"),
+    sprintf("%.1f%%", pct * 100),            # 2 decimals
+    scales::percent(pct, accuracy = 1)  )),  # whole %
+    position = position_dodge(width = 0.9),vjust = -0.3, size = 3) +
+  facet_wrap(~ season) +
+  scale_fill_manual(values = c("0" = "lightgray", "1" = "steelblue"),
+                    labels = c("0" = "Out of Project", "1" = "In Project")) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(x = NULL, y = "% Yield",fill = NULL,
+       title = "Yield uses as share of the total seasonal yield 2022") +
+  theme_minimal(base_family = "serif")
+
+
+
+
+
+
+
+
+#  Reg ----
+# NO BASLINE "YIELD %" VALUES IN THIS REG
+# TEST Reg
+ml <- lm( pct ~ in_project + dist_Km_boundary  +
+           hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
+           housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property +
+           total_livestock + total_farm_equipments,
+         data = yield_prt_season  %>% filter(season =="Kharif",status=="prt_sold") 
+         )
+summary(ml)
+sjPlot::tab_model(ml ,  show.se = T,digits = 5, show.stat  = F )
+
+
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(broom)
+
+# 1) model formula 
+# NO BASLINE "YIELD %" VALUES IN THIS REG
+
+fml_yield_prt <- pct ~ in_project + dist_Km_boundary  +
+  hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
+  housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property +
+  total_livestock + total_farm_equipments
+
+# 2) Nest by status and fit
+fits_yield_prt_kharif <- yield_prt_season %>%
+  filter(season =="Kharif") %>% 
+  group_by(status) %>%
+  nest() %>%
+  mutate(
+    model = map(data, ~ lm(fml_yield_prt, data = .x)),
+    coefs = map(model, tidy),
+    stats = map(model, glance))
+
+fits_yield_prt_rabi <- 
+  yield_prt_season %>% filter(season =="Rabi") %>% 
+  group_by(status) %>%nest() %>%
+  mutate( model = map(data, ~ lm(fml_yield_prt, data = .x)),
+          coefs = map(model, tidy),stats = map(model, glance))
+
+# 3) Stacked outputs
+coef_tbl_kharif  <- fits_yield_prt_kharif %>% unnest(coefs) %>% 
+  filter(term == "in_project") %>%
+  select(status, estimate, std.error, p.value) %>% ungroup()
+##
+fit_stats_kharif <- fits_yield_prt_kharif %>% unnest(stats) %>%  
+  select(status,nobs, r.squared) %>% 
+  rename(Num.Obs.=nobs,R2=r.squared ) %>% ungroup()
+
+# RABI
+coef_tbl_rabi  <- fits_yield_prt_rabi %>% unnest(coefs) %>% 
+  filter(term == "in_project") %>%
+  select(status, estimate, std.error, p.value) %>% ungroup()
+##
+fit_stats_rabi <- fits_yield_prt_rabi %>% unnest(stats) %>%  
+  select(status,nobs, r.squared) %>% 
+  rename(Num.Obs.=nobs,R2=r.squared ) %>% ungroup()
+
+# 4) Join with model summary stats
+inproj_with_fit_Kharif <- coef_tbl_kharif %>%
+  left_join(fit_stats_kharif,by = "status") %>% ungroup()
+
+inproj_with_fit_rabi <- 
+  coef_tbl_rabi %>% left_join(fit_stats_rabi, by = "status") %>%
+  ungroup()
+
+# 5) Bild df for control group
+control_mean <- 
+  yield_prt_season %>% 
+  group_by(season,in_project,status) %>%
+  summarise(pct=mean(pct,na.rm=T)) %>% ungroup() %>% 
+  filter(in_project == 0) %>% 
+  select(-in_project) %>% rename(control_mean=pct)
+
+
+# 6) Create YES rows
+twoRows <- 
+  tribble(~season, ~metric,  ~Sold, ~Stored, ~Self_consumption, ~Lost_in_harvest	,
+          "","Control vars", "Yes", "Yes", "Yes", "Yes",
+          "","Dist. boundary", "Yes", "Yes", "Yes","Yes")
+
+# ML Outcomes Table ...................................................
+
+# KHARIF ML Outcomes Table
+df_html_kharif <- inproj_with_fit_Kharif %>%
+  left_join(control_mean %>% filter(season=="Kharif") ) %>% 
+  pivot_longer(-c(season,status), 
+               names_to = "metric", values_to = "value") %>%
+  pivot_wider(names_from = status, values_from = value
+              ) %>% 
+  mutate(across(-c(season,metric), ~ case_when(
+    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
+    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
+    TRUE                  ~ as.character(round(.x,3))
+  ))) %>% 
+  rbind(twoRows)
+
+# RABI ML Outcomes Table 
+df_html_rabi <- inproj_with_fit_rabi %>%
+  left_join(control_mean %>% filter(season=="Rabi") ) %>%
+  pivot_longer(-c(season,status), names_to = "metric", values_to = "value") %>%
+  pivot_wider(names_from = status, values_from = value
+  ) %>% 
+  mutate(across(-c(season,metric), ~ case_when(
+    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
+    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
+    TRUE~ as.character(round(.x,3))
+  ))) %>% rbind(twoRows)
+
+
+library(kableExtra)
+df_html_kharif[c(1:3,7:8,4:6),] %>% 
+  rbind(
+    df_html_rabi[c(1:3,7:8,4:6),] 
+  ) %>% 
+  kable("html", caption = "Percentage of yield sold/stored/self-consum/lost in harvest",align = "c") %>%
+  kable_classic( full_width = F) 
+
+
+# PLOT ----
+library(jtools)
+models_list_k <- fits_yield_prt_kharif %>% 
+  filter(status == "Lost_in_harvest") %>% 
+  { setNames(.$model, .$status) }    # names become model names in the legend
+
+models_list_r <- fits_yield_prt_rabi %>% 
+  filter(status == "Lost_in_harvest") %>% 
+  { setNames(.$model, .$status) }    # names become model names in the legend
+
+m1_plot <- 
+  plot_summs(models_list_k ,coefs = c("In Project\nKharif" = "in_project"),
+             model.names = names(models_list_k),
+             inner_ci_level = NULL, point.shape = F) + 
+  labs(x = "% of Lost in Harvest yield", y = NULL) +
+  xlim(-0.02, 0.01) 
+
+m2_plot <- 
+  plot_summs(models_list_r ,coefs = c("In Project\nRabi" = "in_project"),
+             model.names = names(models_list_r),
+             inner_ci_level = NULL, point.shape = F) + 
+  labs(x = "% of Lost in Harvest yield", y = NULL) +
+  xlim(-0.02, 0.01) 
+
+m1_plot + mp_theme
+m2_plot + mp_theme
+
+
+
+#__________________________   SEEDS   ______________________________________----
+
+#🟣L57 Name the seed [  ]
+#🟣L58 Is it normal or improved seeds? [1=normal | 2=improved]
+
+library(stringr)
+
+
+L57=rmtl_srvy22 %>% 
+  select(hh_id, farmers_hh, starts_with("l57")  )%>% 
+  mutate_at(vars(-hh_id), as.character) %>% 
+  pivot_longer(-c(hh_id, farmers_hh), names_to = "season_crop", values_to = "seed_name") %>% 
+  separate(season_crop, into = c("L" ,"season_crop"), sep = "7_") %>% select(-L)
+
+L58=rmtl_srvy22 %>% 
+  select(hh_id, farmers_hh, starts_with("l58")  )%>% 
+  pivot_longer(-c(hh_id, farmers_hh), names_to = "season_crop", values_to = "improved_is2") %>% 
+  separate(season_crop, into = c("L" ,"season_crop"), sep = "8_") %>% select(-L)
+
+L578=L57 %>%  left_join(L58) %>% 
+  filter(!is.na(improved_is2),seed_name != -999) %>% 
+  mutate(seed= ifelse(improved_is2==2,"Improved","Traditional"))
+
+L578 %>% count(seed_name) %>% arrange(desc(n))
+
+### [improved_seeds_22]
+improved_seeds_22 <- L578 %>%   
+  mutate(season_crop = str_replace(season_crop, "KHA22_", "kha_")) %>% 
+  distinct() %>% 
+  count(hh_id,seed) %>% 
+  pivot_wider(names_from = seed,values_from = n,values_fill = list(n = 0) ) %>% 
+  mutate(total_seeds= Improved + Traditional,
+         pct_per_hh= Improved/total_seeds,
+         pct_per_group = ifelse(Improved==0,0,1)
+         ) %>% 
+  select(hh_id,pct_per_group, pct_per_hh  ) %>% 
+  pivot_longer(-hh_id,
+               names_to = "status",
+               values_to = "pct") %>% 
+  left_join(rmtl_con_vars) 
+ 
+# DESC STAT  ----
+improved_seeds_22 %>% group_by(status, in_project) %>% 
+  summarise(
+    pct =  mean(pct),
+    n=n()) %>% 
+  mutate(status = recode(status,
+                         "pct_per_group" = "% of farms using \nimproved seeds",
+                         "pct_per_hh"  = "% of improved seeds \nused by individual farmer")
+         ) %>% 
+  ggplot(aes(x = status, y = pct, fill = factor(in_project))) +
+  geom_col(position = "dodge", color = "white") +
+  geom_text(
+    aes(label = scales::percent(pct, accuracy = 0.1)),
+    position = position_dodge(width = 0.9),
+    vjust = -0.3,
+    size = 3
+  ) +
+  scale_fill_manual(values = c("0" = "lightgray", "1" = "steelblue"),
+                    labels = c("0" = "Out of Project", "1" = "In Project")) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(x = NULL, y = "% of ....",fill = NULL,
+       title = "% of improved seeds 2022") +
+  theme_minimal(base_family = "serif")
+
+
+
+# REG  ----
+library(tidyr)
+library(purrr)
+library(broom)
+
+# 1) model formula 
+# NO BASLINE "YIELD %" VALUES IN THIS REG
+
+fml_seeds <- pct ~ in_project + dist_Km_boundary  +
+  hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
+  housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property +
+  total_livestock + total_farm_equipments
+
+# 2) Nest by status and fit
+fits_improved_seeds_22 <- improved_seeds_22 %>%
+  group_by(status) %>%
+  nest() %>%
+  mutate(
+    model = map(data, ~ lm(fml_seeds, data = .x)),
+    coefs = map(model, tidy),
+    stats = map(model, glance))
+
+# 3) Stacked outputs
+coef_seeds <- fits_improved_seeds_22 %>% unnest(coefs) %>% 
+  filter(term == "in_project") %>%
+  select(status, estimate, std.error, p.value) %>% ungroup()
+##
+stats_seeds <- fits_improved_seeds_22 %>% unnest(stats) %>%  
+  select(status,nobs, r.squared) %>% 
+  rename(Num.Obs.=nobs,R2=r.squared ) %>% ungroup()
+
+# 4) Join with model summary stats
+inproj_with_fit_seeds <- coef_seeds %>%
+  left_join(stats_seeds,by = "status") %>% ungroup()
+
+
+twoRows <- 
+  tribble(~metric,  ~pct_per_group, ~pct_per_hh,
+          "Control vars", "Yes", "Yes",
+          "Dist. boundary", "Yes", "Yes",
+          "Baseline value", "No","No")
+
+control_mean <- 
+  improved_seeds_22 %>% group_by(in_project) %>% 
+  summarise(
+    pct_per_group =  mean(pct_per_group),
+    pct_per_hh =  mean(pct_per_hh)
+  ) %>% 
+  filter(in_project == 0) %>% rename(metric=in_project)
+control_mean$metric[control_mean$metric==0] <- "control_mean"
+
+
+df_html_seeds <- inproj_with_fit_seeds %>%
+  pivot_longer(-status, 
+               names_to = "metric", values_to = "value") %>%
+  pivot_wider(names_from = status, values_from = value
+  ) %>% 
+  rbind(control_mean) %>% 
+  mutate(across(-metric, ~ case_when(
+    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
+    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
+    TRUE                  ~ as.character(round(.x,3))
+  ))) %>% 
+  rbind(twoRows)
+
+# reg table
+library(kableExtra)
+df_html_seeds[c(1:3,7:9,4:6),] %>% 
+  kable("html", caption = "Percentage of HH use Improved seeds",align = "c") %>%
+  kable_classic( full_width = F) 
+
+
+# PLOT ----
+library(jtools)
+models_list <- fits_improved_seeds_22 %>% 
+  { setNames(.$model, .$status) }    # names become model names in the legend
+
+
+m1_plot <- 
+  plot_summs(models_list ,coefs = c("In Project" = "in_project"),
+             model.names = c(
+               "% of farms using improved seeds",
+               "% of improved seeds used by individual farmer"),
+             inner_ci_level = NULL, point.shape = F) + 
+  labs(x = "Percentage of Improved seeds", y = NULL) +
+  xlim(-0.05, 0.15) 
+
+m1_plot + mp_theme
+
+
+#__________________________  Land holding size ___________________________ ----
+# 
+#__________________________  Revenue  ____________________________________ ----
+#__________________________  Income   ____________________________________ ----
+# Annual income
+# Agricultural and non-agricultural annual income
+# External income
+# Pensions | subsidies | Family assistance
+#__________________________  Assets  _____________________________________ ----
+#__________________________  Returns to Project   ________________________ ----
+
+
 
 
 

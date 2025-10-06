@@ -477,7 +477,7 @@ a_total_yield$kg_crop[a_total_yield$kg_crop == 0] <- NA
 write.csv(a_total_yield, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/a_total_yield.csv", row.names=FALSE)
 
 
-# YIELD Sold Kept Lost             ----					
+# YIELD Sold Kept Lost    [yield_prt]         ----					
 # How much of the yield was [%]	# [percentage at Season-Crop]
 # [L52] Sold # [L53] Kept for HH consumption # [L54] Lost in post-harves
 

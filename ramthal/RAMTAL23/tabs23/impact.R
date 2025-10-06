@@ -227,52 +227,6 @@ L56_crop_sell <-
 
 
 
-# YIELD Sold Kept Lost             ----					
-# How much of the yield was [%]	# [percentage at Season-Crop]
-# [L52] Sold # [L53] Kept for HH consumption # [L54] Lost in post-harves
-
-L56 <- rmtl_srvy22 %>% select(farmers_hh,hh_id, starts_with( "L56")) 
-
-
-yield_prt_season <- 
-  yield_prt %>%  # in DF_22.R
-  group_by(hh_id,farmers_hh,season) %>% 
-  summarise(prt_sold=mean(prt_sold),prt_stored=mean(prt_stored),
-            prt_consum=mean(prt_consum),prt_lost=mean(prt_lost)) %>% 
-  ungroup() %>%   mutate(
-    prt_sold = prt_sold / 100,
-    prt_stored = prt_stored / 100,
-    prt_consum = prt_consum / 100,
-    prt_lost = prt_lost / 100
-  )
-
-yield_prt_season %>% group_by(season,farmers_hh) %>% summarise(prt_lost=mean(prt_lost))
-  
-yield_prt_season %>% group_by(season,farmers_hh) %>% 
-  summarise(prt_sold=mean(prt_sold),prt_stored=mean(prt_stored),prt_consum=mean(prt_consum) ) 
-
-
-# How much  of the yield % was [L54] Lost in post-harvest?
-t01 <- yield_prt_season %>% group_by(season) %>% 
-  t_test(prt_lost ~ farmers_hh, detailed = T )
-
-t_L54 <- t01%>% 
-  rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
-  select(season,Ramthal,Outside_Ramthal,t,df,p,conf.low,conf.high) 
-nice_table(t_L54,title = c("Table L54 | Lost yield", "Percentage of yield lost in post-harvest"),
-           note = c("How much  of the yield % was [L54] Lost in post-harvest?","🟩" ))
-
-t01 %>%
-  ggplot(aes(x = season, y = estimate, ymin = conf.low, ymax = conf.high)) +
-  geom_pointrange(size = 0.4, lwd=1,
-                  color =  c("darkolivegreen4","dodgerblue3",    "dodgerblue4")) +
-  geom_hline(yintercept=0, linetype="dashed", colour="grey55") +
-  labs(title = "" ,x = "", y = "% of lost yield",
-       subtitle = "Fig. L54 | Lost yield") + 
-  theme_classic()+  theme(text = element_text(size = 12, family = "serif"))
-
-
-
 # INPUTS                           ----
 # costs of  [__].   Season wise
 # L70 irrigation equipment  #  L71 Mechanization  #  L72 Fuel  #  L73 Labor
@@ -386,30 +340,6 @@ seeds_21_22 %>% group_by(farmers_hh) %>% summarise(seed_improved_yesno=sum (seed
 
 seeds_21_22 %>% group_by(farmers_hh) %>% summarise(seed_improved_prt=mean (prt),n=n() ) 
 
-# T TEST improved seeds
-
-# Improved seeds percent a HH 
-t01 <- seeds_21_22[,c(2,5)] %>% t_test(prt  ~ farmers_hh , detailed = T) %>% 
-  mutate(season="cropping year 2021-2022")
-
-t_L58 <- rbind(t01) %>% 
-  rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
-  select(season,Ramthal,Outside_Ramthal,n1,n2,estimate,conf.low,conf.high,t,df,p) 
-nice_table(t_L58,title = c("Table L58 | Improved seeds", ""),
-           note = c("Improved seeds percent per household","[L58] Is it normal or improved seeds?","🟩" ))
-
-
-# % Households using improved seeds 
-t03 <- seeds_21_22[,c(2,6)] %>% t_test(seed_improved_yesno ~ farmers_hh , detailed = T) %>% 
-  mutate(season="cropping year 2021-2022")
-
-t04 <- seeds22_ses %>% group_by(season) %>% t_test(seed_improved_yesno ~ farmers_hh , detailed = T)
-
-t_L58 <- rbind(t03,t04) %>% 
-  rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
-  select(season,Ramthal,Outside_Ramthal,n1,n2,estimate,conf.low,conf.high,t,df,p) 
-nice_table(t_L58,title = c("Table L58 | Improved seeds","% Households using improved seeds" ),
-           note = c("[L58] Is it normal or improved seeds?","🟩" ))
 
 
 # ASSET                                           ----
