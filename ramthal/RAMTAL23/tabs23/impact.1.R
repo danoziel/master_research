@@ -1867,7 +1867,7 @@ m1_plot + mp_theme
 
 #__________________________  Land holding size ___________________________ ----
 # 
-#__________________________  Revenue  ____________________________________ ----
+#__________________________  Revenue - in RScript: impact.R                          ----
 #__________________________  Income   ____________________________________ ----
 # Annual income
 # Agricultural and non-agricultural annual income

@@ -63,6 +63,8 @@ DF %>% group_by(HH_project) %>%
 
 # t_test t.test ----
 
+library(rstatix) # ttest "add_significance"
+library(rempsyc) # ttest # nice_table
 
 # t_test
 DF01 <- DF %>% t_test(income_2016 ~ HH_project, detailed = F) %>% add_significance()
