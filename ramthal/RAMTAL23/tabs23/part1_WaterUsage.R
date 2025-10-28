@@ -542,6 +542,51 @@ L7_source_irri  %>%  left_join(hh_2022) %>%
 
 # irrigation_2022      ----
 
+a_irri_rain_method %>% count(season)
+
+kharif_21 <- a_irri_rain_method %>% 
+  filter(season == "kharif_2021") %>% 
+  # filter(season == "rabi_2021_22") %>% 
+  # filter(season == "kharif_2022") %>% 
+  left_join(hh_2022) %>%  select(farmers_hh, hh_id ,irri_method) %>% distinct() %>% 
+  group_by(hh_id)  %>%
+  mutate(hh_6methods = ifelse("drip" %in% irri_method , "drip", ifelse(any(irri_method  == "furrows"), "furrows",ifelse(any(irri_method  == "flood"), "flood",ifelse(any(irri_method  == "sprinkler"), "sprinkler",ifelse(any(irri_method  == "hose"), "hose","rain"))))) ) %>%
+  ungroup() %>% select(hh_id,hh_6methods) %>% distinct() %>% 
+  rename(kharif_2021=hh_6methods)
+# rename(rabi_2021_22=hh_6methods)
+# rename(kharif_2022=hh_6methods)
+
+
+krk2=left_join(kharif_21,rabi_21_22) %>% left_join(kharif_22) %>% 
+  mutate(kharif_2021=ifelse(kharif_2021=="drip",1,0)) %>% 
+  mutate(rabi_2021_22=ifelse(rabi_2021_22=="drip",1,0)) %>% 
+  mutate(kharif_2022=ifelse(kharif_2022=="drip",1,0)) %>%
+  mutate(Y2022=NA,Y2021=NA)
+
+
+krk2$Y2022[krk2$rabi_2021_22==0 | krk2$kharif_2022==0 ] <- 0
+krk2$Y2022[krk2$rabi_2021_22==1 | krk2$kharif_2022==1 ] <- 1
+krk2$Y2022[is.na(krk2$rabi_2021_22) & is.na(krk2$kharif_2022) ] <- NA
+krk2$Y2021[krk2$rabi_2021_22==0 | krk2$kharif_2021==0 ] <- 0
+krk2$Y2021[krk2$rabi_2021_22==1 | krk2$kharif_2021==1 ] <- 1
+krk2$Y2021[is.na(krk2$rabi_2021_22) & is.na(krk2$kharif_2021) ] <- NA
+
+
+krk2 %>% left_join(hh_2022) %>% 
+  group_by(farmers_hh ) %>% 
+  summarise(Y2021 = mean(Y2021,na.rm=T)*100,
+            Y2022 = mean(Y2022,na.rm=T)*100)
+
+
+
+krk_ir=left_join(kharif_21,rabi_21_22) %>% left_join(kharif_22) %>% 
+  mutate(kharif_2021=ifelse(kharif_2021=="rain",0,1)) %>% 
+  mutate(rabi_2021_22=ifelse(rabi_2021_22=="rain",0,1)) %>% 
+  mutate(kharif_2022=ifelse(kharif_2022=="rain",0,1)) %>%
+  mutate(Y2022=NA,Y2021=NA)
+
+
+
 ###### 2021 ir data [survey of 2022] # ir22_2021
 ir22_2021 <-  
   a_irri_rain_method %>%  select( hh_id ,irri_method) %>% distinct() %>% 

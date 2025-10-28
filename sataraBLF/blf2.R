@@ -14,11 +14,14 @@ BLF_InteractCSV_1 <- read.csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/BLF_satara
 # BLF_InteractCSV <- read.csv("C:/Users/Dan/Downloads/BLF_Interact_-_all_versions_-_False_-_2025-07-28-07-03-23.csv", sep=";")
 
 BLF_Interact <- read_excel(
-  "C:/Users/Dan/Downloads/BLF_Interact_-_all_versions_-_False_-_2025-08-04-19-52-56.xlsx"
-  )
+  "C:/Users/Dan/Downloads/BLF_Interact_-_all_versions_-_False_-_2025-08-04-19-52-56.xlsx")
 BLF_InteractCSV <- read.csv(
-  "C:/Users/Dan/Downloads/BLF_Interact_-_all_versions_-_False_-_2025-08-04-19-53-11.csv", 
-  sep=";")
+  "C:/Users/Dan/Downloads/BLF_Interact_-_all_versions_-_False_-_2025-08-04-19-53-11.csv", sep=";")
+
+
+
+
+
 
 
 ### uid and clean [shop_interact] ........................................ ----
@@ -92,11 +95,42 @@ shop_interact %>% select(start,uid) %>%
   pivot_longer(1:6,names_to = "var", values_to = "value") %>% 
   kbl() %>% kable_styling()
 
+# DESCRIPTIVE 21.10.2025 --<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+library(readxl)
+BLF_Interact_2025_11_11 <- read_excel("C:/Users/Dan/Downloads/BLF_Interact_2025_11_11.xlsx", 
+                                      sheet = "BLF Interact")
+
+BLF_Interact_2025_11_11 %>% 
+  select(start,`_id`,phone) %>% rename(uid=`_id`) %>% 
+  mutate(date = as.Date(start)) %>%
+  summarise(
+    `Earliest date` = min(date, na.rm = TRUE),
+    `Latest date`   = max(date, na.rm = TRUE),
+    `Period in days`    = as.integer(max(date, na.rm = TRUE) - min(date, na.rm = TRUE)) + 1, # B
+    `Unique days`   = n_distinct(date),
+    `Total visitors` = n_distinct(phone),
+    `Total surveys` = n()
+  ) %>% 
+  mutate_at(5,round,2) %>% 
+  mutate(across(everything(), as.character)) %>% 
+  pivot_longer(1:6,names_to = "var", values_to = "value") %>% 
+  kbl() %>% kable_styling()
 
 
+BLF_Interact_2025_11_11 %>% 
+  mutate(date = as.Date(start)) %>% rename(uid=`_id`) %>% 
+  select(date ,uid,phone,location) %>% 
+  # count(location) %>% 
+  filter( ! location %in% c("other_location","padali","Kashil") ) %>% 
+  count(location,date) %>% 
+  group_by(location) %>% summarise(MEAN=mean(n)) %>% 
+  summarise(mean(MEAN))
 
 
-
+BLF_Interact_2025_11_11 %>% 
+  select(crop_focus) %>% 
+  count(crop_focus)
 
 
 
@@ -108,6 +142,27 @@ library(RColorBrewer)
 
 # Count individual crops in the crop_focus column when multiple crops are listed in a single observation
 # Remove NAs of "other_crop_1" in multiple crops obs ONLY
+
+####simulation
+# df_1 = shop_interact[c(132,1138,250:256),] %>% 
+#   select( id, end, 
+#           crop_focus,crop_focus_other ) %>% 
+#   mutate(crop_focus=ifelse(crop_focus=="other_crop","other_crop_1",crop_focus )) %>% 
+#   separate_rows(crop_focus, sep = " ")
+# 
+# df_2 <- df %>% 
+#   select( id, end, crop_focus,crop_focus_other ) %>%
+#   filter(!is.na(crop_focus_other)) %>% 
+#   mutate(
+#     crop_other = case_when(
+#       str_detect(crop_focus_other, "Gahu") ~ "Wheat",
+#       TRUE ~ "Other" )) %>% select(-crop_focus_other)
+# 
+# left_join(df_1,df_2) %>% 
+#   mutate(
+#     crop=ifelse(is.na(crop_other), crop_focus ,crop_other)) %>% 
+#   filter(crop != "Other")
+
 
 library(stringr)
 df_crop1 <- 

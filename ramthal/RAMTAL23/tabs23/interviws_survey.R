@@ -118,6 +118,107 @@ group_by(location) %>%
 
 
 
+# df IIII location and water source which not ramthal
+
+flood_indi <- rmtl_InOut %>% 
+  mutate(flood_Y6th=hh_drip_2021_22+hh_ir_2021_22,
+         flood_6Ys=drip_use+ir_use,
+         ) %>% 
+  select(hh_id,flood_Y6th,flood_6Ys) %>% 
+  left_join(a_source_irri %>% select(hh_id,source_pond,source_ramthal))%>% 
+  mutate(flood_Y6th=ifelse(is.na(flood_Y6th),NA,
+            ifelse(flood_Y6th==1 & !source_pond %in%  c("rain","ramthal"),1,0))
+    ) %>% 
+  mutate(flood_6Ys=ifelse(
+    flood_6Ys==1 & !source_pond %in%  c("rain","ramthal"),1,0))
+
+
+
+
+source_WA <- rmtl_srvy22_24  %>% 
+  filter(farmers_hh=="inside_ramthal",
+         !is.na(mm9)) %>% 
+  select(hh_id,mm9) %>% 
+  mutate(mm9= mm9+1) %>% 
+  mutate(location=ifelse(mm9 == -998,"dont_know",
+                         ifelse(mm9 %in% c(1:3),"Near","Far"))) %>% 
+  left_join(flood_indi) %>% 
+  mutate(source_indi=ifelse(source_pond %in% c("rain","ramthal"),0,1),
+         source_any=ifelse(source_pond  == "rain",0 ,1)
+         ) 
+
+
+source_WA %>% group_by(location) %>% 
+  mutate(N=n()) %>% 
+  count(N,location,source_ramthal) %>% mutate(p=n/N*100)
+
+source_WA %>% group_by(location) %>% 
+  summarise( N=n(), sum=sum(source_indi)) %>% mutate(sum/N)
+
+source_WA %>% group_by(location) %>% 
+  summarise( N=n(), sum=sum(flood_Y6th,na.rm = T)) %>% mutate(sum/N)
+
+source_WA %>% group_by(location) %>% 
+  summarise( N=n(), sum=sum(flood_6Ys,na.rm = T)) %>% mutate(sum/N)
+
+
+# mm10	-----
+# Has it ever happened to you that farmers "before" you have used up a lot of the water from the pipe, so you did not have enough?
+
+# 1	It has never happened
+# 2	It happens about once a season
+# 3	It happens several times a season
+# 4	It happens on a constant basis
+# 5	Some seasons it happens and some it doesn't
+
+
+rmtl_srvy22_24  %>% filter(!is.na(mm9)) %>% 
+  select(hh_id,mm9,mm10) %>% 
+  mutate(mm9= mm9+1, 
+         location=ifelse(mm9 == -998,"dont_know",
+                  ifelse(mm9 %in% c(1:3),"Near","Far")),
+         mm10=ifelse(mm10==2,3,mm10)) %>% 
+  filter(mm10 %in% c(1:4) ,location != "dont_know") %>%
+  group_by(location) %>% mutate(N=n())%>% 
+  count(N,location,mm10) %>% 
+  mutate(pct = n/N*100) %>% 
+  select(location,mm10,pct) %>% 
+  pivot_wider(names_from = location,values_from = pct) %>% 
+  select(mm10, Near,Far)
+
+
+
+
+
+
+rmtl_srvy22_24 %>% 
+  select(hh_id, mm9,"mw5", "mw6") %>% 
+  mutate(
+    Years=ifelse(mw5 > mw6,mw5,mw6),
+    Years=ifelse(Years %in% c(3:6),"3-6",Years ),
+    mm9= mm9+1, 
+    location=ifelse(mm9 == -998,"dont_know",
+             ifelse(mm9 %in% c(1:3),"Near","Far"))
+  ) %>% 
+  filter(location != "dont_know",Years %in% c("1","2","3-6")) %>%
+  group_by(location) %>% mutate(N=n())%>% 
+  count(N,location,Years) %>% 
+  mutate(N=sum(n),pct = paste0(round(n/N*100), "%")
+  ) %>%   
+  select(location,Years,pct) %>% 
+  pivot_wider(names_from = location,values_from = pct) %>% 
+  select(1, Near,Far)  %>% kable() %>% kable_styling()
+
+
+
+
+
+
+
+
+
+
+
 ############### Total respondents IN%
 df1 <- location_Int_13 %>%   rename(pct_source_ramthal=pct_flood) %>% 
   select(location ,pct, pct_drip_users, pct_source_ramthal) %>% 
@@ -693,8 +794,18 @@ rmtl_srvy22_24 %>%
   select(mm5,"mw5", "mw6") %>% 
   mutate(yr=ifelse(mw5 > mw6,mw5,mw6)) %>% 
   count(yr) %>% filter(yr>0) %>%   
-  mutate(N=sum(n),pct = paste0(round(n/N*100), "%"))%>% 
-  kable() %>% kable_styling()
+  mutate(N=sum(n),pct = paste0(round(n/N*100), "%")
+         ) # %>% kable() %>% kable_styling()
+
+rmtl_srvy22_24 %>% 
+  select(mm5,"mw5", "mw6") %>% 
+  mutate(yr=ifelse(mw5 > mw6,mw5,mw6),
+         Years=ifelse(yr %in% c(3:6),"3-6",yr )
+         ) %>% 
+  count(Years) %>% filter(Years>0) %>%   
+  mutate(N=sum(n),pct = paste0(round(n/N*100), "%")
+  )# %>% kable() %>% kable_styling()
+
 
 
 

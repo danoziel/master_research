@@ -98,9 +98,9 @@ freq(rmtl_2024$irri_source_NO_ramthal_system, cumul = FALSE)
 
 # Farmers22 using the Ramthal system as water source  ........................
 a_source_irri %>% 
-  right_join(rmtl_In) %>% 
+  right_join(rmtl_InOut) %>% 
   filter(mm4 == 1) %>% 
-  count(source)  %>%
+  count(source_ramthal)  %>%
   mutate(N=sum(n), n/N)  # 0.463
 
 
@@ -754,9 +754,10 @@ freq(rmtl_2024$water_supply_info, cumul = FALSE)
 freq(rmtl_2024$disputs_0non_1BcozWater_2els, cumul = FALSE)
 
 
-
 training=rmtl_srvy22 %>% select(hh_id, m51,m52, m56 ) %>% 
-  right_join(rmtl_In) %>% filter(mm4==1)
+  right_join(rmtl_InOut) %>% filter(mm4==1) 
+
+
 
 
 freq(rmtl_srvy22$m51, cumul = FALSE)
