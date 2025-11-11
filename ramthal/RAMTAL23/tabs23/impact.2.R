@@ -6,115 +6,82 @@ library(tidyverse)
 
 library(kableExtra )
 
+#custom theme to format ----
+mp_theme=theme_bw()+
+  theme(
+    panel.grid.major.y =element_blank(),
+    panel.grid.minor=element_blank(),
+    axis.line=element_line(),
+    
+    text=element_text(family="serif"),
+    legend.title=element_blank(), 
+    axis.text=element_text(size=14),
+    axis.title=element_text(size=10),
+    legend.text = element_text(size = 12))
 
-#__________________________  Revenue  ____________________________________ ----
-# L78	Total revenue? [season-crop]
 
-library(readr)
-a_plots_revenue <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/a_plots_revenue.csv")
-View(a_plots_revenue)
-
-size_acre <- a_plots_size %>% select(hh_id,plotID,acres) %>% filter(!is.na(acres))
-
-revenue_22B =
-  a_plots_revenue %>% filter(plotRevenue>999) %>% 
-  left_join(size_acre) %>% 
-  mutate(season=ifelse(season=="rabi","Rabi","Kharif")) %>% 
-  group_by(season,hh_id) %>% 
-  summarise(revenue=sum(plotRevenue,na.rm = T),
-            acres = sum(acres, na.rm = T)) %>% ungroup() %>%  # filter(hh_id==100014)
-  mutate(revenue_per_acre=revenue/acres/1000) %>% 
-  left_join(rmtl_con_vars)
-
-revenue_22B %>% 
-  group_by(season,in_project) %>% summarise(mean(revenue_per_acre,na.rm = T),n())
-
-# ka # Kharif - full reg 
-# kb # Kharif - reg without "dist_Km_boundary"
-# kc # Kharif - only "revenue_per_acre ~ in_project"
-# ra rb rc for Rabi
-
-ka <- lm( revenue_per_acre ~ in_project + dist_Km_boundary  +
-            hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
-            housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property +
-            total_livestock + total_farm_equipments,
-          data = revenue_22B  %>% filter(season =="Kharif") )
-
-sjPlot::tab_model(ka ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
-sjPlot::tab_model(kb ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
-sjPlot::tab_model(kc ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
-sjPlot::tab_model(ra ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
-sjPlot::tab_model(rb ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
-sjPlot::tab_model(rc ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
+#__________________________  land holding  _______________________________ ----
 
 
 
-library(tidyr)
-library(purrr)
-library(broom)
+# ) DF
+df_land <- a_plots_size %>% 
+  filter(!plotStatus %in% c("1","6")) %>% 
+  group_by(hh_id) %>% 
+  summarise(land_holding_2022=sum(acres,na.rm = T)) %>% 
+  left_join(rmtl_con_vars) %>% 
+  filter(land_holding_2022 < 40 )
 
-# REG    ----
-# 1) DF [revenue_22]
-
-revenue_22 =
-  a_plots_revenue %>% filter(plotRevenue>999) %>% 
-  left_join(size_acre) %>% 
-  filter(season !="kha") %>% 
-  group_by(season,hh_id) %>% 
-  summarise(revenue=sum(plotRevenue,na.rm = T),
-            acres = sum(acres, na.rm = T)) %>% ungroup() %>%  # filter(hh_id==100014)
-  mutate(revenue_per_acre=revenue/acres/1000) %>% 
-  left_join(rmtl_con_vars)
-
-revenue_22 %>% 
-  group_by(season,in_project) %>% summarise(mean(revenue_per_acre,na.rm = T),n())
+# ) DESC STAT
+df_land %>% 
+  group_by(in_project) %>%
+  summarise(land_holding=mean(land_holding_2022,na.rm=T)) %>% 
+  ungroup()
 
 # 1) model formula 
-# NO BASLINE VALUES IN THIS REG
-fml_reve <- revenue_per_acre ~ in_project + dist_Km_boundary  +
+fml_land <- land_holding_2022 ~ in_project + dist_Km_boundary  +
   hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
   housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property +
   total_livestock + total_farm_equipments
 
 # 2) Nest by status and fit
-fits_reve <- revenue_22 %>%
-  group_by(season) %>%
-  nest() %>%
-  mutate(
-    model = map(data, ~ lm(fml_reve, data = .x)),
-    coefs = map(model, tidy),
-    stats = map(model, glance))
+fits_land <- df_land %>% nest() %>%
+  mutate(model = map(data, ~ lm(fml_land, data = .x)),
+         coefs = map(model, tidy),
+         stats = map(model, glance))
 
 # 3) Stacked outputs
-coef_reve <- fits_reve %>% unnest(coefs) %>% filter(term == "in_project") %>%
-  select(season, estimate, std.error, p.value) %>% ungroup()
+coef_tbl_land <- fits_land %>% unnest(coefs) %>% 
+  filter(term == "in_project") %>%
+  select(estimate, std.error, p.value) %>% ungroup()
 ##
-stats_reve <- fits_reve %>% unnest(stats) %>%  select(season,nobs, r.squared) %>% 
+fit_stats_land <- fits_land %>% unnest(stats) %>%  
+  select(nobs, r.squared) %>% 
   rename(Num.Obs.=nobs,R2=r.squared ) %>% ungroup()
-##
-inproj_reve <- coef_reve %>% left_join(stats_reve,by = "season")
 
-twoRows <-  tribble(~metric,  ~KHA22, ~rabi, "Control vars", "Yes", "Yes", "Dist. boundary", "Yes", "Yes", "Baseline value", "No","No")
+# 4) Join with model summary stats
+inproj_with_fit_land <- coef_tbl_land %>% cbind(fit_stats_land )
 
-revenue_22 %>% 
-  group_by(season,in_project) %>% 
-  summarise(reve= mean(revenue_per_acre,na.rm = T)) %>% 
-  filter(in_project == 0) %>% rename(metric=in_project)
+# 5) Bild df for control group 
+control_mean <- df_land %>% 
+  group_by(in_project) %>%
+  summarise(land_holding=mean(land_holding_2022,na.rm=T)) %>% ungroup() %>% 
+  filter(in_project == 0) %>% 
+  select(-in_project) %>% rename(control_mean=land_holding)
 
-control_mean <- 
-  revenue_22 %>% 
-  group_by(season,in_project) %>% 
-  summarise(reve= mean(revenue_per_acre,na.rm = T)) %>% 
-  filter(in_project == 0) %>% pivot_wider(names_from = season, values_from = reve
-  ) %>% rename(metric=in_project)
-control_mean$metric[control_mean$metric==0] <- "control_mean"
+# 6) Create YES rows
+twoRows <- 
+  tribble( ~metric,~land_holding,
+           "Control vars", "Yes",
+           "Dist. boundary", "Yes",
+           "Baseline value","Yes")
 
+# ML Outcomes Table ...................................................
 
-df_html_reve <- inproj_reve %>%
-  pivot_longer(-season, names_to = "metric", values_to = "value") %>%
-  pivot_wider(names_from = season, values_from = value
-  ) %>% 
-  rbind(control_mean) %>% 
+df_html_land <- 
+  inproj_with_fit_land %>% cbind(control_mean ) %>% 
+  pivot_longer(estimate:control_mean, 
+               names_to = "metric", values_to = "land_holding") %>% 
   mutate(across(-metric, ~ case_when(
     metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
     metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
@@ -122,157 +89,28 @@ df_html_reve <- inproj_reve %>%
   ))) %>% 
   rbind(twoRows)
 
-# reg table
 library(kableExtra)
-df_html_reve[c(1:3,7:9,4:6),] %>% 
-  kable("html", caption = "Revenue per acre",align = "c") %>%
+df_html_land[c(1:3,7:8,4:6),] %>% 
+  kable("html", caption = "Land holding",align = "c") %>%
   kable_classic( full_width = F) 
 
-# PLOT   ----
-library(jtools)
-models_list <- fits_reve %>%  { setNames(.$model, .$season) }    
 
-m1_plot <- plot_summs(models_list ,coefs = c("In Project" = "in_project"),
-             model.names = c("Kharif","Rabi"),
+
+# PLOT ----
+library(jtools)
+library(ggplot2)
+
+models_list_land <- 
+  fits_land %>% { setNames(.$model, .$status) } # names become model names in the legend
+
+m1_plot <- 
+  plot_summs(models_list_land ,coefs = c("In Project" = "in_project"),
+             model.names = names(models_list_land),
              inner_ci_level = NULL, point.shape = F) + 
-  labs(x = "Revenue per Acre (In thousands Rs.)", y = NULL) +
-  xlim(-4, 2) 
+  labs(x = "Land Holding in Acre", y = NULL) +
+  xlim(-1, 2) 
 
 m1_plot + mp_theme
-
-
-
-
-
-
-
-
-#__________________________  CROP SELLING  ___________________________ ----
-
-# L56	Season Level	Who did you sell crop to?  
-
-# 1	Market (specify market name)
-# 2	APMC (specify)
-# 3	Other trader/wholesaler
-# 4	Government society/NGO
-# 5	Private company (specify name)
-# -888	Other (specify)
-
-
-L56_crop_sell <- 
-  rmtl_srvy22 %>% 
-  select(farmers_hh,hh_id, starts_with( "l56")) %>% 
-  select(farmers_hh,hh_id,ends_with(c("1","_2","3","4","5"))) %>% 
-  pivot_longer(-c(farmers_hh,hh_id),names_to = "Q",values_to = "ans" ) %>% 
-  filter(ans == 1) %>%    
-  separate(Q, into = c("part1", "season", "ans_num"), sep = "_"
-           ) %>% 
-  group_by(farmers_hh,season) %>% 
-  mutate( unique_hhid = n_distinct(hh_id)
-          ) %>% 
-  group_by(unique_hhid ,farmers_hh,season,ans_num) %>% 
-  summarise(SUM=sum(ans)) %>% 
-  mutate(pct = SUM/unique_hhid 
-         ) %>% 
-  group_by(farmers_hh,ans_num) %>% 
-  summarise(pct=mean(pct)) %>% ungroup() 
-
-
-# desc stat ----
-library(ggplot2)
-library(treemapify)
-.................................................................
-# To whom is the crop sold  
-
-L56_crop_sell %>% 
-  mutate(
-    Crop_sale_to = case_when(
-      ans_num=="1" ~ "Market",
-      ans_num=="2" ~ "APMC",
-      ans_num=="3" ~ "Other trader",
-      ans_num=="4" ~ "Gov society/NGO",
-      TRUE ~ "Private company")
-  ) %>% 
-  mutate_at(3,round,3) %>% 
-  ggplot(
-       aes(area = pct, fill = Crop_sale_to, label = paste0(Crop_sale_to, "\n", pct*100, "%"))) +
-  geom_treemap(color = "white",show.legend = T) +
-  geom_treemap_text(colour = "black", 
-                    place = "centre", grow = TRUE, 
-                    family = "serif",reflow = TRUE,
-                    size = .75) +
-  facet_wrap(~farmers_hh) +
-  scale_fill_brewer(palette = "Pastel1") +
-  theme_minimal(base_size = 12, base_family = "serif") +
-  labs(
-    title = "Where the crop is sold",
-    subtitle = "Percentage of produce sold in each market type"
-  )
-
-.................................................................
-# Where is the crop sold?  
-
-L56_sell_to <- 
-  rmtl_srvy22 %>% 
-  select(farmers_hh,hh_id, starts_with( c("l56_a","l56_b"  )  )) %>% 
-  pivot_longer(-c(farmers_hh,hh_id),names_to = "Q",values_to = "ans" )%>%    
-  separate(Q, into = c("part1", "ab", "season"), sep = "_"
-  ) %>% 
-  mutate(ans=ifelse(ans %in% c("none","0","-999","Middle Man","Pink","Shops"),NA, ans )) %>% 
-  mutate(
-    ans_clean = case_when(
-      str_starts(ans, "Hun") ~ "Hungund",
-      str_starts(ans, "Hub") ~ "Hubli",
-      str_starts(ans, "Bag") ~ "Bagalkot",
-      str_starts(ans, "Ami") ~ "Aminagad",
-      str_starts(ans, "I") ~ "Ilkal",
-      str_starts(ans, "l") ~ "Ilkal",
-      str_starts(ans, "Kar") ~ "Karadi",
-      str_starts(ans, "No") ~ NA,
-      TRUE ~ ans)
-  ) %>% 
-  filter(!is.na(ans_clean)) %>% 
-  select(farmers_hh,hh_id,ab,ans_clean) %>% distinct() %>% 
-  count(farmers_hh,ab,ans_clean
-        ) %>%  
-  group_by(farmers_hh,ab) %>% 
-  mutate(N=sum(n),pct = n/N) %>% 
-  mutate(MtMc=ifelse(pct<0.04,"Else",ans_clean)
-         ) %>% 
-  group_by(farmers_hh,ab,MtMc) %>% 
-  summarise (pct = sum(pct)*100) %>% ungroup()%>% 
-  mutate_at(4,round,0)
-
-
-# table MARKET  .....................................
-L56_sell_to %>% 
-  filter(ab=="a",farmers_hh =="inside_ramthal") %>% 
-  rename(Market=MtMc,pct_IN=pct) %>% 
-  select(Market,pct_IN) %>% 
-  full_join(
-    L56_sell_to %>% 
-    filter(ab=="a",farmers_hh !="inside_ramthal") %>% 
-    rename(Market=MtMc,pct_OUT=pct) %>% 
-    select(Market,pct_OUT)
-  ) %>% 
-  arrange(desc(pct_IN)) %>% 
-  kbl() %>% kable_styling()
-
-# table APMC  ........................................
-L56_sell_to %>% 
-  filter(ab=="b",farmers_hh =="inside_ramthal") %>% 
-  rename(APMC=MtMc,pct_IN=pct) %>% 
-  select(APMC,pct_IN) %>% 
-  full_join(
-    L56_sell_to %>% 
-    filter(ab=="b",farmers_hh !="inside_ramthal") %>% 
-    rename(APMC=MtMc,pct_OUT=pct) %>% 
-    select(APMC,pct_OUT)
-  ) %>% 
-  arrange(desc(pct_IN)) %>% 
-  kbl() %>% kable_styling()
-
-
 
 
 #__________________________ INPUTS  _______________________________  ----
@@ -309,7 +147,7 @@ inputs_season_2022 <- a_plots_crop %>%
   count(hh_id,season,plotID) %>% 
   left_join(
     a_plots_size %>% select(hh_id, plotID, acres)
-            ) %>% 
+  ) %>% 
   group_by(hh_id,season) %>% 
   summarise(sum_acre=sum(acres,na.rm = T),.groups = "drop") %>% 
   left_join(costesB,by=c("hh_id","season")) %>% 
@@ -324,7 +162,7 @@ inputs_Y_2022 <- inputs_season_2022 %>%
   mutate(inputs_per_acre=inputs_Rs/sum_acre )
 
 #   ]
-                     
+
 
 # desc stat 2022 ----
 inputs_season_2022 %>% left_join(hh_2022) %>% 
@@ -479,6 +317,467 @@ m1_plot <-
   xlim(-1100, 100) 
 
 m1_plot + mp_theme
+
+
+
+#__________________________  CROP SELLING  ___________________________ ----
+
+# L56	Season Level	Who did you sell crop to?  
+
+# 1	Market (specify market name)
+# 2	APMC (specify)
+# 3	Other trader/wholesaler
+# 4	Government society/NGO
+# 5	Private company (specify name)
+# -888	Other (specify)
+
+
+L56_crop_sell <- 
+  rmtl_srvy22 %>% 
+  select(farmers_hh,hh_id, starts_with( "l56")) %>% 
+  select(farmers_hh,hh_id,ends_with(c("1","_2","3","4","5"))) %>% 
+  pivot_longer(-c(farmers_hh,hh_id),names_to = "Q",values_to = "ans" ) %>% 
+  filter(ans == 1) %>%    
+  separate(Q, into = c("part1", "season", "ans_num"), sep = "_"
+  ) %>% 
+  group_by(farmers_hh,season) %>% 
+  mutate( unique_hhid = n_distinct(hh_id)
+  ) %>% 
+  group_by(unique_hhid ,farmers_hh,season,ans_num) %>% 
+  summarise(SUM=sum(ans)) %>% 
+  mutate(pct = SUM/unique_hhid 
+  ) %>% 
+  group_by(farmers_hh,ans_num) %>% 
+  summarise(pct=mean(pct)) %>% ungroup() 
+
+
+# desc stat ----
+library(ggplot2)
+library(treemapify)
+.................................................................
+# To whom is the crop sold  
+
+L56_crop_sell %>% 
+  mutate(
+    Crop_sale_to = case_when(
+      ans_num=="1" ~ "Market",
+      ans_num=="2" ~ "APMC",
+      ans_num=="3" ~ "Other trader",
+      ans_num=="4" ~ "Gov society/NGO",
+      TRUE ~ "Private company")
+  ) %>% 
+  mutate_at(3,round,3) %>% 
+  ggplot(
+    aes(area = pct, fill = Crop_sale_to, label = paste0(Crop_sale_to, "\n", pct*100, "%"))) +
+  geom_treemap(color = "white",show.legend = T) +
+  geom_treemap_text(colour = "black", 
+                    place = "centre", grow = TRUE, 
+                    family = "serif",reflow = TRUE,
+                    size = .75) +
+  facet_wrap(~farmers_hh) +
+  scale_fill_brewer(palette = "Pastel1") +
+  theme_minimal(base_size = 12, base_family = "serif") +
+  labs(
+    title = "Where the crop is sold",
+    subtitle = "Percentage of produce sold in each market type"
+  )
+
+.................................................................
+# Where is the crop sold?  
+
+L56_sell_to <- 
+  rmtl_srvy22 %>% 
+  select(farmers_hh,hh_id, starts_with( c("l56_a","l56_b"  )  )) %>% 
+  pivot_longer(-c(farmers_hh,hh_id),names_to = "Q",values_to = "ans" )%>%    
+  separate(Q, into = c("part1", "ab", "season"), sep = "_"
+  ) %>% 
+  mutate(ans=ifelse(ans %in% c("none","0","-999","Middle Man","Pink","Shops"),NA, ans )) %>% 
+  mutate(
+    ans_clean = case_when(
+      str_starts(ans, "Hun") ~ "Hungund",
+      str_starts(ans, "Hub") ~ "Hubli",
+      str_starts(ans, "Bag") ~ "Bagalkot",
+      str_starts(ans, "Ami") ~ "Aminagad",
+      str_starts(ans, "I") ~ "Ilkal",
+      str_starts(ans, "l") ~ "Ilkal",
+      str_starts(ans, "Kar") ~ "Karadi",
+      str_starts(ans, "No") ~ NA,
+      TRUE ~ ans)
+  ) %>% 
+  filter(!is.na(ans_clean)) %>% 
+  select(farmers_hh,hh_id,ab,ans_clean) %>% distinct() %>% 
+  count(farmers_hh,ab,ans_clean
+  ) %>%  
+  group_by(farmers_hh,ab) %>% 
+  mutate(N=sum(n),pct = n/N) %>% 
+  mutate(MtMc=ifelse(pct<0.04,"Else",ans_clean)
+  ) %>% 
+  group_by(farmers_hh,ab,MtMc) %>% 
+  summarise (pct = sum(pct)*100) %>% ungroup()%>% 
+  mutate_at(4,round,0)
+
+
+# table MARKET  .....................................
+L56_sell_to %>% 
+  filter(ab=="a",farmers_hh =="inside_ramthal") %>% 
+  rename(Market=MtMc,pct_IN=pct) %>% 
+  select(Market,pct_IN) %>% 
+  full_join(
+    L56_sell_to %>% 
+      filter(ab=="a",farmers_hh !="inside_ramthal") %>% 
+      rename(Market=MtMc,pct_OUT=pct) %>% 
+      select(Market,pct_OUT)
+  ) %>% 
+  arrange(desc(pct_IN)) %>% 
+  kbl() %>% kable_styling()
+
+# table APMC  ........................................
+L56_sell_to %>% 
+  filter(ab=="b",farmers_hh =="inside_ramthal") %>% 
+  rename(APMC=MtMc,pct_IN=pct) %>% 
+  select(APMC,pct_IN) %>% 
+  full_join(
+    L56_sell_to %>% 
+      filter(ab=="b",farmers_hh !="inside_ramthal") %>% 
+      rename(APMC=MtMc,pct_OUT=pct) %>% 
+      select(APMC,pct_OUT)
+  ) %>% 
+  arrange(desc(pct_IN)) %>% 
+  kbl() %>% kable_styling()
+
+
+
+
+
+
+
+
+
+
+
+#__________________________  Revenue  ____________________________________ ----
+# L78	Total revenue? [season-crop]
+
+library(readr)
+a_plots_revenue <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/a_plots_revenue.csv")
+View(a_plots_revenue)
+
+size_acre <- a_plots_size %>% select(hh_id,plotID,acres) %>% filter(!is.na(acres))
+
+revenue_22B =
+  a_plots_revenue %>% filter(plotRevenue>999) %>% 
+  left_join(size_acre) %>% 
+  mutate(season=ifelse(season=="rabi","Rabi","Kharif")) %>% 
+  group_by(season,hh_id) %>% 
+  summarise(revenue=sum(plotRevenue,na.rm = T),
+            acres = sum(acres, na.rm = T)) %>% ungroup() %>%  # filter(hh_id==100014)
+  mutate(revenue_per_acre=revenue/acres/1000) %>% 
+  left_join(rmtl_con_vars)
+
+revenue_22B %>% 
+  group_by(season,in_project) %>% summarise(mean(revenue_per_acre,na.rm = T),n())
+
+# ka # Kharif - full reg 
+# kb # Kharif - reg without "dist_Km_boundary"
+# kc # Kharif - only "revenue_per_acre ~ in_project"
+# ra rb rc for Rabi
+
+ka <- lm( revenue_per_acre ~ in_project + dist_Km_boundary  +
+            hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
+            housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property +
+            total_livestock + total_farm_equipments,
+          data = revenue_22B  %>% filter(season =="Kharif") )
+
+sjPlot::tab_model(ka ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
+sjPlot::tab_model(kb ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
+sjPlot::tab_model(kc ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
+sjPlot::tab_model(ra ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
+sjPlot::tab_model(rb ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
+sjPlot::tab_model(rc ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
+
+
+
+library(tidyr)
+library(purrr)
+library(broom)
+
+# REG    ----
+# 1) DF [revenue_22]
+
+revenue_22 =
+  a_plots_revenue %>% filter(plotRevenue>999) %>% 
+  left_join(size_acre) %>% 
+  filter(season !="kha") %>% 
+  group_by(season,hh_id) %>% 
+  summarise(revenue=sum(plotRevenue,na.rm = T),
+            acres = sum(acres, na.rm = T)) %>% ungroup() %>%  # filter(hh_id==100014)
+  mutate(revenue_per_acre=revenue/acres/1000) %>% 
+  left_join(rmtl_con_vars)
+
+revenue_22 %>% 
+  group_by(season,in_project) %>% summarise(mean(revenue_per_acre,na.rm = T),n())
+
+# 1) model formula 
+# NO BASLINE VALUES IN THIS REG
+fml_reve <- revenue_per_acre ~ in_project + dist_Km_boundary  +
+  hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
+  housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property +
+  total_livestock + total_farm_equipments
+
+# 2) Nest by status and fit
+fits_reve <- revenue_22 %>%
+  group_by(season) %>%
+  nest() %>%
+  mutate(
+    model = map(data, ~ lm(fml_reve, data = .x)),
+    coefs = map(model, tidy),
+    stats = map(model, glance))
+
+# 3) Stacked outputs
+coef_reve <- fits_reve %>% unnest(coefs) %>% filter(term == "in_project") %>%
+  select(season, estimate, std.error, p.value) %>% ungroup()
+##
+stats_reve <- fits_reve %>% unnest(stats) %>%  select(season,nobs, r.squared) %>% 
+  rename(Num.Obs.=nobs,R2=r.squared ) %>% ungroup()
+##
+inproj_reve <- coef_reve %>% left_join(stats_reve,by = "season")
+
+twoRows <-  tribble(~metric,  ~KHA22, ~rabi, "Control vars", "Yes", "Yes", "Dist. boundary", "Yes", "Yes", "Baseline value", "No","No")
+
+revenue_22 %>% 
+  group_by(season,in_project) %>% 
+  summarise(reve= mean(revenue_per_acre,na.rm = T)) %>% 
+  filter(in_project == 0) %>% rename(metric=in_project)
+
+control_mean <- 
+  revenue_22 %>% 
+  group_by(season,in_project) %>% 
+  summarise(reve= mean(revenue_per_acre,na.rm = T)) %>% 
+  filter(in_project == 0) %>% pivot_wider(names_from = season, values_from = reve
+  ) %>% rename(metric=in_project)
+control_mean$metric[control_mean$metric==0] <- "control_mean"
+
+
+df_html_reve <- inproj_reve %>%
+  pivot_longer(-season, names_to = "metric", values_to = "value") %>%
+  pivot_wider(names_from = season, values_from = value
+  ) %>% 
+  rbind(control_mean) %>% 
+  mutate(across(-metric, ~ case_when(
+    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
+    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
+    TRUE                  ~ as.character(round(.x,3))
+  ))) %>% 
+  rbind(twoRows)
+
+# reg table
+library(kableExtra)
+df_html_reve[c(1:3,7:9,4:6),] %>% 
+  kable("html", caption = "Revenue per acre",align = "c") %>%
+  kable_classic( full_width = F) 
+
+# PLOT   ----
+library(jtools)
+models_list <- fits_reve %>%  { setNames(.$model, .$season) }    
+
+m1_plot <- plot_summs(models_list ,coefs = c("In Project" = "in_project"),
+             model.names = c("Kharif","Rabi"),
+             inner_ci_level = NULL, point.shape = F) + 
+  labs(x = "Revenue per Acre (In thousands Rs.)", y = NULL) +
+  xlim(-4, 2) 
+
+m1_plot + mp_theme
+
+
+
+
+
+
+
+#__________________________  Income   ____________________________________ ----
+
+# F1	Income sent by seasonal migrating household members
+# F2	Remittances (from permanent migrants)
+# F3 f3	 [Calculate from cultivation module]
+# f3_1   Rented land
+# F4	   Own livestock (Net profit)
+# F5	Own non-agricultural business (Net profit)
+# F6	Salaried job
+# F7	Casual work or daily labor by current household members
+# F9	Government pension or scheme
+# F10	Rent/lease of property or land (land, house, vehicle, electronic appliances, tractor, etc.)
+# F11	   Other jobs or activities not already mentioned
+# F12	Total (Rs.) [sum F1-F11]
+# F13	   According to what you indicated, your total HH income is Rs. [     ].
+
+F_2022 <- rmtl_srvy22 %>% select(hh_id, starts_with("f") ) 
+names(F_2022)
+
+F_2022 <- rmtl_srvy22 %>% 
+  select(hh_id, starts_with("f") ) %>% 
+  select(hh_id:f2_amt,f5:f10_amt,f12) %>% 
+  pivot_longer(-hh_id ,
+               names_to = "income_type",
+               values_to = "income22") %>% 
+  mutate(income_type = ifelse(income_type=="f12","f12_amt",income_type))
+
+
+rmtl_baseline2016 %>% select(hh_id,starts_with("F"))
+# library(stringr)
+F_2015 <- rmtl_baseline2016 %>% right_join(hh_2022) %>% 
+  select(hh_id,starts_with("F")) %>% 
+  select( -ends_with("month"),
+          -starts_with(c("farmer","F3","F4","F11","F13","F14")) )%>% 
+  pivot_longer(-hh_id ,
+               names_to = "income_type",
+               values_to = "income15")%>% 
+  mutate( 
+    income_type = str_to_lower(income_type),  # make all lowercase 
+    income_type = case_when(
+      str_detect(income_type, "_year$") ~ str_replace(income_type, "_year$", "_amt"),
+      str_detect(income_type, "_source$") ~ str_replace(income_type, "_source$", ""),
+      TRUE ~ income_type) )%>% 
+  mutate( 
+    income15 = case_when(
+      income15 == 0 ~ NA,
+      income15 == 2 ~ 0 ,
+      TRUE ~ income15) )
+
+
+
+
+# desc stat
+income <- F_2022 %>% 
+  left_join(F_2015) %>%
+  mutate(income22=ifelse(income22==-999,NA,income22)) %>% 
+  filter(!(is.na(income22) & is.na(income15))) %>%  
+  mutate(income22= ifelse(income22 > 1, income22/1000, income22),
+         income15= ifelse(income15 > 1, income15/1000, income15) ) %>% 
+  left_join(rmtl_con_vars) 
+income$income22[is.na(income$income22)] <- 0
+income$income15[is.na(income$income15)] <- 0
+
+
+
+income_summary <- income %>%
+  group_by(income_type, in_project) %>%
+  summarise(Mean = mean(income22, na.rm = TRUE), .groups = "drop") %>%
+  mutate(in_project=ifelse(in_project==1,"IN","OUT")) 
+
+control_mean <- income_summary %>%
+  mutate(
+    Mean = if_else(Mean < 1, round(Mean ,3), round(Mean))
+  ) %>% 
+  pivot_wider(names_from = "income_type", values_from = "Mean" ) %>% 
+  filter(in_project =="OUT") %>% 
+  mutate(metric="control_mean") %>% 
+  select("metric",
+    "f1", "f2", "f5", "f6", "f7", "f9", "f10",
+    "f1_amt", "f2_amt", "f5_amt", "f6_amt",
+    "f7_amt", "f9_amt", "f10_amt", "f12_amt"
+  )
+
+income_summary_tbl <- income_summary %>%
+  mutate(
+    Mean = if_else(Mean < 1, round(Mean * 100,1), round(Mean))
+  ) %>% 
+  pivot_wider(names_from = "in_project", values_from = "Mean" ) %>% 
+  mutate(income_type = factor(
+    income_type, levels = c("f1", "f2", "f5", "f6", "f7", "f9", "f10",
+                            "f1_amt", "f2_amt", "f5_amt", "f6_amt",
+                            "f7_amt", "f9_amt", "f10_amt", "f12_amt"))
+    ) %>%
+  arrange(income_type)%>% 
+  select(income_type, IN,OUT)
+
+income_summary_tbl[1:7,] %>% kbl() %>% kable_styling()
+income_summary_tbl[8:15,] %>% kbl() %>% kable_styling()
+
+
+# REG  ----
+
+library(tidyr)
+library(purrr)
+library(broom)
+
+# 1) model formula inputs
+fml_income <- income22 ~ in_project + dist_Km_boundary  + income15+
+  hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
+  housing_str321
+
+# 2) Nest by status and fit 
+fits_income <- income %>%
+  group_by(income_type) %>%
+  nest() %>%
+  mutate(
+    model = map(data, ~ lm(fml_income, data = .x)),
+    coefs = map(model, tidy),
+    stats = map(model, glance))
+
+# 3) Stacked outputs
+coef_income <- fits_income %>% unnest(coefs) %>% 
+  filter(term == "in_project") %>%
+  select(income_type, estimate, std.error, p.value) %>% ungroup()
+##
+stats_income <- fits_income %>% unnest(stats) %>%  
+  select(income_type,nobs, r.squared) %>% 
+  rename(Num.Obs.=nobs,R2=r.squared ) %>% ungroup()
+
+# 4) Join with model summary stats
+inproj_with_fit_income <- coef_income %>%
+  left_join(stats_income,by = "income_type") %>% ungroup() %>%
+  pivot_longer(-income_type, 
+               names_to = "metric", values_to = "value") %>%
+  pivot_wider(names_from = income_type, values_from = value ) %>% 
+  select("metric",
+    "f1", "f2", "f5", "f6", "f7", "f9", "f10",
+    "f1_amt", "f2_amt", "f5_amt", "f6_amt",
+    "f7_amt", "f9_amt", "f10_amt", "f12_amt"
+  )
+
+
+# reg table ----
+df_html_income <- inproj_with_fit_income %>%
+  rbind(control_mean) %>% 
+  mutate(across(-metric, ~ case_when(
+    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
+    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
+    TRUE                  ~ as.character(round(.x,3))
+  )))
+
+library(kableExtra)
+df_html_income[,1:8] %>% 
+  kable("html", caption = "% of household ",align = "c") %>%
+  kable_classic( full_width = F) 
+
+df_html_income %>% select(metric, f1_amt:f12_amt) %>% 
+  kable("html", caption = "Amount income in K Rs. ",align = "c") %>%
+  kable_classic( full_width = F) 
+
+
+# PLOT ----------------------------------
+library(jtools)
+models_listA <- fits_income[ c(1:5,7,9),] %>% { setNames(.$model, .$income_type) }
+models_listB <- fits_income[-c(1:5,7,9),] %>% { setNames(.$model, .$income_type) }
+
+m1_plot <- plot_summs( models_listA ,coefs = c("In Project" = "in_project"),
+  model.names = c("Income 1", "Income 2","Income 3", "Income 4", "Income 5", "Income 6", "Income 7    " ),
+  inner_ci_level = NULL, point.shape = F,colors = my_colors) + 
+  labs(x = "% of HH to Incom type", y = NULL) +
+  xlim(-.12, .12) 
+m1_plot + mp_theme
+
+m2_plot <- plot_summs( models_listB ,coefs = c("In Project" = "in_project"),
+                       model.names = c("Income 1", "Income 2","Income 3", "Income 4", "Income 5", "Income 6", "Income 7","Income 2022" ),
+                       inner_ci_level = NULL, point.shape = F,colors = my_colors) + 
+  labs(x = "Income amount (In thousands Rs.)", y = NULL)
+m2_plot + mp_theme
+
+
+
+
+
+
 
 
 

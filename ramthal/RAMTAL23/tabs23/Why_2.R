@@ -135,6 +135,60 @@ demography16=
   left_join(age_gndr_hh_head) %>%  # gndr # age
   left_join(caste) 
 
+# df10 2nd version 1.11.2025
+# __________________________
+
+dt10 <- rmtl_srvy22 %>% 
+  select(hh_id, 
+         m52,  # Have you attended any of the trainings ?
+         m42   # Have you ever gone to visit it?
+         ) %>% mutate(m42=ifelse(m42==-999,NA,m42)) %>% 
+  rename(
+    attended_trainings_22=m52,
+    visit_demo_plot_22=m42
+  ) %>%
+  left_join(info) %>% # know_frmr_uses_drip visit_demo_plot
+  rename(
+    know_frmr_uses_drip_BL=know_frmr_uses_drip, 
+    visit_demo_plot_BL=visit_demo_plot
+         ) %>% # mutate(m42=ifelse(m42==-999,NA,m42)) %>% 
+  left_join(rmtl_InOut) %>% rename(Elevation=elevation) %>% 
+  filter(farmers_hh == "inside_ramthal") %>% 
+  left_join(rmtl_con_vars) %>% 
+  mutate(Income_sources = job_income_sourceS+govPnsin_scheme+rent_property) %>% 
+  rename(
+    Gendar=hh_haed_gendar,
+    Age=hh_haed_age,
+    Education=hh_haed_edu_level,
+    Acre_Land=total_acre16,
+    Caste=caste_01,
+    Livestock=total_livestock,
+    Farm_equipments=total_farm_equipments
+  )
+
+names(dt10)
+summary(dt10)  
+
+
+m_1 <- lm(drip_use ~ Gendar + Age + Education + Caste + Acre_Land + 
+            Income_sources + Livestock + Farm_equipments,
+          dt10)
+summary(m_1)
+sjPlot::tab_model(m_1, digits = 4, show.se = T)
+
+
+m_2 <- lm(drip_use ~ 
+            # know_frmr_uses_drip_BL + 
+            # visit_demo_plot_BL +
+            # attended_trainings_22 +
+            visit_demo_plot_22,
+          dt10)
+sjPlot::tab_model(m_2, digits = 4, show.se = T)
+
+
+dt10 %>%  group_by(drip_use) %>%  filter(!is.na(visit_demo_plot_22)) %>% 
+  summarise(mean(visit_demo_plot_22,na.rm=T),n())
+
 
 
 # DESCRIPTIVE STATISTICS
@@ -176,8 +230,7 @@ cor(my_data) %>% kable(format = "html", digits = 2) %>% kable_styling()
 
 
 ##### regs m1 infrstr_17_21      ----
-names(dt10)
-m11<-lm(infrstr_17_21 ~ 
+ m11<-lm(infrstr_17_21 ~ 
           gndr + age + caste_01 + edu_hh_head_01  +
           total_acre16 +own_source_ir+know_frmr_uses_drip, dt10)
 sjPlot::tab_model(m11, digits = 4, show.se = T)

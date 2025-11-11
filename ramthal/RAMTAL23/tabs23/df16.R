@@ -188,7 +188,7 @@ rm(caste1,caste2)
 
 # DF demographic_vars_2016 ------
 
-demographic_vars_2016 <- 
+demographic_vars_2016 <- # not updated in BL_total_assets 10/11/2025 
   left_join(economic16,education_age_gndr_2016) %>% 
   left_join(caste) %>% 
   left_join(BL_total_assets) %>% 
@@ -226,7 +226,7 @@ summary(f1_f2)
 ####### F3-F12 not include income from seasonal or permanent migrants.
 f3_f13=
   rmtl_baseline2016 %>% 
-  select(starts_with (c("F"))) %>% select(contains(c("_s"))) %>% freq()
+  select(starts_with (c("F"))) %>% select(contains(c("_s"))) # %>% freq()
 
 # F3	"Farming own or rented land (Net profit)
 # F4	"Own livestock (Net profit)
@@ -256,6 +256,10 @@ BL_incomS=BL_incomS_A %>%
 
 
 
+
+rmtl_baseline2016 %>% select(starts_with("F"))
+rmtl_baseline2016 %>% select(hh_id, ends_with("_year"),-G_year)
+rmtl_baseline2016 %>% select(hh_id,starts_with("F"),ends_with("_source"))
 
 
 
@@ -296,11 +300,26 @@ e2016B=e2016B %>%
          yn_farm_equipments=E10_1+E11_1+E12_1+E13_1) 
 
 # BL_total_assets ----
+# BL_total_assets = e2016 %>% 
+#   mutate(
+#     total_livestock=E6_1+E7_1+E8_1+E9_1,
+#     total_farm_equipments=E10_1+E11_1+E12_1+E13_1) %>% 
+#   select(hh_id,total_livestock,total_farm_equipments )
+
+# 10/11/2025
 BL_total_assets = e2016 %>% 
   mutate(
-    total_livestock=E6_1+E7_1+E8_1+E9_1,
-    total_farm_equipments=E10_1+E11_1+E12_1+E13_1) %>% 
-  select(hh_id,total_livestock,total_farm_equipments )
+    livestock_dairy = ifelse(E6_1+E8_1+E9_1 >0,1,0),
+    Bullock = ifelse(E7_1 >0,1,0),
+    Tractor = E10_1,
+    Plough = E11_1,
+    Thresher = E12_1,
+    Seed_drill = E13_1,
+    Motorcycle = ifelse(E16_1 >0,1,0),
+    Fridge = E18_1) %>% 
+  select(hh_id,livestock_dairy, Bullock, 
+         Tractor, Plough, Thresher , Seed_drill, 
+         Motorcycle ,Fridge)
 
 # LIVESTOCK
 # E6	Cows

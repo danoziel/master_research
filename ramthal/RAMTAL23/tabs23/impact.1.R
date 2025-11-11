@@ -55,7 +55,8 @@ geo_var <- #  1,612
 Qmm2=rmtl_srvy22 %>% select(hh_id,mm2) %>% 
   mutate(im_in_project = ifelse(mm2==1,1,0)) %>% select(hh_id,im_in_project)
 
-rmtl_con_vars <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_con_vars.xlsx")
+rmtl_con_vars <- read_excel(
+  "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_con_vars.xlsx")
 
 rmtl_con_vars <- 
   as_tibble(control_vars) %>% rename(in_project= in1_out0) %>% 
@@ -63,8 +64,47 @@ rmtl_con_vars <-
   left_join(geo_var) %>% 
   left_join(Qmm2)
 
+# UPDATE 10/11/2025
+rmtl_cntrl_vars <- rmtl_con_vars %>% 
+  # left_join(BL_total_assets) %>% 
+  mutate(
+    cardinal_direction = case_when(
+      south1_north0 == 1 ~ "south",
+      south1_north0 == 0 ~ "north",
+      TRUE ~ "center") )
+
+
+# ZONEs
+
+library(readxl)
+village_list4_S1 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_data/village_list4.xlsx", 
+                            sheet = "Sheet1")
+
+village_list4_S2 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_data/village_list4.xlsx", 
+                               sheet = "Sheet2")
+
+village_list4_S2[,c(1,3)] %>% distinct() %>% count(village) %>% arrange(desc(n))
+# four villges have 2-4 zones
+
+list_shape_code %>% rename(hh_id=id) %>% 
+  left_join(shp_index22[,-1]) %>% 
+  left_join(village_list4_S1 %>% select(a5, a6, village ))%>% 
+  filter(village %in% c("Hungund", "Amaravati", "Ramawadagi", "Binjawadagi", "Hirehunakunti") 
+         ) %>% kbl() %>% kable_styling()
+
+shp_index22 <- read_excel(
+  "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/shp_index22.xlsx")
+
+
+
+
 library(writexl)
 write_xlsx(rmtl_con_vars, "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_con_vars.xlsx")
+
+
+
+
+
 
 
 #________________________________ IRRIGATION   ___________________________ ----
@@ -1863,20 +1903,6 @@ m1_plot <-
   xlim(-0.05, 0.15) 
 
 m1_plot + mp_theme
-
-
-#__________________________  Land holding size ___________________________ ----
-# 
-#__________________________  Revenue - in RScript: impact.R                          ----
-#__________________________  Income   ____________________________________ ----
-# Annual income
-# Agricultural and non-agricultural annual income
-# External income
-# Pensions | subsidies | Family assistance
-#__________________________  Assets  _____________________________________ ----
-#__________________________  Returns to Project   ________________________ ----
-
-
 
 
 
