@@ -27,14 +27,15 @@ elevation_points_tbl <-
 Ramthal_dist_elev <- 
   read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/Ramthal_dist_elev.xlsx")
 
-
-
+#
+#________________
 control_vars <- #  1,612
   demographic_vars_2016 %>% #former demog_vars
   mutate(hh_haed_edu_level=
            ifelse(is.na(hh_haed_edu_level),0,
                   hh_haed_edu_level ) ) 
-
+#
+#________________
 dist_elev_var  <-  # former [dist_var]
   Ramthal_dist_elev  %>% left_join(hh_2022) %>% 
   select(in1_out0,hh_id, dist_to_boundary_m, elevation_m) %>% # former var dist_to_south_m
@@ -44,65 +45,60 @@ dist_elev_var  <-  # former [dist_var]
   mutate(elevation = elevation_m-506,
          elevation= ifelse(in1_out0==0, elevation*-1 ,elevation))%>% 
   select(-in1_out0)
-
+#
+#________________
 geo_var <- #  1,612
   rmtl_InOut %>% 
   select(hh_id, elevation , south1_north0, a5) %>% 
   rename(elev_cat = elevation,village=a5) %>% 
   mutate(elev_cat=ifelse(elev_cat=="7+",7,elev_cat),
          elev_cat=as.numeric(elev_cat))
-
+#
+#________________
 Qmm2=rmtl_srvy22 %>% select(hh_id,mm2) %>% 
   mutate(im_in_project = ifelse(mm2==1,1,0)) %>% select(hh_id,im_in_project)
 
+#
+#________________
+location_pipe <- 
+  rmtl_srvy22  %>% dplyr:: select(hh_id,mm9) %>% 
+  mutate(location_on_pipe= mm9+1) %>% 
+  mutate(proximity_outlet =
+           case_when(
+             location_on_pipe %in% c(1:3)  ~ "Near",
+             location_on_pipe %in% c(4:30) ~ "Far",
+             TRUE ~ NA
+           ) )%>% dplyr:: select(-mm9)
+
+#________________
 rmtl_con_vars <- read_excel(
   "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_con_vars.xlsx")
 
+#_________________#_________________  #__________________#
 rmtl_con_vars <- 
   as_tibble(control_vars) %>% rename(in_project= in1_out0) %>% 
   left_join(dist_elev_var) %>% 
   left_join(geo_var) %>% 
-  left_join(Qmm2)
+  left_join(Qmm2)%>% 
+  left_join(BL_total_assets)
 
-# UPDATE 10/11/2025
-rmtl_cntrl_vars <- rmtl_con_vars %>% 
-  # left_join(BL_total_assets) %>% 
+
+# UPDATE 10/11/2025  [rmtl_cntrl_vars] #__________________#
+rmtl_cntrl_vars <- 
+  rmtl_con_vars %>% 
+  rename(Elevation-elevation) %>% 
   mutate(
     cardinal_direction = case_when(
       south1_north0 == 1 ~ "south",
       south1_north0 == 0 ~ "north",
-      TRUE ~ "center") )
-
-
-# ZONEs
-
-library(readxl)
-village_list4_S1 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_data/village_list4.xlsx", 
-                            sheet = "Sheet1")
-
-village_list4_S2 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_data/village_list4.xlsx", 
-                               sheet = "Sheet2")
-
-village_list4_S2[,c(1,3)] %>% distinct() %>% count(village) %>% arrange(desc(n))
-# four villges have 2-4 zones
-
-list_shape_code %>% rename(hh_id=id) %>% 
-  left_join(shp_index22[,-1]) %>% 
-  left_join(village_list4_S1 %>% select(a5, a6, village ))%>% 
-  filter(village %in% c("Hungund", "Amaravati", "Ramawadagi", "Binjawadagi", "Hirehunakunti") 
-         ) %>% kbl() %>% kable_styling()
-
-shp_index22 <- read_excel(
-  "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/shp_index22.xlsx")
-
-
+      TRUE ~ "center") ) %>% 
+  left_join(location_pipe) %>% 
+  left_join(rmtl_block_zone %>% dplyr:: select(hh_id, zone) )
 
 
 library(writexl)
-write_xlsx(rmtl_con_vars, "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_con_vars.xlsx")
-
-
-
+write_xlsx(rmtl_cntrl_vars, 
+           "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_cntrl_vars.xlsx")
 
 
 
@@ -432,7 +428,7 @@ library(jtools)
 library(ggstance)
 library(RColorBrewer)
 
-display.brewer.pal(n = 11, name = 'Paired')
+display.brewer.pal(n = 11, name = 'Dark2')
 my_colors <- brewer.pal(8, "Dark2") # Paired, Set1
 
 cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
@@ -991,7 +987,7 @@ ml <- lm(kg_per_acre ~ in_project + dist_Km_boundary + kg_per_acre_BL +
       housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property +
       total_livestock + total_farm_equipments,
     data = df_kg_acre  %>% filter(crop=="Toor") )
-summary(ml)
+# summary(ml)
 sjPlot::tab_model(ml ,  show.se = T,digits = 5, show.stat  = F )
 
 

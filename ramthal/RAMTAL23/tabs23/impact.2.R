@@ -3,8 +3,13 @@ library(dplyr)
 library(tidyr)
 library(tidyverse)
 
-
 library(kableExtra )
+
+library(RColorBrewer)
+display.brewer.pal(n = 11, name = 'Dark2')
+my_colors <- brewer.pal(8, "Dark2") # Paired, Set1
+
+
 
 #custom theme to format ----
 mp_theme=theme_bw()+
@@ -29,7 +34,7 @@ df_land <- a_plots_size %>%
   filter(!plotStatus %in% c("1","6")) %>% 
   group_by(hh_id) %>% 
   summarise(land_holding_2022=sum(acres,na.rm = T)) %>% 
-  left_join(rmtl_con_vars) %>% 
+  left_join(rmtl_cntrl_vars) %>% 
   filter(land_holding_2022 < 40 )
 
 # ) DESC STAT
@@ -448,13 +453,6 @@ L56_sell_to %>%
 
 
 
-
-
-
-
-
-
-
 #__________________________  Revenue  ____________________________________ ----
 # L78	Total revenue? [season-crop]
 
@@ -589,11 +587,6 @@ m1_plot <- plot_summs(models_list ,coefs = c("In Project" = "in_project"),
 m1_plot + mp_theme
 
 
-
-
-
-
-
 #__________________________  Income   ____________________________________ ----
 
 # F1	Income sent by seasonal migrating household members
@@ -653,7 +646,7 @@ income <- F_2022 %>%
   filter(!(is.na(income22) & is.na(income15))) %>%  
   mutate(income22= ifelse(income22 > 1, income22/1000, income22),
          income15= ifelse(income15 > 1, income15/1000, income15) ) %>% 
-  left_join(rmtl_con_vars) 
+  left_join(rmtl_cntrl_vars) 
 income$income22[is.na(income$income22)] <- 0
 income$income15[is.na(income$income15)] <- 0
 
@@ -697,42 +690,39 @@ income_summary_tbl[8:15,] %>% kbl() %>% kable_styling()
 # REG  ----
 
 library(tidyr)
-library(purrr)
-library(broom)
+# library(purrr)
+# library(broom)
 
-# 1) model formula inputs
-fml_income <- income22 ~ in_project + dist_Km_boundary  + income15+
-  hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
-  housing_str321
-
-# 2) Nest by status and fit 
+# 1) model formula inputs # 2) Nest by status and fit 
 fits_income <- income %>%
   group_by(income_type) %>%
   nest() %>%
   mutate(
-    model = map(data, ~ lm(fml_income, data = .x)),
-    coefs = map(model, tidy),
-    stats = map(model, glance))
+    model = map(data, ~ lm(
+        income22 ~ in_project + dist_Km_boundary + income15 +
+        hh_haed_age + hh_haed_gendar + hh_haed_edu_level + 
+        total_acre16 + housing_str321 + 
+        livestock_dairy + Bullock + Tractor + Plough + 
+        Thresher + Seed_drill + Motorcycle + Fridge, 
+        data = .x)),
+    coefs = map(model, broom::tidy),
+    stats = map(model, broom::glance))
 
-# 3) Stacked outputs
-coef_income <- fits_income %>% unnest(coefs) %>% 
-  filter(term == "in_project") %>%
-  select(income_type, estimate, std.error, p.value) %>% ungroup()
-##
-stats_income <- fits_income %>% unnest(stats) %>%  
-  select(income_type,nobs, r.squared) %>% 
-  rename(Num.Obs.=nobs,R2=r.squared ) %>% ungroup()
-
-# 4) Join with model summary stats
-inproj_with_fit_income <- coef_income %>%
-  left_join(stats_income,by = "income_type") %>% ungroup() %>%
-  pivot_longer(-income_type, 
-               names_to = "metric", values_to = "value") %>%
+# 3) Stacked outputs # 4) Join with model summary stats
+inproj_with_fit_income <- 
+  fits_income %>% unnest(coefs) %>% 
+  filter(term == "in_project") %>% 
+  left_join(
+    fits_income %>% unnest(stats) %>% select(income_type,nobs, r.squared)
+  )%>% ungroup() %>% 
+  select(income_type, estimate, std.error, p.value,nobs, r.squared) %>% 
+  rename(Num.Obs.=nobs,R2=r.squared ) %>% 
+  pivot_longer(-income_type, names_to = "metric", values_to = "value") %>%
   pivot_wider(names_from = income_type, values_from = value ) %>% 
   select("metric",
-    "f1", "f2", "f5", "f6", "f7", "f9", "f10",
-    "f1_amt", "f2_amt", "f5_amt", "f6_amt",
-    "f7_amt", "f9_amt", "f10_amt", "f12_amt"
+         "f1", "f2", "f5", "f6", "f7", "f9", "f10",
+         "f1_amt", "f2_amt", "f5_amt", "f6_amt",
+         "f7_amt", "f9_amt", "f10_amt", "f12_amt"
   )
 
 
@@ -745,7 +735,7 @@ df_html_income <- inproj_with_fit_income %>%
     TRUE                  ~ as.character(round(.x,3))
   )))
 
-library(kableExtra)
+# library(kableExtra)
 df_html_income[,1:8] %>% 
   kable("html", caption = "% of household ",align = "c") %>%
   kable_classic( full_width = F) 
@@ -761,7 +751,7 @@ models_listA <- fits_income[ c(1:5,7,9),] %>% { setNames(.$model, .$income_type)
 models_listB <- fits_income[-c(1:5,7,9),] %>% { setNames(.$model, .$income_type) }
 
 m1_plot <- plot_summs( models_listA ,coefs = c("In Project" = "in_project"),
-  model.names = c("Income 1", "Income 2","Income 3", "Income 4", "Income 5", "Income 6", "Income 7    " ),
+  model.names = c("Income 1", "Income 2","Income 3", "Income 4", "Income 5", "Income 6", "Income 7     " ),
   inner_ci_level = NULL, point.shape = F,colors = my_colors) + 
   labs(x = "% of HH to Incom type", y = NULL) +
   xlim(-.12, .12) 
@@ -772,14 +762,6 @@ m2_plot <- plot_summs( models_listB ,coefs = c("In Project" = "in_project"),
                        inner_ci_level = NULL, point.shape = F,colors = my_colors) + 
   labs(x = "Income amount (In thousands Rs.)", y = NULL)
 m2_plot + mp_theme
-
-
-
-
-
-
-
-
 
 
 #__________________________ ASSET  __________________________       ----
@@ -952,47 +934,328 @@ m1_plot + mp_theme
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+#__________________________ Migration  __________________________       ----
+
+
+rmtl_baseline2016 %>% select(hh_id, C1)%>% 
+  left_join(
+    rmtl_midline2018 %>% select(hh_id, c1_exist)) %>% 
+  left_join (
+    rmtl_srvy22 %>% select(hh_id,r1)) %>% 
+  rename(BL=C1,S18=c1_exist,s22=r1)
+
+
+### migration 2022 ###
+attr(rmtl_srvy22$r3, "labels")
+# r1 How many household members live in this house?
+# r26_ Since 2016, has [member's name] migrated from the village for work for a period of 6 months or more?
+rmtl_srvy22 %>% select(hh_id, farmers_hh, r1 )
+rmtl_srvy22 %>% select(hh_id, farmers_hh, starts_with("r3_"))
+
+migration22=
+  rmtl_srvy22 %>% 
+  select(hh_id, starts_with("r26_")) %>% 
+  pivot_longer(-hh_id,
+               names_to = "mmbr", values_to = "migrated") %>% 
+  filter(!is.na(migrated)) %>% 
+  group_by(hh_id) %>% 
+  summarise(migrated22=sum(migrated)) %>% 
+  left_join(rmtl_srvy22 %>% select(hh_id, r1) ) %>% 
+  rename(n22=r1) %>% 
+  mutate(migrated_prc_22= migrated22/n22) 
+
+
+### migration 2018 ###
+# C1	How many household members live in this house?
+# PREVIOUS HOUSEHOLD MEMBERS: C27	How many people, who previously lived in the household in the past 10 years now live elsewhere?
+migration18 =
+  rmtl_midline2018 %>% select(hh_id, c1_exist, c27) %>% 
+  filter(c1_exist>0) %>% 
+  rename(n18=c1_exist, migrated18=c27) %>% 
+  mutate(migrated_prc_18= migrated18/n18) 
+
+### migration BL 2015 ###
+# C1	How many household members live in this house?
+# C27	How many people, who previously lived in the household in the past 10 years now live elsewhere?
+# C18_	Where do they reside most of the time during the rest of the year?
+
+migration15 =
+  rmtl_baseline2016 %>% select(hh_id, C1,C27) %>% 
+  filter(C1>0)%>% 
+  rename(n15=C1, migrated15=C27) %>% 
+  mutate(migrated_prc_15= migrated15/n15) 
+
+
+# DESC STST ----
+migration =
+  migration22 %>% 
+  left_join(migration18) %>% 
+  left_join(migration15) %>%
+  left_join(rmtl_InOut) %>% 
+  left_join(rmtl_cntrl_vars) 
+
+"fraction members of a HH who migrates"
+
+migration %>% group_by(in_project) %>% 
+  summarise(pct_migration_2022 = mean(migrated_prc_22,na.rm=T),
+            pct_migration_2018 = mean(migrated_prc_18,na.rm=T))
+
+
+# REG ----
+m1 <-  lm(migrated_prc_22  ~ in_project +
+            dist_Km_boundary + migrated_prc_15 +
+            hh_haed_age + hh_haed_gendar + hh_haed_edu_level + 
+            total_acre16 + housing_str321 + 
+            job_income_sourceS + govPnsin_scheme + rent_property+
+            livestock_dairy + Bullock + Tractor + Plough + 
+            Thresher + Seed_drill + Motorcycle + Fridge, 
+          migration)
+sjPlot::tab_model(m1 ,  show.se = T,digits = 5, show.stat  = F )
+
+m2 <-  lm(migrated_prc_22  ~ in_project, migration)
+summary(m2)
+
+m3 <-  lm(migrated_prc_18  ~ in_project +
+            dist_Km_boundary + migrated_prc_15 +
+            hh_haed_age + hh_haed_gendar + hh_haed_edu_level + 
+            total_acre16 + housing_str321 + 
+            job_income_sourceS + govPnsin_scheme + rent_property+
+            livestock_dairy + Bullock + Tractor + Plough + 
+            Thresher + Seed_drill + Motorcycle + Fridge, 
+          migration)
+sjPlot::tab_model(m3 ,  show.se = T,digits = 5, show.stat  = F )
+
+m4 <-  lm(migrated_prc_18  ~ in_project, migration)
+summary(m4)
+
+
+
+
+# PLOT ---- 
+fml1 <- migrated_prc_22  ~ in_project +dist_Km_boundary + migrated_prc_15 +
+  hh_haed_age + hh_haed_gendar + hh_haed_edu_level + 
+  total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+
+  livestock_dairy + Bullock + Tractor + Plough + Thresher + Seed_drill + Motorcycle + Fridge
+
+fml3 <- migrated_prc_18  ~ in_project +dist_Km_boundary + migrated_prc_15 +
+  hh_haed_age + hh_haed_gendar + hh_haed_edu_level + 
+  total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+
+  livestock_dairy + Bullock + Tractor + Plough + Thresher + Seed_drill + Motorcycle + Fridge
+
+fits <- migration %>% nest() %>%
+  mutate(model = map(data, ~ lm(fml1 #fml3
+                                , data = .x)),
+         coefs = map(model, tidy),
+         stats = map(model, glance))
+
+models_list <- 
+  fits %>% { setNames(.$model, .$status) } 
+#           ignore Warning message
+
+m1_plot <- plot_summs(models_list ,coefs = c("In Project" = "in_project"),
+           model.names = names(models_list),
+           inner_ci_level = NULL, point.shape = F) + 
+  labs(title = "Fraction members of a HH who migrates",
+    x = "% of imigration (per HH)", y = NULL) +
+  xlim(-0.05, 0.15) 
+m1_plot + mp_theme
+
+
+#__________________________ education  __________________________       ----
+
+# r7	Are they literate?
+# r8	What is their educational level? (0=NOT literate)
+# r11 	Is the institution public or private?
+# r12		What are the annual tuition fees?
+# The HH head is the same as in 2016, so there is no need to examine it
+
+# literatecy22
+# r7	Are they literate?
+
+literatecy22= 
+  rmtl_srvy22 %>% select(hh_id,starts_with("r7" ) ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "literate") %>% 
+  group_by(hh_id) %>% 
+  summarise(literatecy_22=mean(literate,na.rm=T)) %>% 
+  mutate(literatecy_22 = ifelse(literatecy_22<0,NA,literatecy_22)) # transfer NaN to NA
+  
+  
+
+# literatecy15
+# C6 Are they literate
+
+literatecy15= 
+  rmtl_baseline2016 %>% select(hh_id,starts_with("c6" ) ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "literate") %>% 
+  group_by(hh_id) %>% 
+  summarise(literatecy_15=mean(literate,na.rm=T)) %>% 
+  mutate(literatecy_15 = ifelse(literatecy_15<0,NA,literatecy_15))
+
+
+
+
+# edu_level22
+# r8	What is their educational level? 
+
+edu_level22 = 
+  rmtl_srvy22 %>% select(hh_id, starts_with("r8"), -ends_with("_bin") ) %>% 
+  select(-contains("new")) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level") %>% 
+  group_by(hh_id) %>% 
+  summarise(edu_level_22=mean(edu_level,na.rm=T)) %>% 
+  mutate(edu_level_22 = ifelse(edu_level_22<0,NA,edu_level_22)) # transfer NaN to NA
+
+# edu_level15
+# C7 educational level
+
+edu_level15 = 
+  rmtl_baseline2016 %>% select(hh_id, starts_with("c7"), -ends_with("_bin") ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level") %>% 
+  group_by(hh_id) %>% 
+  summarise(edu_level_15=mean(edu_level,na.rm=T)) %>% 
+  mutate(edu_level_15 = ifelse(edu_level_15<0,NA,edu_level_15)) # transfer NaN to NA
+
+
+
+# edu_level_2nd_gen_22
+r8_22 =  
+  rmtl_srvy22 %>% select(hh_id, starts_with("r8"), -ends_with("_bin") ) %>% 
+  select(-contains("new")) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level")
+r8_22$id_member <- sub("^r8_(\\d{1,2})","r_\\1",r8_22$id_member )
+
+
+r6_22 = # R6 What is their relationship to the head of household?
+  rmtl_srvy22 %>% select(hh_id,starts_with("r6" ) ) %>% 
+  pivot_longer(
+    !hh_id, names_to = "id_member", values_to = "relation_HH_head") 
+r6_22$id_member <- sub("^r6_(\\d{1,2})","r_\\1",r6_22$id_member )
+
+edu_level_2nd_gen_22 <- 
+  left_join (r8_22,r6_22) %>% 
+  mutate(edu_gen_2nd=ifelse(
+    relation_HH_head %in% c(3,9,11:13),edu_level,NA) ) %>% 
+  group_by(hh_id) %>% 
+  summarise(edu_gen2_22=mean(edu_gen_2nd,na.rm=T)) %>% 
+  mutate(edu_gen2_22 = ifelse(edu_gen2_22<0,NA,edu_gen2_22)) # transfer NaN to NA
+
+
+# edu_level_2nd_gen_15
+
+# C7 educational level
+# C5 elationship to the head of household
+
+c7_15 <- 
+  rmtl_baseline2016 %>% select(hh_id, starts_with("c7"), -ends_with("_bin") ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level")
+c7_15$id_member <- sub("^C7_(\\d{1,2})","C_\\1",c7_15$id_member )
+
+C5_15 = # C5 elationship to the head of household
+  rmtl_baseline2016 %>% select(hh_id,starts_with("c5" ), -contains("os") ) %>% 
+  pivot_longer(
+    !hh_id, names_to = "id_member", values_to = "relation_HH_head") 
+C5_15$id_member <- sub("^C5_(\\d{1,2})","C_\\1",C5_15$id_member )
+
+edu_level_2nd_gen_15 <- 
+  left_join (c7_15,C5_15) %>% 
+  mutate(edu_gen_2nd=ifelse(
+    relation_HH_head %in% c(3,9,11:13),edu_level,NA) ) %>% 
+  group_by(hh_id) %>% 
+  summarise(edu_gen2_15=mean(edu_gen_2nd,na.rm=T)) %>% 
+  mutate(edu_gen2_15 = ifelse(edu_gen2_15<0,NA,edu_gen2_15)) # transfer NaN to NA
+
+
+
+
+# private school 2022
+# R11 	Is the institution public or private?
+edu_private_22 = 
+  rmtl_srvy22 %>% select(hh_id,starts_with("r11" ) ) %>% 
+  pivot_longer(
+    !hh_id, names_to = "id_member", values_to = "institut")%>% 
+  mutate(institut = ifelse(is.na (institut),0,institut),
+         privet=ifelse(institut==2,1,0),
+         public=ifelse(institut==1,1,0)) %>%
+  group_by(hh_id) %>% 
+  summarise(n_privet=sum(privet), n_public=sum(public)) %>% 
+  mutate(privet_22 = ifelse(n_privet > 0, 1,
+                  ifelse(n_public > 0, 0, NA)))
+
+
+# private school 2015
+# C10	Is the institution public or private?
+
+edu_private_15 = 
+  rmtl_baseline2016 %>% select(hh_id,starts_with("C10" ) ) %>% 
+  pivot_longer(
+    !hh_id, names_to = "id_member", values_to = "institut")%>% 
+  mutate(institut = ifelse(!institut %in% c(1,2) ,0,institut),
+         privet=ifelse(institut==2,1,0),
+         public=ifelse(institut==1,1,0)) %>%
+  group_by(hh_id) %>% 
+  summarise(n_privet=sum(privet), n_public=sum(public)) %>% 
+  mutate(privet_15 = ifelse(n_privet > 0, 1,
+                         ifelse(n_public > 0, 0, NA)))
+  
+  
+  
+  
+  
+# tuition 2022
+# R12		What are the annual tuition fees?
+tuition22 =
+  rmtl_srvy22 %>% select(hh_id,starts_with("r12" ) ) %>% 
+  pivot_longer(
+    !hh_id, names_to = "id_member", values_to = "tuition") %>% 
+  mutate(n_mm= ifelse(tuition >= 0, 1, NA )) %>% 
+  group_by(hh_id) %>% 
+  summarise(tuitionHH= sum(tuition,na.rm = T),n=sum(n_mm,na.rm = T)) %>% 
+  mutate(tuition_hhm_22=tuitionHH/n) %>% 
+  mutate(tuition_hhm_22 = ifelse(tuition_hhm_22<0,NA,tuition_hhm_22)) # transfer NaN to NA
+
+# tuition 2015
+# C11	What are the annual tuition fees?
+  
+tuition15 = 
+  rmtl_baseline2016 %>% select(hh_id,starts_with("C11" ) ) %>% 
+  pivot_longer(
+    !hh_id, names_to = "id_member", values_to = "tuition") %>% 
+  mutate(tuition= ifelse(tuition < 0, NA, tuition )) %>% 
+  mutate(n_mm= ifelse(tuition >= 0, 1, NA )) %>% 
+  group_by(hh_id) %>% 
+  summarise(tuitionHH= sum(tuition,na.rm = T),n=sum(n_mm,na.rm = T)) %>% 
+  mutate(tuition_hhm_15=tuitionHH/n) %>% 
+  mutate(tuition_hhm_15 = ifelse(tuition_hhm_15<0,NA,tuition_hhm_15)) # transfer NaN to NA
+
+
+
+education1522 <- 
+  literatecy22 %>% left_join(literatecy15) %>% 
+  left_join(edu_level22) %>% left_join(edu_level15) %>% 
+  left_join(edu_level_2nd_gen_22) %>% left_join(edu_level_2nd_gen_15) %>% 
+  left_join(edu_private_22 %>% select(hh_id,privet_22)) %>% 
+  left_join(edu_private_15 %>% select(hh_id,privet_15)) %>% 
+  left_join(tuition22 %>% select(hh_id,tuition_hhm_22))%>% 
+  left_join(tuition15 %>% select(hh_id,tuition_hhm_15))
+
+education1522
+
+
+
 #__________________________ __________________________       ----
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # INCOME                                   ----
@@ -1100,56 +1363,6 @@ nice_table(t_F129,title = c("Table F1.2.9 | External income" ,"family assistance
                     "[F2]Remittances (from permanent migrants)" , 
                     "[F9]Government pension or scheme" ,"🟨" ))
 
-# HOUSEHOLD ROSTER  ----
-
-attr(rmtl_srvy22$r3, "labels")
-
-roster22A= 
-# r1 How many household members live in this house?
-# r3_ What is the household member status ?
-# r26_ Since 2016, has [member's name] migrated from the village for work for a period of 6 months or more?
-rmtl_srvy22 %>% select(hh_id, farmers_hh, r1 )
-rmtl_srvy22 %>% select(hh_id, farmers_hh, starts_with("r3_"))
-
-#        Migration  ----
-migration22=
-  rmtl_srvy22 %>% 
-  select(hh_id, farmers_hh, starts_with("r26_")) %>% 
-  pivot_longer(-c(hh_id,farmers_hh), names_to = "mmbr", values_to = "migrated") %>% 
-  filter(!is.na(migrated)) %>% 
-  group_by(hh_id,farmers_hh) %>% 
-  summarise(migrt_total=sum(migrated), n_hhm=n() ,migrt_prc= migrt_total/n_hhm) %>% 
-  ungroup()
-
-t01 <- migration22 %>% t_test(migrt_total  ~ farmers_hh , detailed = T) 
-t02 <- migration22 %>% t_test(migrt_prc ~ farmers_hh , detailed = T) 
-
-t_R26 <- rbind(t01,t02) %>% 
-  rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
-  select(.y. ,Ramthal,Outside_Ramthal,t,df,p,conf.low,conf.high)
-t_R26$.y.[t_R26$.y.=="migrt_prc"] <- "fraction members of a HH who migrates"
-t_R26$.y.[t_R26$.y.=="migrt_total"] <- "Total HH members who migrates"
-
-nice_table(t_R26,title = c("Table R26 | Migration","HH members who migrates Since 2016" ),
-           note = c("", "[R26] Since 2016, has [member's name] migrated from the village for work for a period of 6 months or more?","n includes 0s"))
-
-
-
-
-
-
-
-roster18A= rmtl_midline2018 %>% select(id, farmers_hh, c1, c1_exist, c27)
-# C1	How many household members live in this house?
-# PREVIOUS HOUSEHOLD MEMBERS: C27	How many people, who previously lived in the household in the past 10 years now live elsewhere?
-
-
-roster16A=rmtl_baseline2016 %>% select(hh_id, farmers_hh, C1,C27)
-# C1	How many household members live in this house?
-# C27	How many people, who previously lived in the household in the past 10 years now live elsewhere?
-
-# C18_	Where do they reside most of the time during the rest of the year?
-
 
 #education      ----
 #   
@@ -1158,12 +1371,14 @@ roster16A=rmtl_baseline2016 %>% select(hh_id, farmers_hh, C1,C27)
 
 # The HH head is the same as in 2016, so there is no need to examine it
 
-r7= rmtl_srvy22 %>% select(hh_id,starts_with("r7" ) ) %>% 
+r7= 
+  rmtl_srvy22 %>% select(hh_id,starts_with("r7" ) ) %>% 
   pivot_longer(!hh_id, names_to = "id_member", values_to = "literate") %>% 
   filter(!is.na(literate))
 r7$id_member <- sub("^r7_(\\d{1,2})","r_\\1",r7$id_member )
 
-r8= rmtl_srvy22 %>% select(hh_id, starts_with("r8"), -ends_with("_bin") ) %>% 
+# r8= 
+#   rmtl_srvy22 %>% select(hh_id, starts_with("r8"), -ends_with("_bin") ) %>% 
   pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level")
 r8$id_member <- sub("^r8_(\\d{1,2})","r_\\1",r8$id_member )
 

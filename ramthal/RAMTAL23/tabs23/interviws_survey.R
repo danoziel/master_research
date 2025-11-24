@@ -2,7 +2,7 @@ library(dplyr)
 library(kableExtra)
 library(tidyr)
 library(haven)
-
+library(summarytools)
 # DFs [rmtl_srvy22_24] ============================================================
 
 library(readr)
@@ -18,12 +18,15 @@ rmtl_srvy22_24 <-
 
 # location on pipe NERATIVE  --------------------------------------------------
 # interviews 2024 ----
-# [10] "farmers_B4_u"
+# I24 [10] "farmers_B4_u"
+# S22 [MM9] How many farmers are there between you and the valve/pipeline?
 
 freq(rmtl_2024$farmers_B4_u, cumul = FALSE)
+freq(rmtl_srvy22$mm9, cumul = FALSE)
 
-# df I
-location_Int <- 
+
+# df : Total farmers per location (continuous)
+location_I24 <- 
   rmtl_2024 %>% 
   select(hh_id,farmers_B4_u, drip_1use_2useOwmDrip,irri_jain_flood) %>% 
   mutate(farmers_B4_u = ifelse(farmers_B4_u=="dont_know",1000,farmers_B4_u),
@@ -36,21 +39,10 @@ location_Int <-
             drip_users=sum(drip_1use_2useOwmDrip),
             flood=sum(irri_jain_flood,na.rm = T)) %>% ungroup()
 
-# df II
-location_Int_13 <- 
-  location_Int %>% 
-  mutate(location=
-           ifelse(location_on_pipe %in% c(13:30),"13+",location_on_pipe)) %>% 
-  group_by(location) %>% 
-  summarise(n_loc=sum(n_loc), drip_users=sum(drip_users), flood=sum(flood)) %>% 
-  mutate(
-    N=sum(n_loc), pct=n_loc/N, # total farmers on certain pipe-location out-of total sample
-    pct_drip_users=drip_users/n_loc, # total DI users on certain pipe-location out-of total pipe-location
-    pct_flood=flood/n_loc ) # total flood users on certain pipe-location out-of total pipe-location
+# df Total farmers Near/Far outlet (Binary)
 
-# df III
-location_Int_01 <- 
-  location_Int %>% 
+location_I24_01 <- 
+  location_I24 %>% 
   mutate(location=
            ifelse(location_on_pipe %in% c(4:30),"far",
                   ifelse(location_on_pipe<=3,"close","iDont_know"))) %>% 
@@ -70,55 +62,132 @@ source_rmtl <- a_source_irri %>%
   mutate(source_ramthal = ifelse(source_ramthal == "ramthal",1,0 )) %>% 
   select(hh_id,source_ramthal)
 
+# NOTE  mm9 start from 0, 0 is the first, closest to outlet
 
-# df I
-location_Sur <- 
-  rmtl_srvy22_24  %>% 
-  filter(farmers_hh=="inside_ramthal",
-         !is.na(mm9)) %>% 
-  select(hh_id,mm9) %>% 
-  mutate(location_on_pipe= mm9+1) %>% 
-  inner_join(rmtl_InOut) %>% 
-  select(hh_id,location_on_pipe,drip_use) %>%
-  mutate(location_on_pipe = ifelse(
-    location_on_pipe== -998,1000,location_on_pipe)) %>%   
+location_S22 <- rmtl_srvy22_24  %>% 
+  select(hh_id,mm9) %>% rename(location_on_pipe= mm9) %>% 
   left_join(source_rmtl) %>% 
-  group_by(location_on_pipe) %>%  
-  summarise(n_loc=n(),
-            drip_users=sum(drip_use),
-            source_ramthal=sum(source_ramthal)
-            ) %>% ungroup()
-  
-
-# df II
-location_Sur_13 <- 
-  location_Sur  %>% 
-  mutate(location=
-           ifelse(location_on_pipe %in% c(13:999),"13+",location_on_pipe)) %>% 
-  group_by(location) %>% 
-  summarise(n_loc=sum(n_loc), drip_users=sum(drip_users), source_ramthal=sum(source_ramthal)) %>% 
+  left_join(rmtl_InOut %>% select(hh_id,drip_use,ir_use,in1_out0)) %>% 
   mutate(
-    N=sum(n_loc), pct=n_loc/N, # total farmers on certain pipe-location out-of total sample
-    pct_drip_users=drip_users/n_loc, # total DI users on certain pipe-location out-of total pipe-location
-    pct_source_ramthal=source_ramthal/n_loc ) # total flood users on certain pipe-location out-of total pipe-location
-
-
-# df III
-location_Sur_01 <- 
-  location_Sur  %>% 
-  mutate(location=
-           ifelse(location_on_pipe %in% c(5:999),"far",
-                  ifelse(location_on_pipe<=4,"close","iDont_know"))) %>% 
-group_by(location) %>% 
-  summarise(n_loc=sum(n_loc), drip_users=sum(drip_users), source_ramthal=sum(source_ramthal)) %>% 
+    location_on_pipe=ifelse(location_on_pipe==-999,NA,location_on_pipe),
+    near1_far0_outlet = case_when(
+      location_on_pipe %in% c(0:3)  ~ 1 ,
+      location_on_pipe %in% c(4:50) ~ 0 , TRUE ~ NA) )
+#
+#
+location_S22 <- rmtl_srvy22  %>% filter(in1_out0==1) %>% 
+  select(hh_id,mm9) %>% rename(location_on_pipe= mm9) %>% 
+  left_join(source_rmtl) %>% 
+  left_join(rmtl_InOut %>% select(hh_id,drip_use,ir_use,in1_out0)) %>% 
   mutate(
-    N=sum(n_loc), pct=n_loc/N, # total farmers on certain pipe-location out-of total sample
-    pct_drip_users=drip_users/n_loc, # total DI users on certain pipe-location out-of total pipe-location
-    pct_source_ramthal=source_ramthal/n_loc ) # total flood users on certain pipe-location out-of total pipe-location
+    location_on_pipe=ifelse(location_on_pipe==-999,NA,location_on_pipe),
+    near1_far0_outlet = case_when(
+      location_on_pipe %in% c(0:4)  ~ 1 ,
+      location_on_pipe %in% c(5:50) ~ 0 , TRUE ~ NA) )
 
 
 
-# df IIII location and water source which not ramthal
+# names(location_S22)
+m1 <-  lm(source_ramthal  ~ near1_far0_outlet, data = location_S22)
+# summary(m1)
+sjPlot::tab_model(m1 ,  show.se = T,digits = 5, show.stat  = F )
+
+
+df9 <-  location_S22 %>% 
+  pivot_longer(-c(hh_id,location_on_pipe,in1_out0,near1_far0_outlet) ,
+               names_to = "usage_type",
+               values_to = "usage_value")
+
+df9 %>% 
+  mutate(Proximity_outlet = case_when(
+    near1_far0_outlet == 1  ~ "# Near" ,
+    near1_far0_outlet == 0 ~ "## Far" ,TRUE ~ NA) ) %>% 
+  group_by(usage_type, Proximity_outlet) %>%  
+  summarise( #n_loc=n(),
+            usage_value=mean( usage_value) ) %>% 
+  filter(usage_type != "drip_use", !is.na(Proximity_outlet))
+
+
+library(tidyr)
+# library(purrr)
+# library(broom)
+
+# 1) model formula inputs # 2) Nest by status and fit 
+fits <- df9 %>%
+  group_by(usage_type) %>%
+  nest() %>%
+  mutate(
+    model = map(data, ~ lm(
+      usage_value ~ near1_far0_outlet, 
+      data = .x)),
+    coefs = map(model, broom::tidy),
+    stats = map(model, broom::glance)
+    )%>%
+  mutate(
+    Model = map(data, ~ lm(
+      usage_value ~ location_on_pipe, 
+      data = .x)),
+    Coefs = map(Model, broom::tidy),
+    Stats = map(Model, broom::glance))
+
+# 3) Stacked outputs # 4) Join with model summary stats
+# proximity from outlet as a binary variable
+inproj_with_fit_A <- 
+  fits %>% unnest(coefs) %>% 
+  left_join(
+    fits %>% unnest(stats) %>% select(usage_type,nobs, r.squared)
+  ) %>% ungroup() %>% 
+  select(term,usage_type, estimate, std.error, p.value,nobs, r.squared) %>% 
+  rename(Num.Obs.=nobs,R2=r.squared 
+  ) %>% 
+  pivot_longer(estimate:R2, names_to = "metric", values_to = "value") %>% 
+  pivot_wider(names_from = usage_type, values_from = value ) %>% 
+  filter(term == "near1_far0_outlet" | 
+         term == "(Intercept)" & metric == "estimate" ) 
+
+# proximity from outlet as a continuous
+inproj_with_fit_B <- 
+  fits %>% unnest(Coefs) %>% 
+  left_join(
+    fits %>% unnest(Stats) %>% select(usage_type,nobs, r.squared)
+  ) %>% ungroup() %>% 
+  select(term,usage_type, estimate, std.error, p.value,nobs, r.squared) %>% 
+  rename(Num.Obs.=nobs,R2=r.squared 
+  ) %>% 
+  pivot_longer(estimate:R2, names_to = "metric", values_to = "value") %>% 
+  pivot_wider(names_from = usage_type, values_from = value ) %>% 
+  filter(term == "location_on_pipe" | 
+           term == "(Intercept)" & metric == "estimate" ) 
+
+
+# reg table ----
+inproj_with_fit_A %>%
+  # rbind(control_mean) %>% 
+  mutate(across(-c(term,metric), ~ case_when(
+    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
+    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
+    TRUE                  ~ as.character(round(.x,3))
+  ))) %>% 
+  kable() %>% kable_minimal()
+
+
+inproj_with_fit_B %>%
+  # rbind(control_mean) %>% 
+  mutate(across(-c(term,metric), ~ case_when(
+    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
+    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
+    TRUE                  ~ as.character(round(.x,3))
+  ))) %>% 
+  kable() %>% kable_minimal()
+
+
+
+
+
+
+
+
+# # "Proximity" and water source which not ramthal
 
 flood_indi <- rmtl_InOut %>% 
   mutate(flood_Y6th=hh_drip_2021_22+hh_ir_2021_22,
@@ -131,8 +200,6 @@ flood_indi <- rmtl_InOut %>%
     ) %>% 
   mutate(flood_6Ys=ifelse(
     flood_6Ys==1 & !source_pond %in%  c("rain","ramthal"),1,0))
-
-
 
 
 source_WA <- rmtl_srvy22_24  %>% 
@@ -187,27 +254,50 @@ rmtl_srvy22_24  %>% filter(!is.na(mm9)) %>%
   select(mm10, Near,Far)
 
 
+		
+# How many years in total did you ever make 
+# use of the water for irrigation during 
+# [mw5] Kharif
+# [mw6]	Rabi
 
 
-
-
-rmtl_srvy22_24 %>% 
-  select(hh_id, mm9,"mw5", "mw6") %>% 
+years_use <- 
+  rmtl_srvy22_24 %>% 
+  select(hh_id, mm9, mw5, mw6 ) %>% 
   mutate(
-    Years=ifelse(mw5 > mw6,mw5,mw6),
-    Years=ifelse(Years %in% c(3:6),"3-6",Years ),
-    mm9= mm9+1, 
-    location=ifelse(mm9 == -998,"dont_know",
-             ifelse(mm9 %in% c(1:3),"Near","Far"))
-  ) %>% 
-  filter(location != "dont_know",Years %in% c("1","2","3-6")) %>%
-  group_by(location) %>% mutate(N=n())%>% 
-  count(N,location,Years) %>% 
-  mutate(N=sum(n),pct = paste0(round(n/N*100), "%")
-  ) %>%   
-  select(location,Years,pct) %>% 
-  pivot_wider(names_from = location,values_from = pct) %>% 
-  select(1, Near,Far)  %>% kable() %>% kable_styling()
+    years_users = ifelse(mw5 > mw6, mw5, mw6),
+    years_sample = ifelse(is.na(years_users), 0, years_users),
+    location_on_pipe = ifelse(mm9 == -999, NA, mm9),
+    near1_far0_outlet = case_when(
+      location_on_pipe %in% c(0:3)  ~ 1 ,
+      location_on_pipe %in% c(4:50) ~ 0 , TRUE ~ NA), 
+    Years=ifelse(years_users %in% c(3:6),"3-6",years_users ),
+    proximity_outlet = case_when(
+      near1_far0_outlet == 1 ~ "|  Near" ,
+      near1_far0_outlet == 0 ~ "|| Far" , TRUE ~ NA)
+    ) %>% select(-c(mm9, mw5, mw6))
+
+### Average years of water irrigation use
+years_use %>% group_by(proximity_outlet) %>% 
+  summarise(years_sample = mean(years_sample,na.rm=T),
+            years_users = mean(years_users,na.rm=T)) %>% 
+  filter(!is.na(proximity_outlet))
+
+
+### Freq years of water irrigation use 
+# NO 0's
+years_use %>%
+  mutate(Years = ifelse(Years==0,NA,Years)) %>% 
+  count(proximity_outlet,Years) %>% drop_na() %>% 
+  group_by(proximity_outlet) %>%
+  mutate(n/sum(n)*100)
+
+# YES 0's
+years_use %>%
+  mutate(Years= ifelse(is.na(Years),0,Years)) %>% 
+  count(proximity_outlet,Years) %>% drop_na() %>% 
+  group_by(proximity_outlet) %>%
+  mutate(n/sum(n)*100)
 
 
 
@@ -422,11 +512,56 @@ m35_pct <- pipeline_location_22 %>%
   filter(location != "dont_know")
 
 
-# [Survy22] [Int24]  
+# REG ---- 
 
-pip24 <- tap_status_count %>% select(-n) %>% 
+pipe_status_S22 <- rmtl_srvy22 %>%
+  select(hh_id, m35)  %>% 
+  mutate(pipe_status =ifelse(m35==2,0,m35) ) %>% 
+  left_join(rmtl_cntrl_vars) %>% rename(Elevation=elevation) %>% 
+  left_join(rmtl_InOut) %>% filter(in1_out0==1,mm4==1) 
 
-m35_pct
+pipe_status_S22 %>%  filter(!is.na(pipe_status)) %>% 
+  group_by(ir_use) %>% mutate(N=n()) %>% 
+  count(N,pipe_status) %>% mutate(n/N)
+
+
+
+m1 <-  lm(ir_use  ~ pipe_status, 
+          pipe_status_S22)
+# summary(m1)
+sjPlot::tab_model(m1 ,  show.se = T,digits = 5, show.stat  = F )
+
+m2 <-  lm(ir_use  ~ pipe_status + # dist_Km_boundary +
+            hh_haed_age + hh_haed_gendar + hh_haed_edu_level + 
+            total_acre16 + housing_str321 + 
+            livestock_dairy + Bullock + Tractor + Plough + 
+            Thresher + Seed_drill + Motorcycle + Fridge, 
+          pipe_status_S22)
+# summary(m1)
+sjPlot::tab_model(m2 ,  show.se = T,digits = 5, show.stat  = F )
+
+library(broom)
+tidy(m1)
+tidy(m1) |> as_tibble()
+
+m11 <- tidy(m1) %>% select(term ,estimate ,std.error ,p.value) %>%
+  pivot_longer(-term,names_to = "metric",values_to = "value" ) %>% 
+  filter(term=="(Intercept)" & metric == "estimate")
+m12 <- tidy(m1) %>% select(term ,estimate ,std.error ,p.value) %>%
+  pivot_longer(-term,names_to = "metric",values_to = "value" ) %>% 
+  filter(term=="pipe_status")
+m13 <- glance(m1) %>% select(r.squared,nobs) %>% mutate(term="") %>% 
+  pivot_longer(-term,names_to = "metric",values_to = "value" )
+
+rbind(m11,m12,m13) %>% 
+  mutate(across(-c(term,metric), ~ case_when(
+    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
+    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
+    TRUE                  ~ as.character(round(.x,3))
+  ))) %>% kable() %>% kable_minimal()
+
+
+
 
 
 

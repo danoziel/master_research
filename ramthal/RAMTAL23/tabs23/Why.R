@@ -10,8 +10,7 @@ library(rempsyc) # ttest # nice_table
 library(kableExtra )
 library(tidyverse)
 
-rmtl_In_groups
-rmtl_InOut_groups
+
 scale_fill_manual(values = c("lightblue", "gray80"))+theme_minimal()
 color2_bin <- c("infrstr_17_21" = "darkgreen","hh_drip_yrs_17_21"="darkblue")
 color3_bin <- c("infrstr_17_21" = "darkgreen","hh_drip_yrs_17_21"="darkblue" ,"inf_drip_17_21" = "blue2")
@@ -59,7 +58,7 @@ x=
 #
 
 
-# 🟦  who2: mm2	gov projects but ramthal
+# mm2	gov projects but ramthal ----
 
 # mm2		Is your land coming under such a government project? 
 # 1	Ramrhal
@@ -69,31 +68,21 @@ x=
 # 5	non
 
 ###### df Im_in_ramthal
-Im_in_ramthal=a_rmtl_srvy22 %>% select(hh_id, mm4,mm5,mm2_1) %>% left_join(a_sample[,1:2]) 
-Im_in_ramthal %>% count(farmers_hh,mm2_1,mm4) %>% 
-  pivot_wider(names_from = farmers_hh, values_from = n) %>% 
-  mutate(inside_ramthal/946,outside_ramthal/666)
+rmtl_srvy22 %>% filter(in1_out0==1) %>% select(mm2_1,mm4) %>% mutate(mm214=mm2_1+mm4) %>% freq(mm2_1)
+rmtl_srvy22 %>% filter(in1_out0==1)%>% select(mm2_1,mm4) %>% mutate(mm214=mm2_1+mm4) %>% freq(mm4)
+rmtl_srvy22 %>% filter(in1_out0==1)%>% select(mm2_1,mm4) %>% mutate(mm214=mm2_1+mm4) %>% freq(mm214)
 
-Im_in_ramthal %>% count(farmers_hh,mm2_1,mm4) %>% 
-  pivot_wider(names_from = mm4, values_from = n) %>% 
-  mutate(inside_ramthal/946,outside_ramthal/666)
+rmtl_srvy22 %>% filter(in1_out0==1) %>% freq(mm2)
 
 
-###### df but_ramthal
-but_ramthal=
-  a_rmtl_srvy22 %>% select(hh_id, mm5,starts_with("mm2")) %>% 
-  filter(!mm2 %in% c(1,5)) %>% left_join(a_sample[,1:2]) 
-
-
-###### DS
-but_ramthal %>% count(farmers_hh) %>% mutate(grp=c(946,666 )) %>% mutate(n/grp)
-#
-# farmers_hh         n     `n/grp`   infrastructure  water_used
-# --- --- --- --- --- --- --- --- --- -- --- ---  --- --- --- -
-# inside_ramthal    10    0.0106     [1 hh]          [2 hh]
-# outside_ramthal   13    0.0195     [2 hh]          [0 hh]
-#
-
+rmtl_srvy22 %>% select(hh_id,in1_out0,mm2) %>% filter(in1_out0==1) %>% 
+  separate_rows(mm2, sep = " ") %>%
+  mutate(mm2 = trimws(mm2)) %>%   # clean any extra spaces
+  filter(mm2 != "") %>% freq(mm2)
+# 1	 61% Ramrhal  
+# 2	 1%  Krishi Honda ( Farm pond)
+# 4	 1%  Ganga kalyana
+# 5	 37% non
 
 
 

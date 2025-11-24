@@ -526,6 +526,91 @@ rd_land_with_coords %>% st_drop_geometry() %>%
   kable() %>% kable_minimal()
 
 
+# __________________________________________________________________________ ====
+
+#  ZONEs VAR ----
+
+library(readxl)
+village_list4_S1 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_data/village_list4.xlsx", 
+                               sheet = "Sheet1")
+
+village_list4_S2 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_data/village_list4.xlsx", 
+                               sheet = "Sheet2")
+
+# [1] Chaking the data
+village_list4_S2[,c(1,3)] %>% distinct() %>% count(village) %>% arrange(desc(n))
+# 5 villges have 2-4 zones
+# the rest have ONE
+
+# [2] Adding "zone" to villages with MORE than one zone
+# prepering df to work on Excel manualy
+list_shape_code %>% dplyr::select(id, a6, survey) %>% rename(hh_id=id) %>% 
+  left_join(village_list4_S1 %>% dplyr::select(a5,a6, village) ) %>% 
+  filter(village %in% c("Hungund", "Amaravati", "Ramawadagi",
+                        "Binjawadagi","Binjawadgi",
+                        "Hirehunakunti") 
+  ) %>% arrange(a6) %>% 
+  kbl() %>% kable_styling()
+
+# [3] copy paste it to work on Excel manualy    
+#    Locate the "ZONE" of the HH in these villages.
+#    [rmtl_block_zone_A]
+
+# [4] Adding "zone" to villages with ONE zone only
+#df 1
+village_list_of_ONE_zone <- village_list4_S2 %>% filter(!village %in% c("Hungund", "Amaravati", "Ramawadagi", "Binjawadagi", "Hirehunakunti") 
+) %>% dplyr::select(village,zone) %>% distinct()
+
+#df 2  
+vill_ONE_zone <- list_shape_code %>% dplyr::select(id, a6) %>% rename(hh_id=id) %>% 
+  left_join(village_list4_S1 %>% dplyr::select(a5,a6, village) ) %>% 
+  filter( ! village %in% c("Hungund", "Amaravati", "Ramawadagi",
+                           "Binjawadagi","Binjawadgi",
+                           "Hirehunakunti") 
+  ) %>% left_join(village_list_of_ONE_zone)
+
+### some villages didnt meet the Zone - Bcoz villages wording
+
+# [5] locate villages without zone
+vill_ONE_zone %>% 
+  filter(is.na(zone)) %>% 
+  dplyr:: select(-hh_id) %>% distinct()
+
+# [6] complit missing zone data
+vill_ONE_zone$zone[vill_ONE_zone$a6 == 19] <- "III"
+vill_ONE_zone$zone[vill_ONE_zone$a6 == 11] <- "iv"
+vill_ONE_zone$zone[vill_ONE_zone$a6 == 22] <- "III"
+vill_ONE_zone$zone[vill_ONE_zone$a6 == 25] <- "iv"
+vill_ONE_zone$zone[vill_ONE_zone$a6 ==  5] <- "III"
+
+vill_ONE_zone$zone[vill_ONE_zone$a6 == 10] <- "iii"
+vill_ONE_zone$zone[vill_ONE_zone$a6 == 20] <- "I"
+vill_ONE_zone$zone[vill_ONE_zone$a6 == 16] <- "iv"
+vill_ONE_zone$zone[vill_ONE_zone$a6 == 35] <- "IV"
+vill_ONE_zone$zone[vill_ONE_zone$a6 == 32] <- "ii"
+
+vill_ONE_zone$zone[vill_ONE_zone$a6 == 4] <- "IV"
+vill_ONE_zone$zone[vill_ONE_zone$a6 == 37] <- "i"
+vill_ONE_zone$zone[vill_ONE_zone$a6 == 34] <- "iii"
+vill_ONE_zone$zone[vill_ONE_zone$a6 == 23] <- "i"
+
+vill_ONE_zone_b <- 
+  vill_ONE_zone %>% mutate(block="") %>% 
+  dplyr::select(hh_id:village,block,zone)
+
+# [7] import df {rmtl_block_zone_A} of 5 villages with 2-4 zones
+library(readr)
+rmtl_block_zone_A <- read_csv(
+  "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_block_zone_A.csv")
+
+# [8] Merging the df's {rmtl_block_zone} & {vill_ONE_zone}
+rmtl_block_zone <- 
+  rmtl_block_zone_A %>%  dplyr::select(-survey) %>% 
+  rbind(vill_ONE_zone_b )
+
+library(writexl)
+write_xlsx(rmtl_block_zone, "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_block_zone.xlsx")
+
 
 
 
@@ -783,33 +868,35 @@ shapefile_wgs84 <- st_transform(shapefile, crs = st_crs(4326))  # 4326 is the EP
 
 
 #  shapfile_rmtl_2022----
-shp_index22_NA <-  # 188 hh NAs
-  list_shape_code %>% inner_join(hh_2022) %>% filter(is.na(survey))
+shp_index22_NA <-  # 118 hh NAs
+  list_shape_code %>% rename(hh_id=id) %>%  inner_join(hh_2022) %>% filter(is.na(survey))
 
 shp_rmtl_id <- # id polygon
-  Ramthal_East_shp %>% as.data.frame() %>% select(id) %>% distinct() %>% mutate(is=1)
+  Ramthal_East_shp %>% as.data.frame() %>% dplyr::select(id) %>% distinct() %>% mutate(is=1)
 
 library(tidyr)
 survey_nu_22 <- # generating 118 new id's 
-  a_plots_size[,c(1,3)] %>% right_join(shp_index22_NA[,1]) %>% 
+  a_plots_size %>% dplyr::select(hh_id,plotSrvy) %>% right_join(shp_index22_NA %>% dplyr::select(hh_id) ) %>% 
   group_by(hh_id) %>% slice(1) %>% 
   separate(plotSrvy, into = c("survey", "hiss"), sep = "-") %>% 
   separate(survey, into = c("survey", "hiss"), sep = "/") %>% 
   mutate(survey=ifelse(survey%in% c("_999","12A"),"",survey)) %>% 
   mutate(survey=ifelse(survey=="12A","12",survey)) %>% 
   mutate(survey=ifelse(survey%in% c("44744","44714","44573"),"44",survey)) %>% 
-  mutate(survey= as.numeric(survey)) %>% select(-hiss) %>% 
+  mutate(survey= as.numeric(survey)) %>% dplyr::select(-hiss)  %>% 
   left_join(shp_index22_NA[,c(1,5)]) %>% 
-  mutate(idOLD=id, id= ifelse(!is.na(survey),survey+id,id )) %>%   
-  left_join(shp_rmtl_id) %>% 
-  mutate(idNA=ifelse(is.na(is),idOLD,id)) %>% 
-  select(idNA,hh_id)
+  mutate(idOLD=shp_code, 
+         shp_code= ifelse(!is.na(survey),survey+shp_code,shp_code )) %>%   
+  left_join(shp_rmtl_id %>% rename(shp_code=id)) %>% 
+  mutate(idNA=ifelse(is.na(is),idOLD,shp_code))  %>% 
+  dplyr::select(idNA,hh_id)
   
-shp_index22 <- # implimanting 79 of the 118 new id's into the index
-  list_shape_code %>% inner_join(hh_2022) %>% 
+shp_index22 <- # implimanting 79 of the 118 new id's into the index =
+  list_shape_code %>%  rename(hh_id=id) %>% inner_join(hh_2022) %>% 
   left_join(survey_nu_22) %>% 
-  mutate(id=ifelse(is.na(idNA),id,idNA)) %>% 
-  select(id, hh_id, farmers_hh)
+  mutate(shp_code=ifelse(is.na(idNA),shp_code,idNA)) %>% 
+  # mutate(id=ifelse(is.na(idNA),id,idNA)) %>% select(id, hh_id, farmers_hh)
+  dplyr::select(shp_code, hh_id)
 
 rm(shp_index22_NA,shp_rmtl_id, survey_nu_22)
 
