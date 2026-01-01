@@ -1,64 +1,5 @@
 
 
-
-
-
-
-
-
-
-
-
-df_gender <- data.frame(
-  gender = c("Male",     "Female"),
-  estimate = c(0.0045,   0.0039),
-  conf.low = c(0.0021,   0.0022),
-  conf.high = c(0.0069,  0.0056))
-
-
-ggplot(df_gender, aes(x = estimate, y = gender, color = gender)) +
-  geom_point(size = 3) +
-  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0, size = 1) +
-  geom_vline(xintercept = 0, color = "gray50", linetype = "dashed", size = 1) +
-  labs(
-    x = NULL,
-    y = NULL,
-    title = "The number of incidents in the month",
-    color = "Gender"       # Set legend title here
-  ) +
-  scale_color_manual(
-    values = c("Male" = "#1b355b", "Female" = "#952929"),
-    breaks = c("Male", "Female"),    # This arranges Male first
-    labels = c("Male", "Female")
-  ) +
-  theme_classic(base_size = 15, base_family = "serif") +
-  xlim(-0.000625, 0.01)+
-  theme(legend.position = "bottom")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 library(haven)
 survey <- read_dta("C:/Users/Dan/Downloads/survey.dta")
 View(survey)
@@ -118,10 +59,15 @@ negot_sp
 
 
 library(haven)
-df <- read_dta("C:/Users/Dan/Downloads/survey_terror_ts.dta")
-df <- df %>%
+df1 <- read_dta("C:/Users/Dan/Downloads/survey_terror_ts.dta")
+df <- df1 %>%
   select(date, conflict, inc_day_yn, kill_day, negot_sp_long)
-df=df[1:72,]
+
+terror_19122025=df 
+library(writexl)
+write_xlsx(terror_19122025, 
+           "C:/Users/Dan/Downloads/terror_19122025.xlsx")
+
 
 library(ggplot2)
 library(dplyr)

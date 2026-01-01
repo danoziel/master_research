@@ -9,7 +9,36 @@ library(RColorBrewer)
 display.brewer.pal(n = 11, name = 'Dark2')
 my_colors <- brewer.pal(8, "Dark2") # Paired, Set1
 
+####
+df_economic_22 <- 
+  df_land %>% 
+  left_join(df_inputs) %>% 
+  left_join(df_revenue_22) %>% 
+  left_join(df_assets_22) %>% 
+  pivot_longer(-hh_id,names_to = "economic_vars", values_to = "val_22")%>% 
+  rbind(
+    df_income_NonCrop_22 %>% select(-income_NonCrop_mhh) %>% 
+      rename(economic_vars = income_type, val_22=income_NonCrop)
+    ) %>% arrange(hh_id)
 
+####
+df_economic_bl <- 
+  df_land_bl %>% 
+  left_join(df_inputs_bl) %>% 
+  mutate(k_revenue_per_acre=0) %>% 
+  left_join(df_assets_bl) %>% 
+  pivot_longer(-hh_id,names_to = "economic_vars", values_to = "val_BL")%>% 
+  rbind(
+    df_income_NonCrop_bl %>% select(-income_NonCrop_mhh) %>% 
+      rename(economic_vars = income_type, val_BL=income_NonCrop)
+    ) %>% arrange(hh_id)
+
+df_economic <- df_economic_22 %>% left_join(df_economic_bl) %>% 
+  left_join(rmtl_cntrl_vars )%>%
+  mutate(	
+    val_22= ifelse(economic_vars =="k_revenue_per_acre" & val_22>80,NA,val_22))
+
+df_land %>% left_join(hh_2022) %>% group_by(farmers_hh) %>% summarise(mean(land_holding_2022,na.rm=T))
 
 #custom theme to format ----
 mp_theme=theme_bw()+
@@ -33,9 +62,13 @@ mp_theme=theme_bw()+
 df_land <- a_plots_size %>% 
   filter(!plotStatus %in% c("1","6")) %>% 
   group_by(hh_id) %>% 
-  summarise(land_holding_2022=sum(acres,na.rm = T)) %>% 
-  left_join(rmtl_cntrl_vars) %>% 
-  filter(land_holding_2022 < 40 )
+  summarise(land_holding=sum(acres,na.rm = T)) %>% 
+  mutate(land_holding=
+           ifelse(land_holding >40,NA,land_holding )
+         ) # %>% left_join(rmtl_cntrl_vars)
+
+df_land_bl <- rmtl_cntrl_vars %>% 
+  select(hh_id, total_acre16) %>% rename(land_holding = total_acre16 )
 
 # ) DESC STAT
 df_land %>% 
@@ -119,6 +152,29 @@ m1_plot + mp_theme
 
 
 #__________________________ INPUTS  _______________________________  ----
+
+df1 <- rmtl_srvy22 %>% 
+  select(hh_id, contains ("l70"),contains ("l71"),contains ("l72"),contains ("l73")) %>% 
+  pivot_longer(-hh_id,names_to = "observation",values_to = "inputs_Rs" ) %>% 
+  separate(observation, into = c("inputs", "season"), sep = "_") %>% 
+  filter(season != "KHA22") %>% 
+  group_by(hh_id) %>% 
+  summarise(inputs_Rs = sum(inputs_Rs,na.rm = T),.groups = "drop") %>% 
+  filter(inputs_Rs != 0)
+
+df2 <- a_plots_crop %>% 
+  count(hh_id,season,plotID) %>% 
+  left_join(a_plots_size %>% select(hh_id, plotID, acres)) %>%   
+  filter(season != "KHA22") %>% 
+  group_by(hh_id) %>% 
+  summarise(acres = sum(acres,na.rm = T),.groups = "drop")
+
+df_inputs <- df1 %>% left_join(df2) %>% 
+  mutate(inputs_per_acre_K= inputs_Rs/acres/1000) %>% 
+  select(hh_id, inputs_per_acre_K )
+
+
+
 # costs of  [__].   Season wise
 
 costesA <- rmtl_srvy22 %>% 
@@ -221,11 +277,20 @@ cult_acre_2015 <-
   group_by(hh_id) %>% 
   summarise(acre_2015=sum(plot_acre))
 
+# type inputs 
 inputs_BL <- 
   inner_join(inputs_2015,cult_acre_2015) %>% 
   mutate(inputs_per_acre_BL=inputs_Rs/acre_2015 ) %>% 
   select(hh_id,inputs,inputs_per_acre_BL)
 
+# total_inputs
+df_inputs_bl <- 
+  inputs_2015 %>% select(hh_id, total_inputs) %>% distinct() %>% 
+  left_join(cult_acre_2015) %>% 
+  mutate(inputs_per_acre_K= total_inputs/acre_2015/1000) %>% 
+  mutate(inputs_per_acre_K=ifelse(inputs_per_acre_K>14,NA,inputs_per_acre_K) ) %>% 
+  select(hh_id, inputs_per_acre_K )
+  
 
 # REG  ----
 
@@ -462,6 +527,20 @@ View(a_plots_revenue)
 
 size_acre <- a_plots_size %>% select(hh_id,plotID,acres) %>% filter(!is.na(acres))
 
+# year 2022
+df_revenue_22 = # 01012026
+  a_plots_revenue %>% 
+  group_by(season,hh_id,plotID) %>% 
+  summarise(plotRevenue=sum(plotRevenue,na.rm = T)) %>% 
+  left_join(size_acre) %>% 
+  filter(season !="KHA22") %>% 
+  group_by(hh_id) %>% 
+  summarise(revenue=sum(plotRevenue,na.rm = T),
+            acres = sum(acres, na.rm = T)) %>% ungroup() %>%  # filter(hh_id==100014)
+  mutate(k_revenue_per_acre=revenue/acres/1000) %>% 
+  select(hh_id,k_revenue_per_acre)
+
+# season
 revenue_22B =
   a_plots_revenue %>% filter(plotRevenue>999) %>% 
   left_join(size_acre) %>% 
@@ -603,6 +682,24 @@ m1_plot + mp_theme
 # F12	Total (Rs.) [sum F1-F11]
 # F13	   According to what you indicated, your total HH income is Rs. [     ].
 
+df_income_NonCrop_22 <- 
+  rmtl_srvy22 %>% 
+  select(hh_id, f1_amt, f2_amt,f3_1_amt, f4_amt, f5_amt, f6_amt, f7_amt, f9_amt, f10_amt, f11_amt 
+         ) %>%
+  pivot_longer(-hh_id ,
+               names_to = "income_type_f",
+               values_to = "income22") %>% 
+  mutate(income22 = ifelse(income22 == -999,0,income22),
+    income_type=
+           ifelse(income_type_f %in% c("f1_amt","f2_amt","f9_amt"),
+                  "k_income_assistance","k_income_independent" )) %>% 
+  group_by(hh_id, income_type ) %>% 
+  summarise(income_NonCrop = sum(income22,na.rm = T)/1000,.groups = "drop") %>% 
+  left_join( rmtl_srvy22 %>% select(hh_id, r1 )) %>% 
+  mutate(r1 = ifelse(r1 == 0,1,r1)) %>% 
+  mutate(income_NonCrop_mhh=income_NonCrop/r1 ) %>% select(-r1)
+
+
 F_2022 <- rmtl_srvy22 %>% select(hh_id, starts_with("f") ) 
 names(F_2022)
 
@@ -614,6 +711,29 @@ F_2022 <- rmtl_srvy22 %>%
                values_to = "income22") %>% 
   mutate(income_type = ifelse(income_type=="f12","f12_amt",income_type))
 
+
+## basline df
+
+
+# TOTAL income
+df_income_NonCrop_bl <- 
+  rmtl_baseline2016 %>%
+  select(hh_id,starts_with("F")) %>% 
+  select(hh_id, contains("year"),-F3_year, -F12_year)%>%
+  pivot_longer(-hh_id ,
+               names_to = "income_type_f",
+               values_to = "income22") %>% 
+  mutate(income_type=
+           ifelse(income_type_f %in% c("F1_year","F2_year","F9_year"),
+                  "k_income_assistance","k_income_independent" ))  %>% 
+  group_by(hh_id, income_type ) %>% 
+  summarise(income_NonCrop = sum(income22,na.rm = T)/1000,.groups = "drop") %>% 
+  left_join( rmtl_baseline2016 %>% select(hh_id, C1 )) %>% 
+  mutate(C1=ifelse(C1<1,1,C1),
+    income_NonCrop_mhh=income_NonCrop/C1 ) %>% select(-C1)
+
+
+# TYPE of incomr
 
 rmtl_baseline2016 %>% select(hh_id,starts_with("F"))
 # library(stringr)
@@ -776,6 +896,9 @@ m2_plot + mp_theme
 ### REMOVE [E14 JCB]
 ### skip E20Gold E21Silver
 
+df_assets_22 <- rmtl_srvy22 %>% select(hh_id,starts_with("e"),-e21)%>% 
+  pivot_longer(-hh_id ,names_to = "Asset",values_to = "Num_assets_22") %>% 
+  group_by(hh_id) %>% summarise(total_assets =sum(Num_assets_22))
 
 # assets_22 .........
 vars_e01 <- rmtl_srvy22 %>% select(hh_id,starts_with("e"),-e21) %>% 
@@ -802,6 +925,14 @@ assets_22 <-  vars_e01 %>%
   pivot_longer(-hh_id ,names_to = "Asset",values_to = "Num_assets_22")
 
 # assets_15 .........
+
+df_assets_bl <- 
+  rmtl_baseline2016 %>% select(hh_id,starts_with("E")) %>% 
+  select(hh_id, ends_with("_1"),-c(E20_1:E11_to_E13_1)) %>% 
+  pivot_longer(-hh_id ,names_to = "Asset",values_to = "Num_assets") %>% 
+  group_by(hh_id) %>% summarise(total_assets =sum(Num_assets,na.rm = T))
+
+
 vars_e01_BL <- 
   rmtl_baseline2016 %>% select(hh_id,starts_with("E")) %>% 
   select(hh_id, ends_with("_1"),-c(E20_1:E11_to_E13_1)) %>% 
@@ -835,7 +966,7 @@ assets_15 <-  vars_e01_BL %>%
   select(hh_id,Livestock:Total_assets) %>% 
   pivot_longer(-hh_id ,names_to = "Asset",values_to = "Num_assets_BL")
 
-# desc stat
+# desc stat  ----
 assets <- assets_22 %>% 
   inner_join(assets_15) %>% 
   left_join(rmtl_con_vars) 
@@ -1074,6 +1205,94 @@ m1_plot <- plot_summs(models_list ,coefs = c("In Project" = "in_project"),
 m1_plot + mp_theme
 
 
+
+#__________________________ work immigration   __________________________ ----
+
+# RC1	What are their main income activities most of the time in the last 2 years?
+# RC2	Where do they reside most of the time in the last 2 years?
+# RC3	Where do they work most of the time in the last 2 years?
+rmtl_srvy22$rc1_1
+rmtl_srvy22$rc2_1
+rmtl_srvy22$rc3_1
+# rc1_1_1  = Question _ Answer _ HH member
+
+###
+# RC1	What are their main income activities most of the time in the last 2 years?
+rc1 <- 
+  rmtl_srvy22 %>% 
+  select(hh_id, starts_with("rc1_")) %>%   
+  select(hh_id, matches("^[^_]+_[^_]+_[^_]+$")) %>% 
+  pivot_longer(-hh_id, names_to = "rc", values_to = "val") %>% 
+  filter(val == 1) %>% 
+  separate(rc, into = c("rc", "ans", "hhm"), sep = "_", convert = TRUE)%>% 
+  select(hh_id,rc,hhm, ans)
+
+total_hh_members <- 
+  rc1 %>%     
+  left_join(rmtl_InOut %>% select(hh_id, farmers_hh) ) %>%
+  select( farmers_hh, hh_id,hhm) %>% distinct() %>%
+  count(farmers_hh) %>% 
+  rename(N=n)
+
+RC1 <- rc1 %>% 
+  left_join(
+    rmtl_InOut %>% select(hh_id, farmers_hh) ) %>% 
+  group_by(farmers_hh,ans) %>% 
+  summarise(n=n(), .groups = "drop" ) %>% 
+  left_join(total_hh_members) %>% 
+  mutate(pct=n/N)
+
+RC1 %>% arrange(desc(pct))
+
+RC1$farmers_hh <- factor(RC1$farmers_hh,
+                        levels = c("outside_ramthal", "inside_ramthal"))
+
+
+ggplot(RC1, aes( y = pct, x =ans , fill = factor(farmers_hh) )) +
+  geom_col(position = "dodge", width = 0.6)+
+  coord_flip()+
+  scale_fill_manual(values = c("outside_ramthal" = "lightgray", "inside_ramthal" = "steelblue"),
+                    labels = c("outside_ramthal" = "Out of Project", "inside_ramthal" = "In Project")) +
+  
+  
+  
+  scale_fill_manual(
+    values = c("Out of Project" = "lightgray", "In Project" = "steelblue"),
+    breaks = c("In Project", "Out of Project")) +
+  labs(x = NULL, y = NULL, fill = NULL,
+       title = "H3 most important factors to a determining agricultural success") + 
+  theme_minimal()+
+  theme(
+    panel.grid.minor=element_blank(),
+    panel.grid.major.x =element_blank(),
+    text=element_text(family="serif"),
+    axis.text.x=element_text(size=10),
+    legend.text = element_text(size = 10),
+    axis.text.y = element_text(size = 14)
+  )
+
+
+
+
+### Following Qs for HH members who answer 9,10,11 and 12 
+# RC2	Where do they reside most of the time in the last 2 years?
+# RC3	Where do they work most of the time in the last 2 years?
+rc23 <- 
+  rmtl_srvy22 %>% 
+  select(hh_id, starts_with(c("rc2_","rc3_"))) %>%   
+  pivot_longer(-hh_id, names_to = "rc", 
+               values_to = "ans") %>% 
+  filter(!is.na(ans)) %>% 
+  separate(rc, into = c("rc", "hhm"), sep = "_", convert = TRUE) %>% 
+  select(hh_id,rc,hhm, ans) %>% 
+  mutate(Ans = as_factor(ans))
+  
+  
+
+
+
+
+
 #__________________________ education  __________________________       ----
 
 # r7	Are they literate?
@@ -1082,27 +1301,27 @@ m1_plot + mp_theme
 # r12		What are the annual tuition fees?
 # The HH head is the same as in 2016, so there is no need to examine it
 
-# literatecy22
+# literacy 22
 # r7	Are they literate?
 
-literatecy22= 
+literacy22= 
   rmtl_srvy22 %>% select(hh_id,starts_with("r7" ) ) %>% 
   pivot_longer(!hh_id, names_to = "id_member", values_to = "literate") %>% 
   group_by(hh_id) %>% 
-  summarise(literatecy_22=mean(literate,na.rm=T)) %>% 
-  mutate(literatecy_22 = ifelse(literatecy_22<0,NA,literatecy_22)) # transfer NaN to NA
+  summarise(literacy_22=mean(literate,na.rm=T)) %>% 
+  mutate(literacy_22 = ifelse(literacy_22<0,NA,literacy_22)) # transfer NaN to NA
   
   
 
-# literatecy15
+# literacy 15
 # C6 Are they literate
 
-literatecy15= 
+literacy15= 
   rmtl_baseline2016 %>% select(hh_id,starts_with("c6" ) ) %>% 
   pivot_longer(!hh_id, names_to = "id_member", values_to = "literate") %>% 
   group_by(hh_id) %>% 
-  summarise(literatecy_15=mean(literate,na.rm=T)) %>% 
-  mutate(literatecy_15 = ifelse(literatecy_15<0,NA,literatecy_15))
+  summarise(literacy_15=mean(literate,na.rm=T)) %>% 
+  mutate(literacy_15 = ifelse(literacy_15<0,NA,literacy_15))
 
 
 
@@ -1187,11 +1406,11 @@ edu_private_22 =
   pivot_longer(
     !hh_id, names_to = "id_member", values_to = "institut")%>% 
   mutate(institut = ifelse(is.na (institut),0,institut),
-         privet=ifelse(institut==2,1,0),
+         Private =ifelse(institut==2,1,0),
          public=ifelse(institut==1,1,0)) %>%
   group_by(hh_id) %>% 
-  summarise(n_privet=sum(privet), n_public=sum(public)) %>% 
-  mutate(privet_22 = ifelse(n_privet > 0, 1,
+  summarise(n_Private =sum(Private ), n_public=sum(public)) %>% 
+  mutate(Private_22 = ifelse(n_Private  > 0, 1,
                   ifelse(n_public > 0, 0, NA)))
 
 
@@ -1203,11 +1422,11 @@ edu_private_15 =
   pivot_longer(
     !hh_id, names_to = "id_member", values_to = "institut")%>% 
   mutate(institut = ifelse(!institut %in% c(1,2) ,0,institut),
-         privet=ifelse(institut==2,1,0),
+         Private =ifelse(institut==2,1,0),
          public=ifelse(institut==1,1,0)) %>%
   group_by(hh_id) %>% 
-  summarise(n_privet=sum(privet), n_public=sum(public)) %>% 
-  mutate(privet_15 = ifelse(n_privet > 0, 1,
+  summarise(n_Private =sum(Private ), n_public=sum(public)) %>% 
+  mutate(Private_15 = ifelse(n_Private  > 0, 1,
                          ifelse(n_public > 0, 0, NA)))
   
   
@@ -1243,15 +1462,383 @@ tuition15 =
 
 
 education1522 <- 
-  literatecy22 %>% left_join(literatecy15) %>% 
+  literacy22 %>% left_join(literacy15) %>% 
   left_join(edu_level22) %>% left_join(edu_level15) %>% 
   left_join(edu_level_2nd_gen_22) %>% left_join(edu_level_2nd_gen_15) %>% 
-  left_join(edu_private_22 %>% select(hh_id,privet_22)) %>% 
-  left_join(edu_private_15 %>% select(hh_id,privet_15)) %>% 
+  left_join(edu_private_22 %>% select(hh_id,Private_22)) %>% 
+  left_join(edu_private_15 %>% select(hh_id,Private_15)) %>% 
   left_join(tuition22 %>% select(hh_id,tuition_hhm_22))%>% 
   left_join(tuition15 %>% select(hh_id,tuition_hhm_15))
 
 education1522
+library(writexl)
+# write_xlsx(education1522, "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/education1522.xlsx")
+
+# Desc stat ----
+
+education1522 %>% 
+  select(hh_id,ends_with("22")) %>% 
+  pivot_longer(-hh_id,names_to = "edu",values_to = "rate") %>% 
+  left_join(rmtl_InOut %>% select(hh_id,in1_out0,drip_use,ir_use )) %>% 
+  mutate(in_project= ifelse(in1_out0==1,"In Project","Out Project")) %>% 
+  group_by(edu, in_project) %>% 
+  summarise(rate= mean(rate,na.rm=T)) %>%
+  mutate(
+    rate =  ifelse (
+      edu %in% c("literacy _22","Private _22"), rate * 100,
+      ifelse(edu == "tuition_hhm_22", rate/1000,rate )
+    ) ) %>% 
+  mutate(edu = recode(edu,
+                       "edu_gen2_22" = "2nd Gen\nEducation level\n(avg. per HH)",
+                       "edu_level_22"  = "Education\nlevel\n(avg. per HH)",
+                       "literacy_22" = "HH literacy \n(% per HH)" ,
+                       "Private_22" = "Private  School\n(% per Group)",
+                       "tuition_hhm_22" ="Tuition Fee\n(Avg. in K Rs.\nper HH member)")
+         ) %>% 
+  # filter(!edu %in% c("HH literacy \n(% per HH)", 
+  #                    "Private  School\n(% per Group)") )%>% 
+  ggplot(
+    aes(x = edu, y = rate, fill = factor(in_project))) +
+  geom_col(position = "dodge")+
+  scale_fill_manual(values = c("steelblue" ,"lightgray"))+
+  labs(x = NULL, y = NULL, fill = NULL,
+       title = "Education 2022") + 
+  theme_minimal()+
+  theme(
+    panel.grid.minor=element_blank(),
+    panel.grid.major.x =element_blank(),
+    text=element_text(family="serif"),
+    axis.text.x=element_text(size=12),
+    legend.text = element_text(size = 12)
+  )
+
+
+
+# REG ----
+library(stringr)
+library(tidyr)
+library(purrr)
+library(broom)
+
+education_imact <- 
+  education1522 %>% 
+  pivot_longer(-hh_id,names_to = "edu",values_to = "rate") %>%
+  mutate(
+    year = str_extract(edu, "(22|15)$"),     # extract suffix year
+    edu = str_remove(edu, "_(22|15)$") # clean edu name (remove suffix)
+  ) %>%
+  mutate(
+    rate= ifelse(edu == "tuition_hhm",rate/1000,rate),
+    year= ifelse(year == "22", "edu_2022", "edu_BL")) %>% # create edu_2022 and edu_BL
+  pivot_wider( names_from = year, values_from = rate
+               ) %>%
+  left_join(rmtl_InOut) %>%
+  left_join(rmtl_cntrl_vars)
+
+# (1) model formula inputs
+fml <- edu_2022  ~ in_project +
+            dist_Km_boundary + edu_BL +
+            hh_haed_age + hh_haed_gendar + hh_haed_edu_level + 
+            total_acre16 + housing_str321 + 
+            job_income_sourceS + govPnsin_scheme + rent_property+
+            livestock_dairy + Bullock + Tractor + Plough + 
+            Thresher + Seed_drill + Motorcycle + Fridge
+
+# (2) Nest by status and fit 
+fits <- education_imact %>%
+  group_by(edu) %>%
+  nest() %>%
+  mutate(
+    model = map(data, ~ lm(fml, data = .x)),
+    coefs = map(model, tidy),
+    stats = map(model, glance))
+
+# (3) Stacked outputs + (4) Join with model summary stats
+inproj_with_fit <- 
+  fits %>% unnest(coefs) %>% 
+  filter(term == "in_project") %>% 
+  select(edu, estimate, std.error, p.value) %>% ungroup() %>% 
+  left_join(
+    fits %>% unnest(stats) %>% select(edu,nobs, r.squared) 
+    ) %>% 
+  pivot_longer(-edu, names_to = "metric", values_to = "value") %>%
+  pivot_wider(names_from = edu, values_from = value )
+
+
+# (5) control mean
+control_mean <- education_imact %>% 
+  filter(in_project==0) %>% 
+  group_by(edu) %>% 
+  summarise(Mean = mean(edu_2022,na.rm=T)) %>% 
+  pivot_wider (names_from = "edu", values_from = "Mean") %>% 
+  mutate(metric="control_mean") %>% 
+  select(metric 
+         ,literacy  ,edu_level ,edu_gen2 ,Private  ,tuition_hhm)
+
+# (6) Yes No rows
+YesNo_rows <- tribble(
+  ~metric, ~literacy  ,~edu_level ,~edu_gen2 ,~Private  ,~tuition_hhm,
+  "Control vars", "Yes","Yes", "Yes","Yes", "Yes",
+  "Dist. boundary", "Yes","Yes", "Yes","Yes", "Yes",
+  "Baseline value", "Yes","Yes", "Yes","Yes", "Yes")
+
+# reg table ----
+df_html <- inproj_with_fit %>%
+  rbind(control_mean) %>% 
+  mutate(across(-metric, ~ case_when(
+    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
+    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
+    TRUE                  ~ as.character(round(.x,3))
+  ))) %>% 
+  rbind(YesNo_rows) %>% 
+  rename_with(~ c("literacy  rate","Edu level", "Edu level 2nd gen", 
+                  "Private  school (%)","Tuition fee"), .cols = 2:6)
+
+library(kableExtra)
+df_html [c(1:3,7:9,4:6),] %>% 
+  kable("html", 
+        caption = "education measurements",
+        align = "c") %>%
+  kable_classic( full_width = F) 
+
+
+# PLOT ----------------------------------
+library(jtools)
+
+models_list1 <- fits %>% filter(edu != "tuition_hhm") %>% 
+              { setNames(.$model, .$edu) }
+
+models_list2 <- fits %>% filter(edu %in% c("Private", "tuition_hhm")) %>% 
+              { setNames(.$model, .$edu) }
+
+
+m1_plot1 <- plot_summs(
+  models_list1 ,coefs = c("In Project" = "in_project"),
+  model.names = c("Literacy", "Education level",
+                  "2nd generation\nEducation level", 
+                  "Private  school" ),
+  inner_ci_level = NULL, point.shape = F) + 
+  labs(x = "Education rete", y = NULL) +
+  xlim(-.2, 0.45) 
+m1_plot1 + mp_theme
+
+Tuition_color <- c( "white", "#E1A900") 
+m1_plot2 <- plot_summs(
+  models_list2 ,coefs = c("In Project" = "in_project"),
+  model.names = c("", "Tuition fee       " ),
+  inner_ci_level = NULL, point.shape = F,colors = Tuition_color ) + 
+  labs(x = "Education rete", y = NULL) +
+  xlim(-5, 2.5) 
+m1_plot2 + mp_theme
+
+
+#__________________________  SOCIAL CAPITAL __________________________       ----
+
+
+
+social_22 <- 
+  rmtl_srvy22 %>% 
+  select(hh_id, farmers_hh, starts_with("h"))%>% 
+  mutate(farmers_hh=ifelse(
+    farmers_hh=="inside_ramthal","In Project",
+    "Out of Project"))
+
+
+attr(rmtl_srvy22$h1, "labels") # 1=dissatisfied|2|3|4|5=Satisfied
+attr(rmtl_srvy22$h2, "labels") # 1=important|2|3|4=Not
+
+#++ H1 +++++++++++++++++++++++++++++++++++++++++++++++++++|
+
+H1 <- 
+  social_22 %>% 
+  select(hh_id, farmers_hh,h1 ) %>% 
+  group_by(farmers_hh) %>% 
+  summarise(h1=mean(h1, na.rm = T) ) 
+
+# inside on top after flipping
+H1$farmers_hh <- factor(H1$farmers_hh,
+                        levels = c("Out of Project", "In Project"))
+
+ggplot(H1, aes(x = farmers_hh, y = h1, fill = farmers_hh)) +
+  geom_col() +
+  geom_text(aes(label = round(h1,2)),hjust = 1.5,color = "black",size = 4) +
+  scale_fill_manual(values = c("Out of Project" = "lightgray", "In Project" = "steelblue"))+
+  coord_flip() +
+  labs(x = "", y = "") +
+  theme_minimal(base_size = 14) +
+  theme(
+    text = element_text(family = "serif"),
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(size = 14),
+    panel.grid = element_blank()
+  )
+
+#++ H2 +++++++++++++++++++++++++++++++++++++++++++++++++++|
+
+H2 <- 
+  social_22 %>% 
+  select(hh_id, farmers_hh,h2 ) %>% 
+  count(farmers_hh,h2) %>% 
+  group_by(farmers_hh) %>% mutate(N=sum(n)) %>% 
+  mutate(pct = n/N * 100) %>% 
+  mutate(Rank = case_when(
+    h2 == 1 ~ "Extremely important", 
+    h2 == 2 ~ "Important",
+    h2 == 3 ~ "Somewhat important", 
+    h2 == 4 ~ "Not that important"
+  )) 
+
+
+
+library(ggplot2)
+library(dplyr)
+
+# Order categories in the SAME order as legend (left → right)
+H2$Rank <- factor(H2$Rank,
+                  levels = c("Extremely important","Important",
+                             "Somewhat important","Not that important"))
+
+# inside on top after flipping
+H2$farmers_hh <- factor(H2$farmers_hh,
+                        levels = c("Out Project", "In Project"))
+
+ggplot(H2, aes(fill = Rank, y = pct, x = farmers_hh)) +
+  geom_col(position = position_stack(reverse = T)) +
+  geom_text(aes(label = round(pct)),
+            position = position_stack(vjust = 0.5, reverse = TRUE),
+            color = "black",size = 3.5) +
+  coord_flip() +
+  scale_fill_manual(values = c(
+    "Extremely important"  = "#d2a940",
+    "Important"            = "#e4cc87",
+    "Somewhat important"   = "#86a9c0",
+    "Not that important"   = "#507088"
+  )) +
+  labs(x = "", y = "% of respondents", fill = "") +
+  theme_minimal(base_size = 14) +
+  theme(
+    text = element_text(family = "serif"),
+    legend.position = "top",
+    legend.direction = "horizontal",
+    axis.text.x = element_blank(),
+    axis.title.x = element_text(size = 11) ,
+    axis.text.y = element_text(size = 14),
+    panel.grid = element_blank()
+  )
+
+
+#++ H3 +++++++++++++++++++++++++++++++++++++++++++++++++++|
+
+# 	From the following list, rank the top 3 most important factors 
+# H3 to a determining agricultural success
+
+# H3
+H3 =
+  social_22 %>% 
+  select(hh_id, farmers_hh, starts_with("h3_"),-h3__777 ) %>% 
+  pivot_longer(-c(hh_id ,farmers_hh) ,
+               names_to = "ans", values_to = "n") %>% 
+  group_by(farmers_hh,ans) %>% 
+  summarise(pct =mean(n),.groups = "drop" ) %>% 
+  mutate(Ans = recode(ans,
+                      "h3_1" = "Skill/knowledge",
+                      "h3_2" = "Access to Gov. schemes",
+                      "h3_3" = "Ability to get loans" , # Ability to get loans (credit)
+                      "h3_4" = "Having money to invest", # Having money to invest in inputs and machinery"
+                      "h3_5" = "Political connections",
+                      "h3_6" = "Luck/Good fortune", # Good fortune/luck/divine grace
+                      "h3_7" = "Hard work")
+  ) 
+
+H3$Ans <- factor(H3$Ans ,levels = c("Political connections","Ability to get loans" ,"Having money to invest","Luck/Good fortune","Access to Gov. schemes","Hard work","Skill/knowledge"))
+
+H3$farmers_hh <- factor(H3$farmers_hh, levels = c("Out of Project", "In Project"))
+
+ggplot(H3, aes( y = pct, x =Ans , fill = factor(farmers_hh) )) +
+  geom_col(position = "dodge", width = 0.6)+
+  coord_flip()+
+  scale_fill_manual(
+    values = c("Out of Project" = "lightgray", "In Project" = "steelblue"),
+    breaks = c("In Project", "Out of Project")) +
+  labs(x = NULL, y = NULL, fill = NULL,
+       title = "H3 most important factors to a determining agricultural success") + 
+  theme_minimal()+
+  theme(
+    panel.grid.minor=element_blank(),
+    panel.grid.major.x =element_blank(),
+    text=element_text(family="serif"),
+    axis.text.x=element_text(size=10),
+    legend.text = element_text(size = 10),
+    axis.text.y = element_text(size = 14)
+  )
+
+#++ H4  +++++++++++++++++++++++++++++++++++++++++++++++++++|
+
+# 	From the following list, rank the top 3 most important factors 
+# H4 determining whether a farmer will have water for irrigation
+
+
+H4 =
+  social_22 %>% 
+  select(hh_id, farmers_hh, starts_with("h4_"),-h4__777 ) %>% 
+  pivot_longer(-c(hh_id ,farmers_hh) ,
+               names_to = "ans", values_to = "n") %>% 
+  group_by(farmers_hh,ans) %>% 
+  summarise(pct =mean(n),.groups = "drop" ) %>% 
+  mutate(Ans = recode(ans,
+                      "h4_1" = "Skill/knowledge",
+                      "h4_2" = "Access to Gov. schemes",
+                      "h4_3" = "Ability to get loans" , # Ability to get loans (credit)
+                      "h4_4" = "Having money to invest", # Having money to invest in inputs and machinery"
+                      "h4_5" = "Political connections",
+                      "h4_6" = "Luck/Good fortune", # Good fortune/luck/divine grace
+                      "h4_7" = "Hard work")
+  ) 
+H4$Ans <- factor(H4$Ans ,levels = c("Political connections",
+                                    "Ability to get loans" ,
+                                    "Having money to invest",
+                                    "Luck/Good fortune",
+                                    "Access to Gov. schemes",
+                                    "Hard work",
+                                    "Skill/knowledge"))
+
+
+ggplot(H4, aes( y = pct, x =Ans , fill = factor(farmers_hh) )) +
+  geom_col(position = "dodge", width = 0.6)+
+  coord_flip()
+
+
+
+
+#++ H18_H23  ++++++++++++++++++++++++++++++++++++++++++++++|
+
+H18_H23 <- 
+  social_22 %>% 
+  select(hh_id, farmers_hh,h18:h23 ) %>% 
+  group_by(farmers_hh) %>% 
+  summarise_if(is.numeric, mean, na.rm = TRUE) %>% 
+  select(-hh_id) %>% 
+  pivot_longer(!farmers_hh, names_to = "POV",
+               values_to = "value")
+
+
+# reorder POV so it plots top-to-bottom correctly
+H18_H23$POV <- factor(H18_H23$POV, levels = rev(unique(df_long$POV)))
+
+ggplot(H18_H23, aes(x = value, y = POV, color = farmers_hh)) +
+  geom_point(size = 4) +
+  geom_text(aes(label = round(value, 2)), hjust = -0.5, size = 4) +
+  scale_color_manual(values = c("steelblue3", "orange")) +
+  theme_minimal(base_size = 14) +
+  labs(x = NULL, y = NULL, color = NULL) +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+
+
+
 
 
 
@@ -1362,183 +1949,6 @@ nice_table(t_F129,title = c("Table F1.2.9 | External income" ,"family assistance
            note = c("", "[F1]Income sent by seasonal migrating household members" , 
                     "[F2]Remittances (from permanent migrants)" , 
                     "[F9]Government pension or scheme" ,"🟨" ))
-
-
-#education      ----
-#   
-# r7	Are they literate?
-# r8	What is their educational level? (0=NOT literate)
-
-# The HH head is the same as in 2016, so there is no need to examine it
-
-r7= 
-  rmtl_srvy22 %>% select(hh_id,starts_with("r7" ) ) %>% 
-  pivot_longer(!hh_id, names_to = "id_member", values_to = "literate") %>% 
-  filter(!is.na(literate))
-r7$id_member <- sub("^r7_(\\d{1,2})","r_\\1",r7$id_member )
-
-# r8= 
-#   rmtl_srvy22 %>% select(hh_id, starts_with("r8"), -ends_with("_bin") ) %>% 
-  pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level")
-r8$id_member <- sub("^r8_(\\d{1,2})","r_\\1",r8$id_member )
-
-attr(rmtl_srvy22$r8_1, "labels")
-
-edu22 = 
-  left_join(r7,r8)%>%
-  mutate(edu_level=ifelse(is.na(edu_level),0 ,edu_level )) %>% 
-  mutate(high_edu_level=ifelse(edu_level %in% c(4:6),1 ,0 )) %>% 
-rm(r7,r8)
-
-education122 =
-  edu22 %>% 
-  group_by(hh_id) %>% 
-  summarise(
-    n_hhm= n(),
-    literate_pct_hh=mean(literate),    
-    edu_hh_level_hh= mean(edu_level),
-    high_edu_pct_hh= mean(high_edu_level)
-  ) %>%  ungroup() %>% 
-  mutate_at(3:5,round,2) %>% left_join(hh_2022)
-
-
-t01 <- education122 %>% t_test(literate_pct_hh  ~ farmers_hh , detailed = T) 
-t02 <- education122 %>% t_test(edu_hh_level_hh ~ farmers_hh , detailed = T) 
-t03 <- education122 %>% t_test(high_edu_pct_hh ~ farmers_hh , detailed = T) 
-
-t_R8 <- rbind(t01,t02,t03) %>% 
-  rename(Ramthal=estimate1,Outside_Ramthal=estimate2,t=statistic) %>% 
-  select(.y. ,Ramthal,Outside_Ramthal,t,df,p,conf.low,conf.high)
-
-nice_table(t_R8,title = c("Table R8 | Education","Education among HH members" ),
-           note = c("","[r7] Are they literate?",
-                    "[r8] What is their educational level? (0=NOT literate)"))
-
-
-
-
-
-
-# SOCIAL CAPITAL    ----
-
-
-social_22= rmtl_srvy22 %>% select(hh_id, farmers_hh, starts_with("h"))
-attr(rmtl_srvy22$h1, "labels") # 1=dissatisfied|2|3|4|5=Satisfied
-attr(rmtl_srvy22$h2, "labels") # 1=important|2|3|4=Not
-
-
-h1h2_h18h23 <- 
-  social_22 %>% 
-  select(hh_id, farmers_hh,h1:h2,h18:h23 ) %>% 
-  group_by(farmers_hh) %>% 
-  summarise_if(is.numeric, mean, na.rm = TRUE) %>% 
-  select(-hh_id) %>% 
-  pivot_longer(!farmers_hh, names_to = "POV", values_to = "count") %>% 
-  pivot_wider(names_from = farmers_hh, values_from = count) 
-
-
-
-# 	From the following list, rank the top 3 most important factors 
-# H3 to a determining agricultural success
-# H4 determining whether a farmer will have water for irrigation
-
-# H3
-h3_common_factor=
-  social_22 %>% select(hh_id, farmers_hh, starts_with("h3") )%>% 
-  group_by(farmers_hh) %>% 
-  summarise_if(is.numeric, sum, na.rm = TRUE) %>% 
-  select(-c(hh_id,h3__777)) %>% 
-  pivot_longer(!farmers_hh, names_to = "POV", values_to = "count") %>% 
-  pivot_wider(names_from = farmers_hh, values_from = count) %>% 
-  mutate(inside_ramthal=inside_ramthal/946,outside_ramthal=outside_ramthal/666) %>% 
-  mutate_at(2:3,round,2) %>% arrange(desc(inside_ramthal ))
-  
-h3_factors <- 
-  social_22 %>% 
-  select(hh_id, farmers_hh, h3 )%>% 
-  separate(h3, into = c("rnk1" ,"rnk2", "rnk3"), sep = " ") 
-
-h3_rnk1=
-  h3_factors %>% count(farmers_hh,rnk1) %>% 
-  mutate(prt=ifelse(farmers_hh=="inside_ramthal",n/946,n/666 )) %>% 
-  select(-n) %>% filter(!rnk1 %in% c("","-777")) %>% 
-  mutate_at(3,round,2) %>% 
-  pivot_wider(names_from = farmers_hh, values_from = prt)
-  
-h3_rnk2=
-  h3_factors %>% count(farmers_hh,rnk2) %>% 
-  filter(!is.na(rnk2) ) %>%
-  mutate(prt=ifelse(farmers_hh=="inside_ramthal",n/946,n/666 )) %>% 
-  select(-n) %>%  
-  mutate_at(3,round,2) %>% 
-  pivot_wider(names_from = farmers_hh, values_from = prt)
-
-h3_rank1 = h3_rnk1[1,2:3] %>% mutate(Factors ="h3_rank1 | Skill_n_knowledge" )
-h3_rank2 = h3_rnk2[1,2:3] %>% mutate(Factors ="h3_rank2 | Access_to_gov_schemes" )
-
-
-# H4
-h4_common_factor=
-  social_22 %>% select(hh_id, farmers_hh, starts_with("h4") )%>% 
-  group_by(farmers_hh) %>% 
-  summarise_if(is.numeric, sum, na.rm = TRUE) %>% 
-  select(-c(hh_id,h4__777)) %>% 
-  pivot_longer(!farmers_hh, names_to = "POV", values_to = "count") %>% 
-  pivot_wider(names_from = farmers_hh, values_from = count) %>% 
-  mutate(inside_ramthal=inside_ramthal/946,outside_ramthal=outside_ramthal/666) %>% 
-  mutate_at(2:3,round,2) %>% arrange(desc(inside_ramthal ))
-
-h4_factors <- 
-  social_22 %>% 
-  select(hh_id, farmers_hh, h4 )%>% 
-  separate(h4, into = c("rnk1" ,"rnk2", "rnk3"), sep = " ") 
-
-h4_rnk1=
-  h4_factors %>% count(farmers_hh,rnk1) %>% 
-  mutate(prt=ifelse(farmers_hh=="inside_ramthal",n/946,n/666 )) %>% 
-  select(-n) %>% filter(!rnk1 %in% c("","-777")) %>% 
-  mutate_at(3,round,2) %>% 
-  pivot_wider(names_from = farmers_hh, values_from = prt)
-
-h4_rnk2=
-  h4_factors %>% count(farmers_hh,rnk2) %>% 
-  filter(!is.na(rnk2) ) %>%
-  mutate(prt=ifelse(farmers_hh=="inside_ramthal",n/946,n/666 )) %>% 
-  select(-n) %>%  
-  mutate_at(3,round,2) %>% 
-  pivot_wider(names_from = farmers_hh, values_from = prt)
-
-h4_rank1 = h4_rnk1[1,2:3] %>% mutate(Factors ="h4_rank1 | Skill_n_knowledge" )
-h4_rank2 = h4_rnk2[1,2:3] %>% mutate(Factors ="h4_rank2 | Access_to_gov_schemes" )
-
-
-
-####### graph
-
-# h3_# h4
-h3_H4_ranks <- 
-  rbind(h3_rank1,h3_rank2,h4_rank1,h4_rank2) %>% 
-  select(Factors,inside_ramthal,outside_ramthal)
-
-h3_H4_ranks %>% mutate(POV=c("H3.1","H3.2","H4.1","H4.2" )) %>%
-  select(POV,inside_ramthal,outside_ramthal) %>% 
-  kbl() %>% kable_material()
-  
-
-Factors_of_agricultural_success
-Factors_of_water_availability
-
-# H1:H2
-h1h2_h18h23[1:2,] %>% kbl() %>% kable_material()
-h1h2_h18h23[1:2,] %>% select(-POV) %>% kbl() %>% kable_material()
-
-#H18:H23
-h1h2_h18h23[3:8,] %>% kbl() %>% kable_material()
-h1h2_h18h23[3:8,] %>% select(-POV) %>% kbl() %>% kable_material()
-
-
-
-
 
 
 

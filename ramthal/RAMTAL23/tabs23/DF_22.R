@@ -723,7 +723,7 @@ crop_plot_1 <-
   crop_plot %>%
   rename(crop_code=crop) %>% mutate(crop_code=as.integer(crop_code) ) %>% 
   left_join(list_crop) %>%
-  select(-c(values,crop_name_kannada, color_code,  color_rgba   ))
+  select(hh_id, season, plotID, crop_common,crop_name    )
 
 crop_plot_2 <- crop_plot_1 %>%
    group_by(hh_id,season,plotID) %>%
@@ -731,7 +731,7 @@ crop_plot_2 <- crop_plot_1 %>%
 
 crop_plot_3 <- crop_plot_2 %>%
    mutate(plot_crop = paste0(gsub("[^0-9]", "", plotID),
-                             "_", gsub("[^0-9]", "", crop_number))) %>% 
+                             "_", gsub("[^0-9]", "", crop_number))) # %>% 
   mutate(crop_code=as.numeric(crop_code) ) 
 
 crop_plot_3$crop_number <- sub("^(\\d{1,2})","crop\\1",  crop_plot_3$crop_number) 
@@ -744,29 +744,19 @@ crop_plot_3$season[crop_plot_3$season=="KHA22"] <- "kharif_2022"
 crop_plot_3 %>% count(season)
 crop_plot_3[,1:2] %>% distinct() %>% count(season)
 
-crop_plot_4A = crop_plot_3 %>% mutate(season_year= season)
 
-crop_plot_4B= crop_plot_4A %>%  
-  filter(crop_type %in% c( "Annual","Perennial" ) & season== "kharif_2021") %>% 
-  mutate(season_year= "rabi_2021_22")
-crop_plot_4B$season[crop_plot_4B$season=="kharif_2021"] <- "continuing_kharif_2021"
-
-crop_plot_4 = rbind(crop_plot_4A,crop_plot_4B)
-
+crop_plot_4 = crop_plot_3
 crop_plot_4 %>% select(1,season)  %>% distinct() %>% count(season)
-crop_plot_4 %>% select(1,season_year) %>% distinct() %>% count(season_year)
-
-
-rm(crop_plot, crop_plot_1, crop_plot_2, crop_plot_3,
-   crop_plot_4,crop_plot_4A,crop_plot_4B
-)
-
 crop_plot_4 %>% count(plotID)
 crop_plot_4 %>% count(hh_id ) # 1578 HH
 
 plots_crop_2022 <-  crop_plot_4 %>% 
-  left_join(a_plots_size %>% select(1,plotID,acres)) 
-mean(crop_plot_5$acres) # check if there is NAs
+  left_join(a_plots_size %>% select(hh_id,plotID,acres)) 
+mean(plots_crop_2022$acres) # check if there is NAs
+
+rm(crop_plot, crop_plot_1, crop_plot_2, crop_plot_3,
+   crop_plot_4,crop_plot_4A,crop_plot_4B
+)
 
 plots_crop_2022
 

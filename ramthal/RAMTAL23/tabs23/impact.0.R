@@ -757,6 +757,77 @@ cat("Table saved as", html_file)
 
 
 
+# OLD CODE  ------------------------------------------
+
+# _____________________________  CULTIVATED LAND  ______________________   ###-----
+
+#    DF for reg CROP  ----
+
+### [crop_acre_22]
+###
+crop_acre_22 <- 
+  plots_crop_2022 %>% # in DF.22.R
+  select(hh_id,season, common_n2_family,plot_crop,plotID) %>%
+  left_join(a_plots_size %>% select(hh_id,plotID,acres)) %>% 
+  left_join(a_irri_rain_method %>% select(plot_crop,season,hh_id,irri_method)
+  ) %>% mutate(irri_method=ifelse(irri_method=="drip","drip",ifelse(irri_method=="rain","rain","ir"))
+  ) %>% rename(crop= common_n2_family) %>% 
+  group_by(hh_id,season,plotID) %>% mutate(n=n()) %>% ungroup() %>% 
+  mutate(acres=acres/n
+  ) %>% 
+  group_by(hh_id,season,crop,irri_method) %>% 
+  summarise(acre_cult=sum(acres),.groups="drop") %>% 
+  mutate(acre_drip=ifelse(irri_method=="drip",acre_cult,0)) %>% 
+  mutate(acre_ir=ifelse(irri_method=="ir",acre_cult,0)
+  ) %>% 
+  group_by(hh_id,season,crop) %>% summarise(
+    acre_cult=sum(acre_cult),acre_drip=sum(acre_drip), acre_ir=sum(acre_ir),.groups="drop"
+  ) %>% 
+  # Until now - seasons were calculated separately
+  # now seasons can be REMOVEed in order to calculate CROPS separately
+  group_by(hh_id,crop) %>% summarise(
+    acre_cult=mean(acre_cult),acre_drip=mean(acre_drip), acre_ir=mean(acre_ir),
+    .groups="drop")
+###
+crop_acre_22$crop[crop_acre_22$crop=="Oil seeds"] <- "Oilseeds"
+crop_acre_22$crop[crop_acre_22$crop=="Bengal gram"] <- "Bengal_gram"
+crop_acre_22$crop[crop_acre_22$crop=="Sorghum/jowar"] <- "Sorghum_jowar"
+
+library(writexl)
+write_xlsx(crop_acre_22, "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/crop_acre_22.xlsx")
+
+
+###
+### [crop_acre_BL]
+###
+crop_acre_16 <- 
+  BL_2015_16_crop_IRsource_IRmethod %>% 
+  select(hh_id, season, crop_common, plot_num ,crop_num, plot_acre, irri_method) %>% 
+  # filter(season != "rabi_2015_16") %>% 
+  mutate(irri_method=ifelse(irri_method=="Drip","drip",ifelse(irri_method=="Rain","rain","ir"))
+  ) %>% rename(crop= crop_common) %>% 
+  filter(!is.na(plot_acre)) %>% 
+  group_by(hh_id,season,plot_num) %>% mutate(n=n())%>% ungroup() %>% 
+  mutate(acres=plot_acre/n) %>% 
+  group_by(hh_id,season,crop,irri_method) %>% 
+  summarise(acre_cult_BL=sum(acres),.groups="drop") %>% 
+  
+  mutate(acre_drip_BL=ifelse(irri_method=="drip",acre_cult_BL,0)) %>% 
+  mutate(acre_ir_BL=ifelse(irri_method=="ir",acre_cult_BL,0)
+  ) %>% 
+  group_by(hh_id,season,crop) %>% summarise(
+    acre_cult_BL=sum(acre_cult_BL),acre_drip_BL=sum(acre_drip_BL), acre_ir_BL=sum(acre_ir_BL),.groups="drop"
+  ) %>% 
+  mutate(season=ifelse(season=="rabi_2021_22","Rabi","Kharif")) %>% 
+  group_by(hh_id,season,crop) %>% summarise(
+    acre_cult_BL=mean(acre_cult_BL),acre_drip_BL=mean(acre_drip_BL), acre_ir_BL=mean(acre_ir_BL),
+    .groups="drop")
+###
+crop_acre_BL <- crop_acre_16 %>% 
+  select(hh_id, crop, acre_cult_BL, acre_drip_BL, acre_ir_BL)
+
+library(writexl)
+write_xlsx(crop_acre_BL, "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/crop_acre_BL.xlsx")
 
 
 

@@ -16,13 +16,142 @@ rmtl_srvy22_24 <-
                     "Marol", "Chinnapur", "Hemavadagi", "Nidasanur", 
                     "Revadihal", "Thumba", "Yadahalli" ))
 
+freq(rmtl_2024$farmers_B4_u, cumul = FALSE)
+freq(rmtl_srvy22$mm9, cumul = FALSE)
+
+
+
+
 # location on pipe NERATIVE  --------------------------------------------------
 # interviews 2024 ----
 # I24 [10] "farmers_B4_u"
+rmtl_2024 %>% select( hh_id,farmers_B4_u ) %>% filter(!is.na(farmers_B4_u), farmers_B4_u != "dont_know")
 # S22 [MM9] How many farmers are there between you and the valve/pipeline?
+rmtl_cntrl_vars %>% select(hh_id ,location_on_pipe) %>% filter(location_on_pipe>0)
 
-freq(rmtl_2024$farmers_B4_u, cumul = FALSE)
-freq(rmtl_srvy22$mm9, cumul = FALSE)
+## DF [proximity_to_outlet]  ----
+proximity_to_outlet <- 
+  rmtl_cntrl_vars %>% select(hh_id ,location_on_pipe) %>%
+  left_join(rmtl_2024 %>% select( hh_id,farmers_B4_u ) ) %>% 
+  mutate(farmers_B4_u=ifelse(farmers_B4_u=="dont_know",NA,farmers_B4_u )) %>% 
+  mutate(
+    location_fixed = if_else(
+      is.na(location_on_pipe) | location_on_pipe == -998,
+      suppressWarnings(as.numeric(farmers_B4_u)),
+      location_on_pipe)
+  ) %>% select(-location_on_pipe ,-farmers_B4_u) %>%
+  mutate(proximity_outlet=ifelse(location_fixed < 4,"Near","Far"))
+
+
+## DESC STAT | proximity ~ ir_use / source_ramthal ----
+N_total <- 
+  proximity_to_outlet %>% 
+  left_join(rmtl_InOut %>% select(hh_id, ir_use )) %>% 
+  left_join(a_source_irri %>% select(hh_id, source_ramthal)) %>% 
+  mutate(source_ramthal = ifelse(source_ramthal == "ramthal", 1, 0)) %>%
+  filter(!is.na(location_fixed)) %>% 
+  count() %>% 
+  pull(n)
+
+
+## PLOT 
+proximity_to_outlet %>% 
+  left_join(rmtl_InOut %>% select(hh_id,ir_use )) %>% 
+  left_join(a_source_irri %>% select(hh_id,source_ramthal)) %>% 
+  mutate(source_ramthal=ifelse(source_ramthal=="ramthal",1,0))%>% 
+  group_by(location_fixed) %>% 
+  summarise(
+    pct=mean(source_ramthal)
+  # pct=mean(ir_use)
+            ) %>% 
+  filter(location_fixed<14) %>% 
+  ggplot(aes(x = factor(location_fixed), y = pct)) +
+  geom_bar(stat = "identity",fill = "#a2c4c9ff") +
+  geom_text(aes(label = scales::percent(pct, accuracy = 1)),
+            position = position_dodge(width = 0.9),vjust = 2,size = 3) + 
+  labs(x =NULL,y="% of HH",
+       title = paste0("% of Farmers Using Ramthal as water source by Outlet Location [N = ", N_total, "]"))+
+  # title = paste0("% of Irrigating Farmers by Outlet Location [N = ", N_total, "]"))+
+  theme_minimal(base_family = "serif")+
+  theme(axis.text.x = element_text(size = 11),
+        panel.grid = element_blank())+
+  scale_y_continuous(limits = c(0, 1), labels = scales::percent)
+
+
+## DESC STAT | proximity ~ Last yera of usage ----
+
+
+
+
+
+## DESC STAT | proximity ~ drip_trust ----
+##
+proximity_to_outlet %>% 
+  left_join(
+    rmtl_2024 %>% select( hh_id, drip_trust )) %>% 
+  drop_na() %>% 
+  group_by(proximity_outlet) %>% mutate(N=n()) %>% 
+  count(proximity_outlet,drip_trust,N) %>% mutate(pct=n/N*100) %>% 
+  select(proximity_outlet ,drip_trust, pct) %>% 
+  pivot_wider(names_from = "proximity_outlet",values_from = "pct" ) %>% 
+  replace_na(list(Near = 0)) %>% arrange(desc(drip_trust)) %>% 
+  kbl() %>% kable_styling()
+
+
+
+
+
+library(readxl)
+interviews_2024EXSEL <- 
+  read_excel(
+    "C:/Users/Dan/Downloads/interviews_2024EXSEL.xlsx", 
+    sheet = "TAP_CONDITIONS")
+
+pipe_status <- 
+  interviews_2024EXSEL %>% 
+  select(hh_id,`Pipe Status`) %>% 
+  rename(pipe_status_int24=`Pipe Status`) %>% 
+  mutate(pipe_status_int24B=ifelse(pipe_status_int24=="Modefied","Modefied",
+                           ifelse(pipe_status_int24=="Intact","Intact", "Damaged")
+  ))
+  
+
+
+why_not <- 
+  interviews_2024EXSEL %>% 
+  select(hh_id,`Pipe Status`) %>% rename(pipe_tatus=`Pipe Status`) %>% 
+  left_join(
+    rmtl_2024 %>% select( hh_id,drip_1use_2useOwmDrip, drip_trust,
+                          farmers_B4_u,irri_jain_flood,water_supply_info,
+                          past_irri_NOTdrip )) %>% 
+  left_join(
+    rmtl_cntrl_vars %>% select(hh_id,proximity_outlet ,location_on_pipe) ) 
+
+
+df = why_not %>% 
+  select(pipe_tatus,location_on_pipe,farmers_B4_u) %>% 
+  mutate(
+    location_fixed = if_else(
+      is.na(location_on_pipe) | location_on_pipe == -998,
+      suppressWarnings(as.numeric(farmers_B4_u)),
+      location_on_pipe
+    )
+  ) %>% select(-location_on_pipe ,-farmers_B4_u) %>%
+  drop_na() %>% 
+  mutate(proximity_outlet=ifelse(location_fixed < 4,"Near","Far")) %>% 
+  mutate(pipe_tatus=ifelse(pipe_tatus=="Modefied","Modefied",
+                    ifelse(pipe_tatus=="Intact","Intact", "Damaged")
+  )) %>% 
+  count(proximity_outlet,pipe_tatus) %>% 
+  group_by(proximity_outlet) %>% 
+  mutate(N=sum(n),pct=n/N*100) %>% ungroup()
+
+
+df %>% select(proximity_outlet ,pipe_tatus,pct) %>% 
+  pivot_wider(names_from ="proximity_outlet",values_from = "pct" ) %>% 
+  arrange(desc(pipe_tatus)) %>% 
+  kbl() %>% kable_paper()
+
 
 
 # df : Total farmers per location (continuous)
@@ -588,6 +717,360 @@ ggplot(tap_damage_yr_pct, aes(x = factor(tap_damage_yr), y = pct)) +
 
 
 
+## jain report ..............................................  ----
+
+# Water released  vs. Water Allocated  in the Tender condition (in Mm³)
+# Kharif 14.84 Mm³ # Rabi 20.47 Mm³
+# 
+# % Water released of the allocated
+jain_report <- data.frame(
+  year = c("2017", "2018", "2019", "2020", "2021"),
+  project_year = c("1st", "2nd", "3rd", "4th", "5th"),
+  kharif = c(0.79, 0.43, 0.13, 0.20, 0.24),
+  rabi   = c(0.85, 0.88, 0.61, 0.78, 0.23),
+  pct_of_normal_rainfall = c("-9%", "-33%", "+6%", "+26%", "+11%"),
+  monsoon_timing = c("on_time", "delayed", "delayed", "delayed", "on_time")
+)
+
+# Line plot
+jain_report %>% 
+  select(project_year, kharif, rabi) %>% 
+  pivot_longer(cols = c(kharif, rabi),
+               names_to = "season",
+               values_to = "pct") %>% 
+  ggplot(aes(x = project_year, y = pct, group = season, color = season)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+  scale_color_manual(values = c("kharif" = "#125699","rabi"   = "#997e5dff")) +
+  labs(x = "Project Year",y = "Water Released (%)",
+       title = "Water Release by Project Year",linetype = NULL,color = NULL) +
+  theme_minimal(base_family = "serif") +
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_text(size = 11)
+  )
+
+# Bar plot
+jain_report %>% select(project_year, kharif, rabi) %>% 
+  pivot_longer(cols = c(kharif, rabi),names_to = "season",values_to = "pct"
+  ) %>% 
+  ggplot(aes(x = project_year, y = pct, fill = season)) +
+  geom_col() +
+  geom_text(aes(y = pct, label = scales::percent(pct, accuracy = 1)),
+            vjust = -.75,size = 4)+
+  facet_wrap(~season, ncol = 1, scales = "free_y") +
+  scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+  scale_fill_manual(values = c("kharif" = "#6fa8dcff","rabi"= "#a89072ff")) +
+  labs(x = "Project Year",y = "Water Released (%)",title = "Water Release by Project Year",fill = NULL
+  ) +
+  theme_minimal(base_family = "serif") +
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_text(size = 11),
+    strip.text = element_text(size = 12, face = "bold"),
+    legend.position = "none"
+  )
+
+
+dfK <- rmtl_srvy22 %>% select(hh_id, starts_with("m20_kharif"),-m20_kharif_2022) %>% 
+  pivot_longer(-hh_id, names_to = "year",values_to = "use_ir") %>% 
+  tidyr::separate(year, into = c("Q", "season", "year"), sep = "_", convert = TRUE) %>% 
+  select(-Q  )
+
+dfR <- rmtl_srvy22 %>% select(hh_id, starts_with("m20_rabi"),-m20_rabi_2022) %>% 
+  pivot_longer(-hh_id, names_to = "year",values_to = "use_ir") %>% 
+  tidyr::separate(year, into = c("Q", "season", "year"), sep = "_", convert = TRUE)%>% 
+  select(-Q  )
+
+smpl <- rmtl_InOut %>% select(in1_out0,hh_id,mm4,mm5) %>%
+  # filter(mm4==1,in1_out0==1) %>%
+  filter(mm5==1,in1_out0==1) %>%
+  select(hh_id)
+
+# Seasonal user average 2017-2022
+# Average users per season for the entire study period
+rbind(dfK,dfR) %>% 
+  right_join(smpl) %>% 
+  mutate(use_ir=ifelse(is.na(use_ir),0,use_ir)) %>% 
+  group_by(season) %>% 
+  summarise(pct=mean(use_ir)) %>% 
+  mutate(season= ifelse(season == "kharif","Kharif","Rabi" )) %>% 
+  ggplot(aes(x = season, y = pct, fill = season)) +
+  geom_col() +
+  geom_text(aes(y = pct, label = scales::percent(pct, accuracy = 1)),
+            vjust = 2,size = 4)+
+  scale_fill_manual(values = c("Kharif" = "#6fa8dcff","Rabi"= "#a89072ff")) +
+  labs(
+    x = "Project Year",  y = "% of HH",
+    title = "Seasonal user average 2017-2022", fill = NULL
+  ) +
+  theme_minimal(base_family = "serif") +
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_text(size = 11),
+    strip.text = element_text(size = 12, face = "bold"),
+    legend.position = "none"
+  )
+
+  
+  
+  
+  
+  
+# Average users per season
+ir_year_season <- 
+  rbind(dfK,dfR) %>% 
+  right_join(smpl) %>% 
+  mutate(use_ir=ifelse(is.na(use_ir),0,use_ir)) %>% 
+  group_by(year, season) %>% 
+  summarise(n=sum(use_ir,na.rm=T),N=n()) %>% 
+  mutate(pct_usage=n/N) 
+
+
+
+jainreport_and_usage <- 
+  jain_report %>% select(year,project_year, kharif, rabi) %>% 
+  pivot_longer(cols = c(kharif, rabi),names_to = "season",values_to = "pct_jain"
+  ) %>% mutate(year=as.numeric(year)) %>% 
+  left_join(ir_year_season %>% select(year,season, pct_usage)
+  ) %>% select(-year)
+
+
+library(dplyr)
+library(ggplot2)
+
+jainreport_and_usage %>% 
+  mutate(
+    season= ifelse(season == "kharif","Kharif","Rabi" ),
+    project_year = factor(project_year, levels = c("1st", "2nd", "3rd", "4th", "5th")),
+    season = factor(season, levels = c("Kharif", "Rabi"))) %>%
+  ggplot(aes(x = project_year)) +
+  geom_col(aes(y = pct_jain, fill = season)) +
+  geom_text(aes(y = pct_jain, label = round(pct_jain * 100, 0)), # label = scales::percent(pct_jain, accuracy = 1)),
+            vjust = -.75,size = 4)+
+  geom_text(aes(y = pct_usage, label = round(pct_usage * 100, 0)),
+            vjust = -.75,size = 4,color = "black")+
+  geom_line(aes(y = pct_usage, group = 1),linewidth = 2,color = "#434343ff") +
+  geom_point(aes(y = pct_usage),size = 2.5,shape = 21,fill = "#efefefff",color = "#434343ff"
+             ) +
+  facet_wrap(~ season, ncol = 1, scales = "fixed") + # facets: kharif on top, rabi bottom
+  scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+  scale_fill_manual(values = c("Kharif" = "#6fa8dcff","Rabi"= "#a89072ff")) +
+  labs(
+    x = "Project Year",  y = "% of HH",
+    title = "Designed Water Release vs. Actual Usage by Project Year", fill = NULL
+  ) +
+  theme_minimal(base_family = "serif") +
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_text(size = 11),
+    strip.text = element_text(size = 12, face = "bold"),
+    legend.position = "none"
+  )
+
+
+# Typically, in your experience, when water is provided in a particular year, in which month does it start?
+
+rmtl_srvy22_24  %>% select(starts_with("mw12")) %>% 
+  count(mw12) %>% filter(mw12 %in% c(1:12)) %>% 
+  mutate(N=sum(n),pct=n/N*100) %>%
+  mutate(N = sum(n),pct = n / N,
+         month = month.abb[mw12] ,        # Convert to abbreviated month names
+         season = case_when(mw12 %in% c(6, 7, 8, 9, 10) ~ "Kharif",
+                            mw12 %in% c(11, 12, 1, 2, 3) ~ "Rabi",TRUE ~ "Summer")
+  ) %>% 
+  ggplot(aes(x = factor(month, levels = month.abb))) +
+  geom_col(aes(y = pct, fill = season))+
+  geom_text(aes(y = pct, label = scales::percent(pct, accuracy = 1)),
+            vjust = 1.2,size = 4)+
+  scale_fill_manual(values = c("Kharif" = "#6fa8dcff","Rabi"= "#a89072ff","Summer"="gray"))+
+  labs(
+    x =NULL,  y = "% of HH",
+    title = "Month in which usually water supply begins", fill = NULL
+  ) +
+  theme_minimal(base_family = "serif") +
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_text(size = 12),
+    legend.position = c(0.08, 0.85),
+    legend.text = element_text(size=12)
+  )
+
+
+
+# # library(readr)
+# irrigation_BL_to_22 <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/irrigation_BL_to_22.csv")
+
+# # library(stringr)
+# df1 <- irrigation_BL_to_22 %>% 
+#   select(hh_id,starts_with("ir_use_2")) %>% 
+#   pivot_longer(-hh_id, names_to = "year",values_to = "use_ir") %>% 
+#   mutate(year=ifelse(year == "ir_use_2022", "ir_use_2021", year)) %>% 
+  # mutate(
+  #   year = as.integer(str_extract(year, "[0-9]{4}")),
+  #   project_year = case_when(
+  #     year == 2017 ~ "1st",
+  #     year == 2018 ~ "2nd",
+  #     year == 2019 ~ "3rd",
+  #     year == 2020 ~ "4th",
+  #     year == 2021 ~ "5th",
+  #     TRUE ~ NA_character_)
+  #   )
+
+
+
+
+
+
+
+
+
+
+# [Survy22] last/first year you 
+# [mw1a] in which year did you first make use of the water? 
+# [mw4b]	What was the last year you use of the water? 
+
+# first  use
+rmtl_srvy22 %>% select(hh_id, mw1a) %>%
+  left_join(rmtl_cntrl_vars %>% select(hh_id,proximity_outlet)) %>% 
+  filter(!is.na(mw1a),!is.na(proximity_outlet) )%>% 
+  group_by(proximity_outlet) %>% mutate(N=n()) %>% 
+  count(proximity_outlet,mw1a,N) %>% 
+  mutate(pct = n/N) %>% 
+  ggplot(aes(x = mw1a, y = pct, color = proximity_outlet)) +
+  geom_line(linewidth = 2) +
+  geom_point(shape = 21,  size = 3.5, stroke = 1.2, fill = "white" ) +
+  scale_color_manual( values = c("Near" = "#76a5afff", "Far" = "#d0e0e3ff")
+  )+theme_minimal(base_family = "serif") +
+  theme(
+    axis.text.x = element_text(size = 11),
+    panel.grid = element_blank()
+  )
+
+
+# LAST use Near Far
+rmtl_srvy22 %>% select(hh_id, mw4b) %>%
+  left_join(proximity_to_outlet) %>% 
+  filter(!is.na(mw4b),!is.na(proximity_outlet) )%>% 
+  group_by(proximity_location) %>% mutate(N=n()) %>% 
+  
+    left_join(rmtl_cntrl_vars %>% select(hh_id,proximity_outlet)) %>% 
+  filter(!is.na(mw4b),!is.na(proximity_outlet) )%>% 
+  group_by(proximity_outlet) %>% mutate(N=n()) %>% 
+  count(proximity_outlet,mw4b,N) %>% 
+  mutate(pct = n/N) %>% 
+  ggplot(aes(x = mw4b, y = pct, color = proximity_outlet)) +
+  geom_line(linewidth = 2) +
+  geom_point(shape = 21,  size = 3.5, stroke = 1.2, fill = "white" ) +
+  scale_color_manual( values = c("Near" = "#76a5afff", "Far" = "#d0e0e3ff")
+  )+theme_minimal(base_family = "serif") +
+  theme(
+    axis.text.x = element_text(size = 11),
+    panel.grid = element_blank()
+  )
+
+
+# LAST use general
+df_lastuse <- 
+  rmtl_srvy22 %>% select(hh_id, mw4b) %>%
+  filter(!is.na(mw4b) )%>% 
+  count(mw4b) %>%   mutate(pct_last_use = n/sum(n)) %>% 
+  mutate(
+    project_year = case_when(
+      mw4b == 2017 ~ "1st",
+      mw4b == 2018 ~ "2nd",
+      mw4b == 2019 ~ "3rd",
+      mw4b == 2020 ~ "4th",
+      mw4b == 2021 ~ "5th",
+      mw4b == 2022 ~ "6th",
+      TRUE ~ NA_character_)
+  ) 
+  ggplot(aes(x = project_year, y = pct, group = 1)) +
+  geom_line(linewidth = 2, color = "#125699") +
+  geom_point(shape = 21,  size = 3.5, stroke = 1.2, fill = "#efefefff",color = "#125699") +
+  geom_text(aes(y = pct, label = scales::percent(pct, accuracy = 1)),
+            vjust = -.75,size = 4)+
+  scale_y_continuous(limits = c(0, 1),labels = scales::percent) +
+  labs(x = "Project Year",y = "% of HH",title = "Last year of usage"
+  ) +
+  theme_minimal(base_family = "serif") +
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_text(size = 12)
+  )
+  
+jainreport_and_usage %>% select(project_year, season, pct_jain) %>% 
+    left_join(df_lastuse %>% select(pct_last_use, project_year)) %>%   
+    mutate(
+    season= ifelse(season == "kharif","Kharif","Rabi" ),
+    project_year = factor(project_year, levels = c("1st", "2nd", "3rd", "4th", "5th")),
+    season = factor(season, levels = c("Kharif", "Rabi"))
+  ) %>%
+  ggplot(aes(x = project_year)) +
+  geom_col(aes(y = pct_jain, fill = season),stat="identity", position="dodge")+
+  geom_line(aes(y = pct_last_use, group = 1),linewidth = 2,color = "#434343ff") +
+  geom_point(aes(y = pct_last_use),size = 2.5,shape = 21,fill = "#efefefff",color = "#434343ff"
+  ) +
+  geom_text(aes(y = pct_last_use, label = scales::percent(pct_last_use, accuracy = 1)),
+            vjust = -.75,size = 5)+
+  
+  geom_text(aes(y = pct_jain, 
+                label = scales::percent(pct_jain, accuracy = 1),
+                group = season),
+  position = position_dodge(width = 0.9),
+            vjust = 1.5,size = 3.5, color="white")+
+  
+  scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+  scale_fill_manual(values = c("Kharif" = "#6fa8dcff","Rabi"= "#a89072ff"))+
+  labs(
+    x = "Project Year",  y = "% of HH",
+    title = "Last year of usage Vs. quantity of water released", fill = NULL
+  ) +
+  theme_minimal(base_family = "serif") +
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_text(size = 14),
+    strip.text = element_text(size = 12, face = "bold"),
+    legend.position = "none"
+  )
+
+
+
+
+
+jainreport_and_usage %>% select(project_year, season, pct_jain) %>% 
+  left_join(df_lastuse %>% select(pct_last_use, project_year)) %>%   
+  mutate(
+    season= ifelse(season == "kharif","Kharif","Rabi" ),
+    project_year = factor(project_year, levels = c("1st", "2nd", "3rd", "4th", "5th")),
+    season = factor(season, levels = c("Kharif", "Rabi"))
+  ) %>%
+  ggplot(aes(x = project_year)) +
+  geom_line(aes(y = pct_last_use, group = 1),linewidth = 2,color = "#434343ff") +
+  geom_point(aes(y = pct_last_use),size = 2.5,shape = 21,fill = "#efefefff",color = "#434343ff"
+  ) +
+  geom_text(aes(y = pct_last_use, label = scales::percent(pct_last_use, accuracy = 1)),
+            vjust = -.75,size = 5)+
+  
+  scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+  labs(
+    x = "Project Year",  y = "% of HH",
+    title = "Last year of usage Vs. quantity of water released", fill = NULL
+  ) +
+  theme_minimal(base_family = "serif") +
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_text(size = 14),
+    strip.text = element_text(size = 12, face = "bold"),
+    legend.position = "none"
+  )
+
+
+
+
+
+
 
 # [Survy22] last/first year you         ..............................................----
 
@@ -858,7 +1341,7 @@ rmtl_srvy22_24  %>% select(mm5,starts_with("mw1a")) %>%
 # mw12		----
 # Typically, in your experience, when water is provided in a particular year, in which month does it start?
 		 		
-season_colors <- c("Kharif"="dodgerblue4","Rabi"="burlywood4", "Summer"="gray70")
+season_colors <- c("Kharif"="#6fa8dcff","Rabi"="#a89072ff", "Summer"="gray70")
 
 rmtl_srvy22_24  %>% select(starts_with("mw12")) %>% 
   count(mw12) %>% filter(mw12 %in% c(1:12)) %>% 
@@ -925,21 +1408,23 @@ mw4 %>% filter(!is.na(last_yr_use) ) %>%
 
 # "mw5", "mw6" ---- 
 # How many years in total did you ever make use of the water for irrigation
-rmtl_srvy22_24 %>% 
-  select(mm5,"mw5", "mw6") %>% 
-  mutate(yr=ifelse(mw5 > mw6,mw5,mw6)) %>% 
-  count(yr) %>% filter(yr>0) %>%   
+rmtl_srvy22 %>% filter(in1_out0==1) %>% 
+  select(mm5,"mw5", "mw6")%>% 
+  mutate(yr=ifelse(mw5 > mw6,mw5,mw6))%>% 
+  mutate(yr=ifelse(mm5 == 0,0,yr))%>% filter(yr>=0) %>% 
+  count(yr) %>% 
   mutate(N=sum(n),pct = paste0(round(n/N*100), "%")
-         ) # %>% kable() %>% kable_styling()
+  ) 
 
-rmtl_srvy22_24 %>% 
-  select(mm5,"mw5", "mw6") %>% 
-  mutate(yr=ifelse(mw5 > mw6,mw5,mw6),
-         Years=ifelse(yr %in% c(3:6),"3-6",yr )
-         ) %>% 
-  count(Years) %>% filter(Years>0) %>%   
-  mutate(N=sum(n),pct = paste0(round(n/N*100), "%")
-  )# %>% kable() %>% kable_styling()
+rmtl_srvy22 %>% filter(in1_out0==1) %>% 
+  select(mm5,"mw5", "mw6")%>% 
+  mutate(yr=ifelse(mw5 > mw6,mw5,mw6))%>% 
+  mutate(yr=ifelse(mm5 == 0,0,yr))%>% filter(yr>=0) %>% 
+  count(yr) %>% 
+  mutate(Years=ifelse(yr %in% c(3:6),"3-6",yr )) %>% 
+  group_by(Years) %>% summarise(n=sum(n)) %>%   
+  mutate(N=sum(n), pct = paste0(round(n/N*100), "%")
+  )
 
 
 

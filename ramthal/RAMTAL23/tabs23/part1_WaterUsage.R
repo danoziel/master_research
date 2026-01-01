@@ -588,20 +588,42 @@ krk_ir=left_join(kharif_21,rabi_21_22) %>% left_join(kharif_22) %>%
 
 
 ###### 2021 ir data [survey of 2022] # ir22_2021
-ir22_2021 <-  
+ir_6methods_2021_2022 <-  
   a_irri_rain_method %>%  select( hh_id ,irri_method) %>% distinct() %>% 
   group_by(hh_id)  %>%
   mutate(hh_6methods = ifelse("drip" %in% irri_method , "drip", ifelse(any(irri_method  == "furrows"), "furrows",ifelse(any(irri_method  == "flood"), "flood",ifelse(any(irri_method  == "sprinkler"), "sprinkler",ifelse(any(irri_method  == "hose"), "hose","rain"))))) ) %>%
-  ungroup() %>% select(hh_id,hh_6methods) %>% distinct() #%>% 
-  # mutate(hh_irri=ifelse(hh_6methods=="rain",0,1),
-  #        hh_drip=ifelse(hh_6methods=="drip",1,0)) %>% left_join(hh_2022)%>% mutate(year_ir=2021) %>% 
-  # select(year_ir,farmers_hh,hh_id,hh_6methods,hh_irri,hh_drip )
+  ungroup() %>% select(hh_id,hh_6methods) %>% distinct() 
 
-irrigation_2022 <- 
-  ir22_2021 %>% 
-  rename(ir_method_2022=hh_6methods  ) %>%
-  mutate(ir_use_2022  =ifelse(ir_method_2022=="rain",0,1),
-         drip_use_2022=ifelse(ir_method_2022=="drip",1,0))
+irrigation_2021_22 <-  
+  a_irri_rain_method %>%  select( hh_id,season ,irri_method) %>% distinct() %>% 
+  mutate(drip = ifelse(irri_method == "drip",1,0 ),
+         irri = ifelse(irri_method == "rain",0,1 )
+         ) %>%
+  mutate(drip_2021 = ifelse(season %in% c("kharif_2021","rabi_2021_22"),drip,NA )) %>% 
+  mutate(drip_2022 = ifelse(season %in% c("kharif_2022","rabi_2021_22"),drip,NA )) %>% 
+  mutate(drip_2021_22 = drip
+         ) %>% 
+  mutate(irri_2021 = ifelse(season %in% c("kharif_2021","rabi_2021_22"),irri,NA )) %>% 
+  mutate(irri_2022 = ifelse(season %in% c("kharif_2022","rabi_2021_22"),irri,NA )) %>% 
+  mutate(irri_2021_22 = irri) %>% 
+  group_by(hh_id
+           ) %>% 
+  summarise(
+    drip_use_2021=sum(drip_2021,na.rm = T),
+    drip_use_2022=sum(drip_2022,na.rm = T),
+    drip_use_2021_22= sum(drip_2021_22,na.rm = T),
+    ir_use_2021=sum(irri_2021,na.rm = T),
+    ir_use_2022=sum(irri_2022,na.rm = T),
+    ir_use_2021_22= sum(irri_2021_22,na.rm = T)
+            ) %>% 
+  mutate(
+    drip_use_2021 = ifelse(drip_use_2021==0,0,1), 
+    drip_use_2022 = ifelse(drip_use_2022==0,0,1),
+    drip_use_2021_22 = ifelse(drip_use_2021_22==0,0,1),
+    ir_use_2021 = ifelse(ir_use_2021==0,0,1), 
+    ir_use_2022 = ifelse(ir_use_2022==0,0,1),
+    ir_use_2021_22 = ifelse(ir_use_2021_22==0,0,1) 
+         )  
 
 # irrigation_2018_2020 ----
 
@@ -661,7 +683,7 @@ irrigation_BL <-
 # irrigation_BL_to_22  ----
 
 irrigation_BL_to_22 <- 
-  full_join(irrigation_2022,
+  full_join(irrigation_2021_22,
             irrigation_2018_2020) %>% 
   full_join(irrigation_2017) %>% 
   full_join(irrigation_BL)
@@ -669,7 +691,7 @@ irrigation_BL_to_22 <-
 
 
 
-
+irrigation_BL_to_22 %>% select(-ir_use_2022,-drip_use_2022) %>% left_join(irrigation_2021_22)
 
 
 
@@ -678,8 +700,7 @@ irrigation_BL_to_22 <-
 
 ir_season_2021_21 <-
   a_irri_rain_method %>% select(season, hh_id ,irri_method) %>% distinct() %>% 
-  group_by(season,hh_id)  %>%
-  mutate(hh_6methods = ifelse("dri %>% %>% )
+  group_by(season,hh_id)  
 
 
 # SEASON USAGE ----

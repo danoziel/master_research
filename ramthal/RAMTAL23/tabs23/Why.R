@@ -11,6 +11,34 @@ library(kableExtra )
 library(tidyverse)
 
 
+
+df1 <- 
+  irrigation_BL_to_22 %>% 
+  select(hh_id,DI_installed,
+         drip_use_6y,drip_use_2021_22,
+         ir_use_6y,ir_use_2021_22)
+df2 <- 
+   a_source_irri %>% 
+  select( hh_id,source_ramthal ) %>% 
+  mutate(source_ramthal= ifelse(source_ramthal=="ramthal",1,0) )
+
+df3 <- 
+  rmtl_cntrl_vars %>% 
+  select(hh_id, in_project,
+         edu_level_hh,hh_haed_age, hh_haed_gendar,literate_hh_pct,caste_01,
+         total_acre16,housing_str321,
+         dist_Km_boundary,Elevation,elevation_m,
+         cardinal_direction, zone,village   
+  )
+
+
+df_drip_bl <- 
+  hh_2022 %>% rename(in_project =in1_out0 ) %>% 
+  left_join(df1) %>% 
+  left_join(df2) %>% 
+  left_join(df3)
+
+
 scale_fill_manual(values = c("lightblue", "gray80"))+theme_minimal()
 color2_bin <- c("infrstr_17_21" = "darkgreen","hh_drip_yrs_17_21"="darkblue")
 color3_bin <- c("infrstr_17_21" = "darkgreen","hh_drip_yrs_17_21"="darkblue" ,"inf_drip_17_21" = "blue2")
