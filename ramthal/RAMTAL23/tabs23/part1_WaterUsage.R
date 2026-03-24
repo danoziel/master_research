@@ -592,26 +592,37 @@ ir_6methods_2021_2022 <-
   a_irri_rain_method %>%  select( hh_id ,irri_method) %>% distinct() %>% 
   group_by(hh_id)  %>%
   mutate(hh_6methods = ifelse("drip" %in% irri_method , "drip", ifelse(any(irri_method  == "furrows"), "furrows",ifelse(any(irri_method  == "flood"), "flood",ifelse(any(irri_method  == "sprinkler"), "sprinkler",ifelse(any(irri_method  == "hose"), "hose","rain"))))) ) %>%
-  ungroup() %>% select(hh_id,hh_6methods) %>% distinct() 
+  ungroup() %>% select(hh_id,hh_6methods) %>% distinct() %>% 
+  rename(ir_method_2021_2022 = hh_6methods)
 
 irrigation_2021_22 <-  
   a_irri_rain_method %>%  select( hh_id,season ,irri_method) %>% distinct() %>% 
-  mutate(drip = ifelse(irri_method == "drip",1,0 ),
-         irri = ifelse(irri_method == "rain",0,1 )
+  mutate(drip  = ifelse(irri_method == "drip",1,0 ),
+         flood = ifelse(irri_method %in% c("flood","furrows","hose"),1,0),
+         irri  = ifelse(irri_method == "rain",0,1 )
          ) %>%
   mutate(drip_2021 = ifelse(season %in% c("kharif_2021","rabi_2021_22"),drip,NA )) %>% 
   mutate(drip_2022 = ifelse(season %in% c("kharif_2022","rabi_2021_22"),drip,NA )) %>% 
   mutate(drip_2021_22 = drip
          ) %>% 
+  mutate(flood_2021 = ifelse(season %in% c("kharif_2021","rabi_2021_22"),flood,NA )) %>% 
+  mutate(flood_2022 = ifelse(season %in% c("kharif_2022","rabi_2021_22"),flood,NA )) %>% 
+  mutate(flood_2021_22 = flood
+         ) %>% 
   mutate(irri_2021 = ifelse(season %in% c("kharif_2021","rabi_2021_22"),irri,NA )) %>% 
   mutate(irri_2022 = ifelse(season %in% c("kharif_2022","rabi_2021_22"),irri,NA )) %>% 
-  mutate(irri_2021_22 = irri) %>% 
-  group_by(hh_id
-           ) %>% 
+  mutate(irri_2021_22 = irri
+         ) %>% 
+  group_by(hh_id) %>% 
   summarise(
     drip_use_2021=sum(drip_2021,na.rm = T),
     drip_use_2022=sum(drip_2022,na.rm = T),
     drip_use_2021_22= sum(drip_2021_22,na.rm = T),
+    
+    flood_use_2021=sum(flood_2021,na.rm = T),
+    flood_use_2022=sum(flood_2022,na.rm = T),
+    flood_use_2021_22= sum(flood_2021_22,na.rm = T),
+    
     ir_use_2021=sum(irri_2021,na.rm = T),
     ir_use_2022=sum(irri_2022,na.rm = T),
     ir_use_2021_22= sum(irri_2021_22,na.rm = T)
@@ -620,12 +631,38 @@ irrigation_2021_22 <-
     drip_use_2021 = ifelse(drip_use_2021==0,0,1), 
     drip_use_2022 = ifelse(drip_use_2022==0,0,1),
     drip_use_2021_22 = ifelse(drip_use_2021_22==0,0,1),
+    
+    flood_use_2021 = ifelse(flood_use_2021==0,0,1), 
+    flood_use_2022 = ifelse(flood_use_2022==0,0,1),
+    flood_use_2021_22 = ifelse(flood_use_2021_22==0,0,1),
+    
     ir_use_2021 = ifelse(ir_use_2021==0,0,1), 
     ir_use_2022 = ifelse(ir_use_2022==0,0,1),
     ir_use_2021_22 = ifelse(ir_use_2021_22==0,0,1) 
-         )  
+         )   %>% left_join(ir_6methods_2021_2022 ) 
 
 # irrigation_2018_2020 ----
+
+ # irrigation method coded
+rmtl_srvy22 %>% select(farmers_hh,hh_id, starts_with("l48a_y"),-contains("other")) %>% 
+  pivot_longer(cols = -c(farmers_hh,hh_id),names_to = "observation",  values_to = "irri_method"
+               ) %>% count(irri_method)
+
+ir_flood_18_20 <- 
+  rmtl_srvy22 %>% select(farmers_hh,hh_id, starts_with("l48a_y"),-contains("other")) %>% 
+  pivot_longer(cols = -c(farmers_hh,hh_id),names_to = "observation",  values_to = "irri_method") %>% 
+  separate(observation, into = c("L48a","y" ,"year_ir","crop15"), sep = "_") %>% 
+  mutate(year_ir =as.numeric(year_ir),year_ir=year_ir+2000) %>% 
+  mutate(irri_method=ifelse(is.na(irri_method),0,irri_method)
+         ) %>% 
+  group_by(hh_id,year_ir) %>% 
+  mutate( flood_use = ifelse(any(irri_method  %in% c(1,2,6 )), 1,0)) %>% 
+  select(hh_id,flood_use,year_ir) %>% distinct() %>% ungroup() %>% 
+  pivot_wider(names_from = "year_ir", 
+              values_from = "flood_use",   
+              names_glue = "{.value}_{year_ir}" )
+
+
 
 ir_18_20 <- 
   rmtl_srvy22 %>% select(farmers_hh,hh_id, starts_with("l48a_y"),-contains("other")) %>% 
@@ -641,16 +678,17 @@ ir_18_20 <-
                   ifelse(any(irri_method  == 4), "sprinkler",
                   ifelse(any(irri_method  == 6), "hose","rain"))))) 
     ) %>%  #  filter(hh_id %in% c(103257,105832))
-  select(farmers_hh,hh_id,ir_method,year_ir) %>% distinct() %>% ungroup() %>% 
+  select(hh_id,ir_method,year_ir) %>% distinct() %>% ungroup() %>% 
   mutate(ir_use=ifelse(ir_method=="rain",0,1),
          drip_use=ifelse(ir_method=="drip",1,0))
 
 irrigation_2018_2020 <- 
-  ir_18_20 %>% select(-farmers_hh) %>% 
+  ir_18_20  %>% 
   pivot_wider(
     names_from = year_ir, 
     values_from = c(ir_method,drip_use, ir_use),
-    names_glue = "{.value}_{year_ir}" )
+    names_glue = "{.value}_{year_ir}" ) %>% 
+  left_join(ir_flood_18_20)
 
 
 # irrigation_2017      ----
@@ -666,9 +704,12 @@ irrigation_2018_2020 <-
 irrigation_2017 <- 
   ml18_irri_methods %>% 
   rename(ir_method_2017=irri_method  ) %>%
-  mutate(ir_use_2017  =ifelse(ir_method_2017=="rain",0,1),
-         drip_use_2017=ifelse(ir_method_2017=="drip",1,0)) %>%  
-  select(-irri,-farmers_hh)
+  mutate(
+    drip_use_2017=ifelse(ir_method_2017=="drip",1,0),
+    flood_use_2017  =ifelse(ir_method_2017 %in% c("flood","furrows","hose"),1,0),
+    ir_use_2017  =ifelse(ir_method_2017=="rain",0,1)
+         ) %>%  
+  select(hh_id, ir_method_2017, drip_use_2017, flood_use_2017, ir_use_2017)
 
 # irrigation_BL        ----
 
@@ -678,7 +719,8 @@ irrigation_BL <-
     ir_method_BL=ir_method_name,
     drip_use_BL=drip_use,
     ir_use_BL=ir_use) %>% 
-  select(-farmers_hh,-irri_method_2016)
+  mutate(flood_use_BL=ifelse(ir_method_BL %in% c( "flood" , "manual"),1,0)) %>% 
+  select(hh_id, ir_method_BL, drip_use_BL, ir_use_BL, flood_use_BL)
 
 # irrigation_BL_to_22  ----
 
@@ -686,7 +728,20 @@ irrigation_BL_to_22 <-
   full_join(irrigation_2021_22,
             irrigation_2018_2020) %>% 
   full_join(irrigation_2017) %>% 
-  full_join(irrigation_BL)
+  full_join(irrigation_BL) %>% 
+  mutate(flood_use = ifelse(
+    flood_use_2017==1 | flood_use_2018==1|flood_use_2019==1|flood_use_2020==1|flood_use_2021_22==1,1,0
+  ) ) %>% 
+  left_join(rmtl_InOut %>%  select(hh_id, drip_use,ir_use)) %>% 
+  rename(drip_use_6y=drip_use,
+         flood_use_6y=flood_use,
+         ir_use_6y=ir_use)
+  
+  
+library(writexl)
+write_xlsx(irrigation_BL_to_22,
+           "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/irrigation_BL_to_22.xlsx")
+
   
 
 

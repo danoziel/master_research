@@ -196,6 +196,7 @@ demographic_vars_2016 <- # not updated in BL_total_assets 10/11/2025
   
 write.csv(demographic_vars_2016, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/demographic_vars_2016.csv", row.names=FALSE)
 
+BL_source_ir
 
 # IRRIGARION 2016 -------------------------
 
@@ -490,24 +491,52 @@ d12_16=bl_d12 %>% right_join (bl6_plotAcre)
 #1 Canal  #2	Tank  #3	Open well  #4	River/Pond/Lake  #5	Bore well  # -888	Other, specify
 
 D13 <-  
-  rmtl_baseline2016 %>% select(farmers_hh,hh_id,starts_with("D13"),-c( D13_12,D13_0) )
+  rmtl_baseline2016 %>% select(hh_id,starts_with("D13"),-c( D13_12,D13_0) )
 D13$D13_1[D13$D13_os_1 == "BOREWELL"] <- 5
 D13$D13_2[D13$D13_os_2 == "BOREWELL"] <- 5
 D13 <-D13 %>% select(-c(D13_os_1,D13_os_2 ) )%>% 
-  pivot_longer(-c(farmers_hh,hh_id), names_to = "plot_num", values_to = "irri_source_5y")
+  pivot_longer(-c(hh_id), names_to = "plot_num", values_to = "irri_source_5y")
 D13$plot_num <- str_replace(D13$plot_num, "D13_(\\d)$", "plot_0\\1")
 D13$plot_num[D13$plot_num == "D13_10"] <- "plot_10" 
 
-bl13 <- D13[,2:4] %>% filter(irri_source_5y>0)
+bl13 <- D13 
+
+bl13$ir_source_bl[bl13$irri_source_5y %in% c(1,5)] <- "source_schema"
+bl13$ir_source_bl[bl13$irri_source_5y %in% c(2,3,4)] <- "source_own"
+
 bl13$irri_source_5y[bl13$irri_source_5y==1] <- "Canal"
 bl13$irri_source_5y[bl13$irri_source_5y==2] <- "Tank"
 bl13$irri_source_5y[bl13$irri_source_5y==3] <- "Openwell"
 bl13$irri_source_5y[bl13$irri_source_5y==4] <- "Borewell"
-bl13$irri_source_5y[bl13$irri_source_5y==5] <- "River/Pond/Lake"
+bl13$irri_source_5y[bl13$irri_source_5y==5] <- "River_Pond_Lake"
+bl13$irri_source_5y[bl13$irri_source_5y < 0] <- NA
 
 bl13_source_irrigate=bl13
 
-rm(D13 )
+is5 <- 
+  bl13 %>% select(hh_id,irri_source_5y) %>% 
+  filter(!is.na(irri_source_5y)) %>% distinct()  %>% mutate(b01=1) %>%
+  pivot_wider(names_from = irri_source_5y,
+              values_from ="b01" ) %>% 
+  right_join(rmtl_baseline2016 %>% select(hh_id))
+
+
+is2 <- bl13 %>% select(hh_id,ir_source_bl) %>% 
+  filter(!is.na(ir_source_bl)) %>% distinct()  %>% mutate(b01=1) %>%
+  pivot_wider(names_from = ir_source_bl,
+              values_from ="b01" ) %>% 
+  right_join(rmtl_baseline2016 %>% select(hh_id))
+
+BL_source_ir <- 
+  left_join(is5,is2) %>% 
+  mutate(across(where(is.numeric), ~replace_na(.x, 0))) %>% 
+  rename_with(~ paste0(.x, "_bl"), -hh_id)
+
+
+library(writexl)
+write_xlsx(BL_source_ir,
+           "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/BL_source_ir.xlsx")
+
 
 
 d12_16_13=bl_d12 %>% right_join (bl6_plotAcre) %>% left_join(bl13)
@@ -914,6 +943,113 @@ BL_2015_16_crop_IRsource_IRmethod <-
 write.csv(BL_2015_16_crop_IRsource_IRmethod, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/BL_2015_16_crop_IRsource_IRmethod.csv", row.names=FALSE)
 
 
+# ______________________ Migrants		         ----					
+# 1 Within the Village
+# 2	In a different Village
+# 3	In town/city in same district
+# 4	In town/city in different district
+# 5	Different State
+
+##
+ # [C1 ]	How many household members live in this house?
+ # [C15]	Where do they work during the rainy season? 1-5
+ # [C21]	Where do they work during the rest of the year? 1-5
+
+
+c4_adults <- rmtl_baseline2016 %>% select(hh_id,starts_with("C4")) %>% 
+  pivot_longer(-hh_id,names_to = "name",values_to = "val") %>% 
+  filter(val>17) %>% count(hh_id) %>% rename(hh_n_adults=n)
+
+C15 <- 
+  rmtl_baseline2016 %>% select(hh_id,starts_with("C15")) %>% 
+  pivot_longer(-hh_id,names_to = "name",values_to = "val") %>% 
+  mutate(val=ifelse(val %in% c(4,5),1,0)) %>% 
+  group_by(hh_id) %>% summarise(Migrants_work_rainy =sum(val)) 
+
+C21 <- 
+  rmtl_baseline2016 %>% select(hh_id,starts_with("C21")) %>% 
+  pivot_longer(-hh_id,names_to = "name",values_to = "val") %>% 
+  mutate(val=ifelse(val %in% c(4,5),1,0)) %>% 
+  group_by(hh_id) %>% summarise(Migrants_work_restYr =sum(val)) 
+
+
+
+Migrants_work <- 
+  left_join(C15,C21) %>% 
+  left_join(c4_adults) %>% 
+  mutate(Migrants_work_rainy_pct=Migrants_work_rainy/hh_n_adults,
+         Migrants_work_restYr_pct=Migrants_work_restYr/hh_n_adults)
+
+  
+
+## PREVIOUS HOUSEHOLD MEMBERS:
+# [C27]  How many people, who previously lived in the household in the past 10 years now live elsewhere?
+# [C33]	Where did they move to? 1-5
+# [C34]	Why did they move away?	1	For work |2	Married out |3	For Study
+
+c3334 <- rmtl_baseline2016 %>% select(hh_id,starts_with("C33")) %>% 
+  pivot_longer(-hh_id,names_to = "name",values_to = "wher_move") %>%  
+  filter(wher_move>0) %>% separate(name, into = c("name", "last_val"), sep = "_", remove = FALSE) %>%   
+  mutate(name = paste0(substr(name, 1, 1), "_", last_val)) %>% 
+  select(-last_val) %>% 
+  inner_join(c34) %>% filter(why.1.work==1,wher_move %in%c(4,5)) %>% 
+  count(hh_id) %>% 
+  right_join(rmtl_baseline2016 %>% select(hh_id)) %>% 
+  mutate(migrats_work_10=ifelse(is.na(n),0,n))
+
+
+
+# head of HH list
+c5 <- 
+  rmtl_baseline2016 %>% select(hh_id,starts_with("C5"),-contains("os")) %>% 
+  pivot_longer(-hh_id,names_to = "name",values_to = "val") %>% 
+  mutate(name = str_replace(name, "^C5", "C")) %>% 
+  filter(val==1) %>% select(-val) %>% group_by(hh_id ) %>% slice(1) %>% ungroup() %>% 
+  right_join(rmtl_baseline2016 %>% select(hh_id)) %>% 
+  mutate(name=ifelse(is.na(name),"C_1",name))
+
+# [ hh_haed_Main_Occupation  ]	
+# What are their main income-earning activities in the
+# [C13]	rainy season,
+# [C17]	rest of the year,
+#       in order of importance? (Select up to 3).
+
+dfrainy  <- 
+  rmtl_baseline2016 %>% select(hh_id,starts_with("C13"),-contains("os"),-contains("bin") ) %>% 
+  pivot_longer(-hh_id,names_to = "name",values_to = "val")%>%
+  separate(name, into = c("prefix","ranked_ans", "last_val"), sep = "_", remove = FALSE) %>%
+  mutate(name = paste0(substr(prefix, 1, 1), "_", last_val)
+  )%>% select(hh_id, name,ranked_ans ,  val)
+
+C13 <- dfrainy %>% 
+  filter(ranked_ans==1,!is.na(val)) %>%   
+  mutate(val=ifelse(val%in%c(3,4,5,6),1,0))%>% 
+  right_join(c5) %>% 
+  select(hh_id, name, val) %>% 
+  rename(hh_haed_Main_Occupation_Rainy=val)
+
+
+
+dfrest <- 
+  rmtl_baseline2016 %>% select(hh_id,starts_with("C17"),-contains("os"),-contains("bin") ) %>% 
+  pivot_longer(-hh_id,names_to = "name",values_to = "val")%>%
+  separate(name, into = c("prefix","ranked_ans", "last_val"), sep = "_", remove = FALSE) %>%
+  mutate(name = paste0(substr(prefix, 1, 1), "_", last_val)
+  )%>% select(hh_id, name,ranked_ans ,  val)
+
+C17 <- dfrest %>% 
+  filter(ranked_ans==1,!is.na(val)) %>%   
+  mutate(val=ifelse(val%in%c(3,4,5,6),1,0)) %>% 
+  right_join(c5) %>% 
+  select(hh_id, name, val) %>% 
+  rename(hh_haed_Main_Occupation_RestYr=val)
+
+
+hh_haed_Main_Occupation <- 
+  C13 %>% select(-name) %>% left_join(C17 %>% select(-name))
+
+
+##
 ######################    essantials    ----
 
 
@@ -1004,30 +1140,135 @@ write.csv(rmtl_baseline2016, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramth
 
 
 
+#____________________ Balance Tests ________________________________________ ####
+
+Head of HH Gender (1)Male/(0)Female
+Head of HH Age
+Head of HH Literate (1)Yes/(0)No
+Head of HH Education (if Literate) (1)Primary/(0)Secondary or above
+Head of HH Main Occupation in Rainy Season (1)Agriculture/(0)Other
+Head of HH Main Occupation in Rest of Year (1)Agriculture/(0)Other
+No. of Seasonal Work Migrants per Household
+No. Permanent Work Migrants per Household
+No. of Rooms in the House
+Has a BPL Ration Card (1)Yes/(0)No
+Has Received Public Assistance (1)Yes/(0)No
+No. of Members in the HH
+Total Annual Income in Rs.
+No. of Cars Owned
+
+
+
+Sorghum Cultivation (1)yes/(0)no
+Sorghum Yields (q/acre)
+Bengal Gram Cultivation (1)yes/(0)no
+Bengal Gram Yields (q/acre)
+Total Land Size Owned (Acres)
+Number of Plots Owned
+Are You Familiar With Drip Irrigation
+Used Irrigation in Any Plot in Past 5 Years
+Sold Agricultural Land in Past 5 Years (1)Yes/(0)No
+Total Units of Livestock Owned
+No. of Tractors Owned
+Owns Agricultural Equipment
+Annual Income From Plant Agriculture in Rs.
+
+library(readr)
+education_age_gndr_2016 <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/education_age_gndr_2016.csv")
+
+
+library(gtsummary)
+library(tidyr)
+library(tidyverse)
+library(kableExtra)
+
+bt_add <- 
+  rmtl_baseline2016 %>% 
+  select(hh_id,B2, F1_source ,F2_source, E17_1,E1,I1 , C1) %>% 
+  rename(total_rooms=B2, 
+         migrants_work_seasonal = F1_source,
+         migrants_work_permanent = F2_source,
+         own_car=E17_1, sold_agri_land_5Y=E1,
+         Familiar_With_Drip=I1,
+         total_hh_mmbrs=C1)
+bt_add$own_car[is.na(bt_add$own_car)] <- 0
+bt_add$migrants_work_seasonal[bt_add$migrants_work_seasonal==2] <- 0
+bt_add$migrants_work_permanent[bt_add$migrants_work_permanent==2] <- 0
+
+bt_add_ir <- irrigation_BL_to_22 %>% select(hh_id,ir_use_BL)
+
+bt_add_crop_acre <- 
+  crop_acre_BL %>% 
+  filter(crop_common %in% c("Bengal_gram", "Sorghum_jowar", "Sunflower") )%>% 
+  rename(crop=crop_common) %>% 
+  right_join( 
+    expand_grid(hh_id = unique(rmtl_baseline2016$hh_id),
+                crop = c("Bengal_gram", "Sorghum_jowar", "Sunflower")) 
+  )%>% pivot_wider(names_from = crop,values_from = acre_crop_bl) %>% 
+  mutate(Bengal_gram_01=ifelse(is.na(Bengal_gram),0,1),
+         Sorghum_jowar_01=ifelse(is.na(Sorghum_jowar),0,1),
+         Sunflower_01=ifelse(is.na(Sunflower),0,1))%>% 
+  rename_with(~paste0(., "_acre"), c(Bengal_gram, Sorghum_jowar, Sunflower)) %>% 
+  mutate(across(where(is.numeric), ~replace_na(., 0)))
+
+bt_add_crop_Yield<- 
+  df100 %>%   
+  filter(crop %in% c("Bengal_gram", "Sorghum_jowar", "Sunflower") 
+  )%>% pivot_wider(names_from = crop,values_from = kg_per_acre_BL) %>% 
+  rename_with(~paste0(., "_yield"), c(Bengal_gram, Sorghum_jowar, Sunflower)) %>% 
+  mutate(across(where(is.numeric), ~replace_na(., 0)))
 
 
 
 
-library(readxl)
-course_udl_analysis_4_10_23 <- read_excel("C:/Users/Dan/Downloads/course udl analysis 4.10.23.xlsx", 
-                                          sheet = "שיפוט מהימנות")
-course_udl_analysis=course_udl_analysis_4_10_23 %>%
-  select(YAEL,DAN) %>%  
-  filter( !is.na(YAEL))
+df_Balance <- 
+  rmtl_cntrl_vars %>% 
+  left_join(bt_add)%>% 
+  left_join(bt_add_ir) %>% 
+  left_join(hh_haed_Main_Occupation) %>% 
+  left_join(Migrants_work)%>% 
+  left_join(bt_add_crop_acre) %>% 
+  left_join(bt_add_crop_Yield)
 
 
-# Chi-Square Test
-# Create a contingency table
-contingency_table <- table(course_udl_analysis$YAEL, course_udl_analysis$DAN)
-# Perform the Chi-Square Test
-chi_test <- chisq.test(contingency_table)
-print(chi_test)
+# 1. יצירת פונקציה  שבונה שורה אחת בטבלה
+get_row <- function(v, data) {
+  t_val <- t.test(data[[v]] ~ data$farmers_hh)
+  m <- aggregate(data[[v]] ~ data$farmers_hh, FUN = mean, na.rm = TRUE)
+  
+  data.frame(
+    Variable = v,
+    Out_Mean = round(m[2,2], 2), # ממוצע חוץ
+    In_Mean  = round(m[1,2], 2), # ממוצע פנים
+    p_value  = round(t_val$p.value, 3)
+  )
+}
+
+# 2. הרצה על כל המשתנים וחיבור לטבלה אחת
+names(df_Balance)
+
+vars <- c("hh_haed_gendar","hh_haed_age", 
+          "literate_hh_pct","hh_haed_edu_level", 
+          "hh_haed_Main_Occupation_Rainy" , "hh_haed_Main_Occupation_RestYr",
+          "Migrants_work_rainy" ,"Migrants_work_restYr", 
+          migrants_work_seasonal, migrants_work_permanent,
+          "total_rooms",  "bpl_card", "official_assistance","govPnsin_scheme",
+          "total_hh_mmbrs","income_2015","own_car",
+          "total_acre16", "total_plots16",
+          "Sorghum_jowar_01","Sorghum_jowar_yield",
+          "Bengal_gram_01", "Bengal_gram_yield",
+          "Sunflower_01",  
+          "Familiar_With_Drip", "ir_use_BL", 
+          "sold_agri_land_5Y", "total_livestock",
+          "Tractor" ,"total_farm_equipments")
 
 
-#  Cohen's Kappa
-library(irr)
-kappa_result <- kappa2(course_udl_analysis)
-# Display the results
-print(kappa_result)
+# הטבלה הסופית למדגם הכללי
+do.call(rbind, lapply(vars, get_row, data = df_Balance)) %>% 
+  kable() %>% kable_styling()
 
+# הטבלה הסופית לגבול הדרומי
+df_south <- df_Balance[df_Balance$south1_north0 == 1, ]
+do.call(rbind, lapply(vars, get_row, data = df_south)) %>% 
+  kable() %>% kable_styling()
 

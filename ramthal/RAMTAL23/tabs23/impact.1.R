@@ -7,7 +7,7 @@ library(ggplot2)
 
 df_ramthal_01012026 <- irrigation_BL_to_22 %>% left_join(rmtl_cntrl_vars)
 library(writexl)
-write_xlsx(df_economic, "C:/Users/Dan/Downloads/df_economic.xlsx")
+write_xlsx(df_drip_bl, "C:/Users/Dan/Downloads/df_drip_bl.xlsx")
 
 ## General DFs  ________________________________________________________ _ ----
 library(readr)

@@ -11,37 +11,557 @@ library(kableExtra )
 library(tidyverse)
 
 
+###### Cha.3 Adopters characteristics  #### ####
 
 df1 <- 
   irrigation_BL_to_22 %>% 
-  select(hh_id,DI_installed,
-         drip_use_6y,drip_use_2021_22,
-         ir_use_6y,ir_use_2021_22)
+  select(hh_id,
+         drip_use_6y,drip_use_2021_22,drip_use_BL,
+         flood_use_6y,flood_use_2021_22,flood_use_BL,
+         ir_use_6y,ir_use_2021_22,ir_use_BL) 
+
 df2 <- 
-   a_source_irri %>% 
-  select( hh_id,source_ramthal ) %>% 
-  mutate(source_ramthal= ifelse(source_ramthal=="ramthal",1,0) )
+  a_source_irri %>% 
+  mutate(source_ramthal= ifelse(source_ramthal=="ramthal",1,0) 
+         ) %>% 
+  mutate(source_own_6y= ifelse(source_borwell %in% c("rain","ramthal"),0,1),
+         source_canal_6y = ifelse(source_canal  %in% c("rain","ramthal"),0,1), 
+         source_pond_6y = ifelse(source_pond  %in% c("rain","ramthal"),0,1),
+         source_schema_6y = ifelse(source_pond == 1| source_canal==1,1,0)) %>% 
+  select(hh_id,source_ramthal,source_own_6y,source_schema_6y) %>% 
+  left_join( 
+    BL_source_ir %>% select(hh_id,ir_source_own_bl,ir_source_schema_bl) 
+    ) %>% rename(
+      source_own_bl = ir_source_own_bl  ,
+      source_schema_bl = ir_source_schema_bl )
 
 df3 <- 
   rmtl_cntrl_vars %>% 
   select(hh_id, in_project,
-         edu_level_hh,hh_haed_age, hh_haed_gendar,literate_hh_pct,caste_01,
+         hh_haed_age, hh_haed_gendar,hh_haed_edu_level,literate_hh_pct,caste_01,
+         official_assistance, bpl_card,
          total_acre16,housing_str321,
          dist_Km_boundary,Elevation,elevation_m,
          cardinal_direction, zone,village   
-  )
+  ) %>% 
+  left_join(df_income_NonCrop_bl_binary) %>% 
+  mutate(hh_haed_edu_years=case_when(
+    hh_haed_edu_level == 1 ~ 6,
+    hh_haed_edu_level == 2 ~ 9,
+    hh_haed_edu_level == 3 ~ 12,
+    hh_haed_edu_level == 4 ~ 15,
+    hh_haed_edu_level == 5 ~ 18,
+    TRUE ~ 21
+  ),zone=ifelse(zone =="i","I",zone),
+  zone=ifelse(zone =="ii","II",zone),
+  zone=ifelse(zone =="iii","III",zone),
+  zone=ifelse(zone =="iv","IV",zone),
+    )
+
+df4 <- 
+  irrigation_BL_to_22 %>%
+  select(hh_id,starts_with("drip"),starts_with("flood"),
+         starts_with("ir"),-contains("method") ) %>% 
+  pivot_longer(
+    -hh_id,
+    names_to = c("Type", "Year"),
+    names_pattern = "(drip|flood|ir)_use_(.*)",
+    values_to = "use"
+  ) %>% filter(!Year %in% c("BL","6y","2021_22")) %>%
+  group_by(hh_id,Type) %>%
+  summarise(usage_freq = sum(use, na.rm = T) ,.groups = "drop"
+  ) %>%   pivot_wider(names_from = "Type",values_from ="usage_freq" ) %>% 
+  rename_with(~ paste0("total.Ys_", .x),-hh_id)
+
 
 
 df_drip_bl <- 
   hh_2022 %>% rename(in_project =in1_out0 ) %>% 
   left_join(df1) %>% 
   left_join(df2) %>% 
-  left_join(df3)
+  left_join(df3)%>% 
+  left_join(df4)
+
+library(writexl)
+write_xlsx(df_drip_bl, "C:/Users/Dan/Downloads/df_drip_bl.xlsx")
 
 
-scale_fill_manual(values = c("lightblue", "gray80"))+theme_minimal()
-color2_bin <- c("infrstr_17_21" = "darkgreen","hh_drip_yrs_17_21"="darkblue")
-color3_bin <- c("infrstr_17_21" = "darkgreen","hh_drip_yrs_17_21"="darkblue" ,"inf_drip_17_21" = "blue2")
+names(df_drip_bl)
+
+cv = irrigation_BL_to_22 %>% 
+  left_join(hh_2022) %>% filter(in1_out0 == 1) %>%
+  mutate(both = ifelse(drip_use_6y==1 & flood_use_6y==1,1,0 )) 
+
+
+df_project %>% 
+  select(source_ramthal, # source_ramthal==1, n/384, n/562
+         ir_use_BL,  # source_ramthal==1, n/78, n/868 
+         source_own_bl, # source_own_bl==1,n/27,n/919
+         source_schema_bl, 
+         drip_use_6y,  # mutate(pct=ifelse(drip_use_6y == 1, n/291, n/655))
+         flood_use_6y  # mutate(pct=ifelse(flood_use_6y == 1, n/178, n/751))
+         ) %>% 
+  count(drip_use_6y,ir_use_BL ) %>% 
+  mutate(pct=ifelse(drip_use_6y == 1, n/291, n/655))
+
+
+
+
+
+
+df_drip_bl %>% filter(in_project == 1) %>% 
+  select(total.Ys_drip , total.Ys_flood) %>% 
+  pivot_longer(everything(),names_to = "Type",values_to = "usage_freq") %>% 
+  filter(usage_freq > 0) %>% 
+  group_by(Type) %>%
+  summarise(usage_freq = mean(usage_freq, na.rm = T) ,.groups = "drop"
+  )
+
+                 
+
+df_3_DI <- 
+  irrigation_BL_to_22 %>%
+  left_join(df2 %>%  select(hh_id,source_ramthal)) %>% 
+  right_join(rmtl_cntrl_vars %>% select(hh_id, in_project)) %>% 
+  filter(in_project == 1) %>% 
+  select(hh_id,source_ramthal,starts_with("drip"),starts_with("flood")
+  ) %>% 
+  select(starts_with("drip"),starts_with("flood"), 
+         -ends_with("2021_22"),-ends_with("6y")
+  ) %>%  pivot_longer(
+    cols = everything(),
+    names_to = c("Type", "Year"),
+    names_pattern = "(drip|flood)_use_(.*)",
+    values_to = "use"
+  )%>%
+  group_by(Type, Year) %>%
+  summarise(adoption_rate = mean(use, na.rm = TRUE),.groups = "drop"
+  )
+
+
+
+
+df_ir_in <- 
+  irrigation_BL_to_22 %>%
+  left_join(df2 %>%  select(hh_id,source_ramthal)) %>% 
+  right_join(rmtl_cntrl_vars %>% select(hh_id, in_project)) %>% 
+  filter(in_project == 1) %>% 
+  select(hh_id,source_ramthal,starts_with("drip"),starts_with("flood")
+         ) %>% 
+  select(starts_with("drip"),starts_with("flood"), 
+         -ends_with("2021_22"),-ends_with("6y")
+  ) %>%  pivot_longer(
+    cols = everything(),
+    names_to = c("Type", "Year"),
+    names_pattern = "(drip|flood)_use_(.*)",
+    values_to = "use"
+  )%>%
+  group_by(Type, Year) %>%
+  summarise(adoption_rate = mean(use, na.rm = TRUE),.groups = "drop"
+  )
+
+
+
+
+
+
+
+
+
+
+df_ir_in_sr <- 
+  irrigation_BL_to_22 %>%
+  left_join(df2 %>%  select(hh_id,source_ramthal)) %>% 
+  right_join(rmtl_cntrl_vars %>% select(hh_id, in_project)) %>% 
+  filter(in_project == 1,
+         source_ramthal==1) %>% 
+  select(hh_id,source_ramthal,starts_with("drip"),starts_with("flood"), -ends_with("2021_22")
+  )
+
+df_ir_in_Fsr <- df_ir_in_sr %>%
+  select(starts_with("drip"),starts_with("flood"), -ends_with("2021_22"),-ends_with("6y")
+  ) %>%  pivot_longer(
+    cols = everything(),
+    names_to = c("Type", "Year"),
+    names_pattern = "(drip|flood)_use_(.*)",
+    values_to = "use"
+  )%>%
+  group_by(Type, Year) %>%
+  summarise(adoption_rate = mean(use, na.rm = T)/2.463542,.groups = "drop"
+  ) 
+
+
+
+
+df_plot <- df_ir_in %>%
+  select(starts_with("drip"),starts_with("flood"), 
+         -ends_with("2021_22"),-ends_with("6y")
+         ) %>%  pivot_longer(
+    cols = everything(),
+    names_to = c("Type", "Year"),
+    names_pattern = "(drip|flood)_use_(.*)",
+    values_to = "use"
+  )%>%
+  group_by(Type, Year) %>%
+  summarise(adoption_rate = mean(use, na.rm = TRUE),.groups = "drop"
+  ) %>%
+  rbind(df_ir_in_Fsr%>% 
+          mutate(
+            Type = recode(Type,flood = "Flood. Ramthal source")) %>% 
+          filter(Type != "drip")
+        ) %>% 
+  mutate(
+    Type = recode(Type,drip  = "Drip",flood = "Flood"),
+    Year = recode(Year,"BL"   = "Baseline","2017" = "1st\n2017","2018" = "2nd\n2018","2019" = "3rd\n2019","2020" = "4th\n2020","2021" = "5th\n2021","2022" = "6th\n2022"),
+    Year = factor( Year,levels = c("Baseline","1st\n2017","2nd\n2018","3rd\n2019","4th\n2020","5th\n2021","6th\n2022"))
+    ) 
+
+drip_use_2018     138
+flood_use_2018    44
+overlapp 5
+both  177
+
+drip_use_2017     71
+flood_use_2017    93
+overlapp 0
+both  167
+
+
+
+  df_plot %>% 
+  filter(Type != "Flood. Ramthal source" ) %>% 
+  ggplot(aes(x = Year, y = adoption_rate, group = Type, color = Type)) +
+  geom_line(linewidth = 1.5) +
+  geom_point(size = 2) +
+  geom_text(
+    aes(label = scales::percent(adoption_rate, accuracy = 1)),
+    vjust = -1, size = 4, family = "serif",show.legend = F
+    ) +
+  scale_color_manual(values = c("Drip"  = "#4d85c6",
+                                "Flood" = "#274e13ff"  #  "#93c47d", "Flood. Ramthal source" ="#38761d"
+                                )) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),limits = c(0, NA)
+                     ) +
+  labs(x = "",y = "Share of farmers (%)",color = NULL
+  ) +
+  theme_minimal(base_size = 16) +
+  theme(text = element_text(family = "serif"),
+        panel.grid = element_blank(),
+      plot.background = element_rect(fill = "transparent", color = NA),
+      panel.background = element_rect(fill = "transparent", color = NA)
+  )
+
+ggsave("line_plot.png", p, bg = "transparent",
+       width = 10, height = 3)
+
+
+# DS 
+
+df_drip_bl %>%
+  filter(in_project == 1) %>% 
+  mutate(total_acre16=ifelse(total_acre16 > 40, NA, total_acre16 ) ) %>% 
+  summarise(
+  DI.6Ys=mean(drip_use_6y,na.rm=T),
+  DI.6th=mean(drip_use_2021_22,na.rm=T),
+  Flood.6Ys=mean(flood_use_6y,na.rm=T),
+  Ir.6Ys=mean(ir_use_6y,na.rm=T),
+  Ramthal.as.Source=mean(source_ramthal,na.rm=T),
+  ) %>% 
+  pivot_longer(c(DI.6Ys:Ramthal.as.Source ),names_to = "name",values_to = "val") %>% 
+  mutate(val=val*100) %>% 
+  kableExtra::kable() %>%kableExtra::kable_minimal()
+
+df_drip_bl %>%
+  filter(in_project == 1) %>% 
+  mutate(total_acre16=ifelse(total_acre16 > 40, NA, total_acre16 ) ) %>% 
+  group_by(drip_use_6y) %>% 
+  summarise(
+    hh_haed_age = mean(hh_haed_age,na.rm=T),
+      hh_haed_gendar= mean(hh_haed_gendar,na.rm=T),
+      literate_hh_pct= mean(literate_hh_pct,na.rm=T),
+      source_schema_bl =mean(source_schema_bl,na.rm=T),
+      source_own_bl =mean(source_own_bl,na.rm=T),
+      income_NonCrop =mean(income_NonCrop,na.rm=T),
+      total_acre16=mean(total_acre16,na.rm=T)
+  ) %>% 
+  pivot_longer(-drip_use_6y,names_to = "name",values_to = "val") %>% 
+  mutate(val= ifelse(!
+    name %in% c("hh_haed_age", "total_acre16"),val*100,val) )%>% 
+  pivot_wider(names_from =drip_use_6y,values_from = val ) %>% 
+  kableExtra::kable() %>%kableExtra::kable_minimal()
+
+
+
+
+
+# 2. Filter: Treatment group, limit to 20 acres, and remove missing land values
+df_project <- df_drip_bl %>%
+  filter(in_project == 1) %>% 
+  mutate(total_acre16=ifelse(total_acre16 > 40, NA, total_acre16 ) ) %>% 
+  mutate(total_acre16=total_acre16/10,
+         hh_haed_age=hh_haed_age/10) %>% 
+  left_join(df_302)
+
+
+#  Model  FE zone: Adoption (Ever used drip)   ----
+model1_feZ <- 
+  lm(drip_use_6y ~ 
+       hh_haed_age + hh_haed_gendar + literate_hh_pct +  
+       caste_01 + housing_str321 + 
+       source_schema_bl + source_own_bl + income_NonCrop+
+       official_assistance + total_acre16 +  
+       factor(zone),
+     data = df_project )
+sjPlot::tab_model(model1_feZ ,  show.se = T,digits = 4, show.stat  = F )
+
+# plot FE coeff CI
+
+tidy(model1_feZ, conf.int = TRUE) %>%
+  filter(term != "(Intercept)") %>%
+  mutate( Category = 
+            ifelse(term %in% c("factor(zone)II","factor(zone)III","factor(zone)IV" )
+                   , "B", "A") ) %>% 
+  ggplot(aes(x = estimate, y = reorder(term, Category), color = Category)) +
+  geom_point(size = 2.5) +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), width = 0, size = 0.85) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray45", size = 0.5) +
+  scale_color_manual(values = c("A" = "#3d85c6", "B" = "purple4")) +
+  labs(title = "model  ",x = "Estimated Coefficient Value", y = NULL, caption = "Age and gender refer to the household head"
+) +
+  theme_minimal() + 
+  theme(text = element_text(family = "serif"),
+        legend.position = "none", panel.grid = element_blank())
+# Notes:
+# Age is divided by 10; coefficients reflect a 10-year increase.
+# Land area is divided by 10; coefficients reflect a 10-acre increase.
+# Age and gender refer to the household head
+
+
+
+
+
+
+
+
+
+# 3 models ----
+
+#  Model 1: Adoption (Ever used drip)
+model_DI <- 
+  lm(drip_use_6y ~ 
+       hh_haed_age + hh_haed_gendar + literate_hh_pct + 
+       ir_use_BL + 
+       # source_schema_bl + source_own_bl + 
+       income_NonCrop + total_acre16,
+     data = df_project )
+sjPlot::tab_model(model_DI ,show.se = T,digits = 4,show.stat  = F)
+
+model_DI2 <- 
+  lm(drip_use_2021_22 ~ 
+       hh_haed_age + hh_haed_gendar + literate_hh_pct + 
+       ir_use_BL + 
+       # source_schema_bl + source_own_bl + 
+       income_NonCrop + total_acre16,
+     data = df_project )
+
+
+#  Model 3: flood_use_6y   #134f5c
+model_FI <- 
+  lm(flood_use_6y ~ 
+       hh_haed_age + hh_haed_gendar + literate_hh_pct + 
+       ir_use_BL + 
+       # source_schema_bl + source_own_bl + 
+       income_NonCrop + total_acre16,
+     data = df_project )
+
+model_FI2 <- 
+  lm(flood_use_2021_22 ~ 
+       hh_haed_age + hh_haed_gendar + literate_hh_pct + 
+       ir_use_BL + 
+       # source_schema_bl + source_own_bl + 
+       income_NonCrop + total_acre16,
+     data = df_project )
+
+sjPlot::tab_model(model_FI ,  show.se = T,digits = 4, show.stat  = F )
+
+#  Model 3: source_ramthal  #4a86e8ff
+model_SR <- 
+  lm(source_ramthal ~ 
+       hh_haed_age + hh_haed_gendar + literate_hh_pct + 
+       ir_use_BL+ # source_schema_bl + source_own_bl + 
+       income_NonCrop + total_acre16,
+     data = df_project )
+sjPlot::tab_model(model_SR ,  show.se = T,digits = 4, show.stat  = F )
+
+
+
+
+# NON LINEAR CONNECTIONS ----
+
+# total_acre16 non linear reg
+df_project <- df_drip_bl %>%
+  filter(in_project == 1, 
+         total_acre16 < 40, 
+         !is.na(total_acre16)) %>%
+  mutate(land_decile = ntile(total_acre16, 10)) %>%  # Create 10 bins (deciles) 
+  mutate(elev_decile = ntile(elevation_m, 10)) %>% 
+  mutate(dist_decile = ntile(dist_Km_boundary, 10))
+
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+
+
+
+# Calculate Mean Acres and Ever Used Rate (6y) for each bin
+df_pA <- df_project %>%
+  group_by(land_decile) %>%
+  summarize(
+    mean = mean(total_acre16, na.rm = TRUE),
+    ever_used_rate = mean(drip_use_6y, na.rm = TRUE))
+
+df_pE <- df_project %>%
+  group_by(elev_decile) %>%
+  summarize(
+    mean = mean(elevation_m, na.rm = TRUE),
+    ever_used_rate = mean(drip_use_6y, na.rm = TRUE)) %>% 
+  filter(!is.na(elev_decile))
+
+df_pD <- df_project %>%
+  group_by(dist_decile) %>%
+  summarize(
+    mean = mean(dist_Km_boundary, na.rm = TRUE),
+    ever_used_rate = mean(drip_use_6y, na.rm = TRUE)) %>% 
+  filter(!is.na(dist_decile))
+
+
+
+#  Create the line plot
+df_pA %>% 
+  ggplot(aes(x = land_decile, y = ever_used_rate)) +
+  geom_line(color = "blue4", size = 1) + geom_point(color = "blue4", size = 3) +
+  geom_text(aes(label = round(ever_used_rate, 2)), vjust = -1, size = 3.5) + # Add value labels
+  scale_y_continuous(limits = c(0, 0.5)) +
+  labs( title = "Drip Adoption Rate by Mean",
+        subtitle = "Bins created as deciles (equal number of farms per point)",
+        x = "Mean in Bin",y = "Ever Used Rate (6y)") +
+  theme_minimal() + theme(text = element_text(family = "serif"),
+                          panel.grid.minor = element_blank()) # Load necessary libraries
+
+
+
+
+model4 <- 
+  lm(drip_use_6y ~ 
+       hh_haed_age + hh_haed_gendar + literate_hh_pct +  
+       caste_01 + housing_str321 + source_old + official_assistance + 
+       total_acre16 + I(total_acre16^2) + 
+       dist_Km_boundary + I(dist_Km_boundary^2) +
+       factor(zone),
+     # factor(cardinal_direction), 
+     # factor(village),
+     data = df_project )
+sjPlot::tab_model(model4 ,  show.se = T,digits = 5, show.stat  = F )
+
+
+
+# PLOT REG COEFF + CI  ----
+# 
+library(dplyr)
+library(ggplot2)
+library(broom)
+
+
+model_DI "#3d85c6"   drip_use_6y
+model_FI "#6aa84f"   flood_use_6y
+model_SR  "#7f6000"  source_ramthal 
+
+
+
+library(purrr)
+
+# Put models in a named list
+model_list <- list("Drip Use" = model_DI,
+                   "Flood use" = model_FI # , "Ramthal as source" = model_SR
+                   )
+
+model_list_2 <- list("Drip Use" = model_DI2, "Flood use" = model_FI2
+                   )
+
+# Tidy all of them at once and combine
+all_models <- map_dfr(model_list_2, tidy, conf.int = TRUE, .id = "Model") %>% 
+  mutate(CleanName = case_when(
+    term == "hh_haed_age" ~ "Age (Decades)",
+    term == "hh_haed_gendar" ~ "Gender (Male)",
+    term == "literate_hh_pct" ~ "Literacy (%)",
+    # term == "source_schema_bl" ~ "Gov. irrigation program",
+    # term == "source_own_bl" ~ "Own borewell",
+    term == "ir_use_BL" ~ "Prior irrigation experience",
+    term == "income_NonCrop" ~ "External work income",
+    term == "total_acre16" ~ "Land holding (10 acres)" ), 
+    Model = factor(Model, levels = c("Ramthal as source","Flood use","Drip Use")),
+    CleanName = 
+      factor(CleanName, levels = c(
+        "Land holding (10 acres)", 
+        # "Own borewell", "Gov. irrigation program",
+        "Prior irrigation experience","External work income",
+        "Literacy (%)", "Gender (Male)", "Age (Decades)" ))
+  ) %>% filter(term != "(Intercept)") 
+
+
+p=
+ggplot(all_models, aes(x = estimate, y = CleanName , color = Model)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray45",size=.5) +
+  geom_pointrange(aes(xmin = conf.low, xmax = conf.high), 
+                  position = position_dodge(width = 0.5),
+                  linewidth = 2.5,  # SE line thickness
+                  fatten = 1) +     # center point size
+  labs(title = "Model ",x = "Estimated Coefficient Value", y = NULL) +
+  theme_minimal(base_size = 48) + 
+  theme(text = element_text(family = "serif"),legend.position = "right",
+        panel.grid = element_blank(),
+        plot.background = element_rect(fill = "transparent", color = NA),
+        panel.background = element_rect(fill = "transparent", color = NA)
+  ) + scale_color_manual(
+    breaks = c("Ramthal as source","Flood use","Drip Use"),
+    values = c("Drip Use" = "#4a86e8",
+               "Flood use" ="#6aa84fcc" , # "#6aa84f",
+               "Ramthal as source" = "#bf9000"))+
+  guides(color = guide_legend(reverse = TRUE)) + xlim(-.2,.55)
+
+ggsave("coef_plot.png", p, bg = "transparent",
+       width = 32, height = 16)
+# getwd()
+
+
+cm <- c(
+  "hh_haed_age"      = "Age (Decade)",
+  "hh_haed_gendar"   = "Gender (Male)",
+  "literate_hh_pct"  = "Literacy (%)",
+  "source_schema_bl" = "Gov. irrigation program",
+  "source_own_bl"    = "Own borewell",
+  "income_NonCrop"   = "External work income",
+  "total_acre16"     = "Land holding (10 acres)"
+  )
+
+
+modelsummary(model_list, coef_map = cm, stars = F, 
+             statistic = c("std.error", "[{p.value}]"),
+             gof_map = c("nobs", "r.squared"),
+             title = "Outcoms: % of households using water in 2016-2022"
+             )
+
+modelsummary(model_list_6th, coef_map = cm, stars = F, 
+             statistic = c("std.error", "[{p.value}]"),
+             gof_map = c("nobs", "r.squared"),
+             title = "Outcoms: % of households using water in 2021-22"
+             )
+
+
+
+
+
+
 
 
 # overlap data  ----

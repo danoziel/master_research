@@ -732,6 +732,23 @@ df_income_NonCrop_bl <-
   mutate(C1=ifelse(C1<1,1,C1),
     income_NonCrop_mhh=income_NonCrop/C1 ) %>% select(-C1)
 
+df_income_NonCrop_bl_binary <- 
+  rmtl_baseline2016 %>%
+  select(hh_id,starts_with("F")) %>% 
+  select(hh_id, contains("year"),-F3_year, -F12_year)%>%
+  pivot_longer(-hh_id ,
+               names_to = "income_type_f",
+               values_to = "income22") %>% 
+  mutate(income_type=
+           ifelse(income_type_f %in% c("F1_year","F2_year","F9_year"),
+                  "income_assistance","income_NonCrop" ))  %>% 
+  group_by(hh_id, income_type ) %>% 
+  summarise(income_NonCrop = sum(income22,na.rm = T)/1000,.groups = "drop"
+            ) %>% 
+  mutate(income_NonCrop_01=ifelse(income_NonCrop == 0,0,1) 
+         ) %>% select(-income_NonCrop) %>% 
+  pivot_wider(names_from = income_type,
+              values_from =income_NonCrop_01 )
 
 # TYPE of incomr
 
@@ -1080,23 +1097,52 @@ m1_plot + mp_theme
 
 #__________________________ Migration  __________________________       ----
 
-
-rmtl_baseline2016 %>% select(hh_id, C1)%>% 
-  left_join(
-    rmtl_midline2018 %>% select(hh_id, c1_exist)) %>% 
-  left_join (
-    rmtl_srvy22 %>% select(hh_id,r1)) %>% 
-  rename(BL=C1,S18=c1_exist,s22=r1)
-
-
-### migration 2022 ###
-attr(rmtl_srvy22$r3, "labels")
 # r1 How many household members live in this house?
-# r26_ Since 2016, has [member's name] migrated from the village for work for a period of 6 months or more?
-rmtl_srvy22 %>% select(hh_id, farmers_hh, r1 )
+n_roster_bl <- rmtl_baseline2016 %>% select(hh_id, C1) %>% rename(roster_N.bl=C1)
+n_roster_18 <- rmtl_midline2018 %>% select(hh_id, c1_exist) %>% rename(roster_N.18=c1_exist)
+n_roster_22 <- rmtl_srvy22 %>% select(hh_id,r1) %>% rename(roster_N.22=r1)
+
+HHn_adults_22 <- rmtl_srvy22 %>% select(hh_id,starts_with("r5_")) %>% 
+  pivot_longer(-hh_id,names_to = "name",values_to = "age") %>%     
+  mutate(age=as.numeric(age)) %>% filter(age>17) %>% 
+  mutate(name = str_replace(name, "^r5_hh_age", "r"))
+
+
+# migrants_work_seasonal [new]
+# [RC3]	new Q	Where do they work most of the time in the last 2 years?
+# NO  #1 Within the Village #2 In a different Village #3	In town/city in same district
+# YES #4	In town/city in different district # 5Different State
+#
+rc3 <- rmtl_srvy22 %>% 
+  select(hh_id, starts_with("rc3")) %>% 
+  pivot_longer(-hh_id, names_to = "name", values_to = "left") %>% 
+  mutate(left =ifelse(left %in% c(4,5),1,0)) %>% 
+  group_by(hh_id) %>% summarise(migrants_work_seasonal_22=sum(left))  
+
+
+# migrants_work_permanent [new]
+# [R32]	How many people, who previously lived in the household in the past 10 years now live elsewhere?
+# [R39]		Why did they move away?	#1	For work #2	Married out #3	For Study
+#
+r39 <- 
+  rmtl_srvy22 %>% 
+  select(hh_id, starts_with("r39"), -contains("other")) %>% 
+  pivot_longer(-hh_id, names_to = "name", values_to = "why_left") %>% 
+  mutate(why_left = ifelse(!is.na(why_left) & why_left == 1, 1, 0)) %>% 
+  group_by(hh_id) %>% summarise(migrants_work_permanent_22=sum(why_left))
+
+# migrants_work [new]
+#
+migrants_work_22 <- left_join(rc3,r39)
+
+
+
+### r3_ What is the household member status ? [old]
+attr(rmtl_srvy22$r3_1, "labels")
 rmtl_srvy22 %>% select(hh_id, farmers_hh, starts_with("r3_"))
 
-migration22=
+### r26_ Since 2016, has [member's name] migrated from the village for work for a period of 6 months or more?
+migration_22 <- 
   rmtl_srvy22 %>% 
   select(hh_id, starts_with("r26_")) %>% 
   pivot_longer(-hh_id,
@@ -1104,56 +1150,101 @@ migration22=
   filter(!is.na(migrated)) %>% 
   group_by(hh_id) %>% 
   summarise(migrated22=sum(migrated)) %>% 
-  left_join(rmtl_srvy22 %>% select(hh_id, r1) ) %>% 
-  rename(n22=r1) %>% 
-  mutate(migrated_prc_22= migrated22/n22) 
+  left_join(n_roster_bl ) %>% 
+  mutate(migrated_22_pct= 
+      ifelse(migrated22==0 & roster_N.bl==0,0,migrated22/roster_N.bl)) %>% 
+  mutate(migrated_22_01=ifelse(migrated_22_pct==0,0,1) ) %>% 
+  select(hh_id,migrated_22_pct,migrated_22_01 )
+
+migration_22 %>% left_join(hh_2022) %>% 
+  group_by(farmers_hh) %>% 
+  summarise(mean(migrated_22_01)*100, 
+            mean(migrated_22_pct)*100)
+
+### migration BL 2015 ### [NEW] 
+
+# [   ] No. of migrants_work_seasonal
+# [C15]	Where do they work during the rainy season? 1-5
+# [C21]	Where do they work during the rest of the year? 1-5
+
+C15 <- 
+  rmtl_baseline2016 %>% select(hh_id,starts_with("C15")) %>% 
+  pivot_longer(-hh_id,names_to = "name",values_to = "val") %>% 
+  mutate(val=ifelse(val %in% c(4,5),1,0)) %>% 
+  group_by(hh_id) %>% summarise(Migrants_work_rainy =sum(val)) 
+
+C21 <- 
+  rmtl_baseline2016 %>% select(hh_id,starts_with("C21")) %>% 
+  pivot_longer(-hh_id,names_to = "name",values_to = "val") %>% 
+  mutate(val=ifelse(val %in% c(4,5),1,0)) %>% 
+  group_by(hh_id) %>% summarise(Migrants_work_restYr =sum(val)) 
 
 
-### migration 2018 ###
-# C1	How many household members live in this house?
-# PREVIOUS HOUSEHOLD MEMBERS: C27	How many people, who previously lived in the household in the past 10 years now live elsewhere?
-migration18 =
-  rmtl_midline2018 %>% select(hh_id, c1_exist, c27) %>% 
-  filter(c1_exist>0) %>% 
-  rename(n18=c1_exist, migrated18=c27) %>% 
-  mutate(migrated_prc_18= migrated18/n18) 
+# [   ] No. of migrants_work_permanent
+# [C27] How many people, who previously lived in the household in the past 10 years now live elsewhere?
+# [C34]	Why did they move away?	1	For work |2	Married out |3	For Study
+#
+c34 <- 
+  rmtl_baseline2016 %>% 
+  select(hh_id, starts_with("C34")) %>% 
+  pivot_longer(-hh_id, names_to = "name", values_to = "why_left") %>%
+  mutate(why_left = ifelse(!is.na(why_left) & why_left == 1, 1, 0)) %>% 
+  group_by(hh_id) %>% summarise(migrants_work_permanent_15=sum(why_left))
 
-### migration BL 2015 ###
+# migrants_work [new]
+#
+migrants_work_BL <- left_join(c34,C21) %>% 
+  rename(migrants_work_seasonal_15 = Migrants_work_restYr )
+
+
+
+### migration BL 2015 ### [old]
 # C1	How many household members live in this house?
 # C27	How many people, who previously lived in the household in the past 10 years now live elsewhere?
 # C18_	Where do they reside most of the time during the rest of the year?
 
-migration15 =
-  rmtl_baseline2016 %>% select(hh_id, C1,C27) %>% 
-  filter(C1>0)%>% 
-  rename(n15=C1, migrated15=C27) %>% 
-  mutate(migrated_prc_15= migrated15/n15) 
+migration_bl <- 
+  rmtl_baseline2016 %>% select(hh_id, starts_with("C23"))  %>% 
+  pivot_longer(-hh_id,names_to = "mmbr", values_to = "migrated") %>% 
+  group_by(hh_id) %>% summarise(migrated=sum(migrated,na.rm = T)) %>% 
+  left_join(n_roster_bl ) %>% 
+  mutate(migrated_BL_pct= ifelse(roster_N.bl==0,0,migrated/roster_N.bl)) %>% 
+  mutate(migrated_BL_01=ifelse(migrated_BL_pct==0,0,1) )%>% 
+  select(hh_id,migrated_BL_pct,migrated_BL_01 )
+________________________
+migrants_work_seasonal 
+migrants_work_permanent
+
+migrants_work_permanent_15 
+migrants_work_seasonal15 
 
 
 # DESC STST ----
-migration =
-  migration22 %>% 
-  left_join(migration18) %>% 
-  left_join(migration15) %>%
-  left_join(rmtl_InOut) %>% 
+migration_NEW =
+  migrants_work_22 %>% 
+  left_join(migrants_work_BL) %>%
   left_join(rmtl_cntrl_vars) 
 
-"fraction members of a HH who migrates"
+migration = # [OLD]
+  migration_22 %>% 
+  left_join(migration_bl) %>%
+  left_join(rmtl_cntrl_vars) 
 
-migration %>% group_by(in_project) %>% 
-  summarise(pct_migration_2022 = mean(migrated_prc_22,na.rm=T),
-            pct_migration_2018 = mean(migrated_prc_18,na.rm=T))
+migration_NEW %>% 
+  group_by(in_project) %>% 
+  summarise(mean( migrants_work_seasonal_15),
+            mean( migrants_work_permanent_15))
 
 
 # REG ----
-m1 <-  lm(migrated_prc_22  ~ in_project +
-            dist_Km_boundary + migrated_prc_15 +
+m1 <-  lm(migrants_work_permanent_22  ~ in_project +
+            dist_Km_boundary + migrants_work_permanent_15 +
             hh_haed_age + hh_haed_gendar + hh_haed_edu_level + 
             total_acre16 + housing_str321 + 
             job_income_sourceS + govPnsin_scheme + rent_property+
             livestock_dairy + Bullock + Tractor + Plough + 
             Thresher + Seed_drill + Motorcycle + Fridge, 
-          migration)
+          migration_NEW)
 sjPlot::tab_model(m1 ,  show.se = T,digits = 5, show.stat  = F )
 
 m2 <-  lm(migrated_prc_22  ~ in_project, migration)
@@ -1206,7 +1297,7 @@ m1_plot + mp_theme
 
 
 
-#__________________________ work immigration   __________________________ ----
+#__________________________ social level df   __________________________ ----
 
 # RC1	What are their main income activities most of the time in the last 2 years?
 # RC2	Where do they reside most of the time in the last 2 years?
@@ -1223,26 +1314,251 @@ rc1 <-
   select(hh_id, starts_with("rc1_")) %>%   
   select(hh_id, matches("^[^_]+_[^_]+_[^_]+$")) %>% 
   pivot_longer(-hh_id, names_to = "rc", values_to = "val") %>% 
-  filter(val == 1) %>% 
-  separate(rc, into = c("rc", "ans", "hhm"), sep = "_", convert = TRUE)%>% 
-  select(hh_id,rc,hhm, ans)
+  separate(rc, into = c("rc", "ans", "hhm"), sep = "_", convert = F)%>% 
+  filter(!is.na(val)) %>% 
+  select(hh_id,hhm, ans,val)
 
 total_hh_members <- 
-  rc1 %>%     
-  left_join(rmtl_InOut %>% select(hh_id, farmers_hh) ) %>%
-  select( farmers_hh, hh_id,hhm) %>% distinct() %>%
-  count(farmers_hh) %>% 
-  rename(N=n)
+  rc1 %>% select(hh_id,hhm) %>% distinct() %>% count(hh_id)
 
-RC1 <- rc1 %>% 
+df_work_extra_22 <- 
+  rc1 %>% mutate(val= ifelse(ans %in% c(9:12) & val==1,1,0 )) %>% 
+  select(hh_id,hhm,val) %>% distinct() %>% 
+  group_by(hh_id,hhm) %>% summarise(val = sum(val)) %>% 
+  group_by(hh_id) %>% summarise(val = sum(val),n=n()) %>% 
+  mutate(extra_work_pct_22=val/n,
+         extra_work_freq_22=ifelse(val !=0, 1,0)) %>% 
+  select(hh_id,extra_work_pct_22,extra_work_freq_22 )
+# df_work_extra
+# df_work_extra %>% filter(hh_id == 100071)
+
+
+### BL
+c13 <- 
+  rmtl_baseline2016 %>% select(hh_id, starts_with("C17"))  %>% 
+  select(hh_id, matches("^[^_]+_[^_]+_[^_]+$")) %>% 
+  pivot_longer(-hh_id, names_to = "c13", values_to = "ans") %>% 
+  separate(c13, into = c("c13", "rank", "hhm"), sep = "_", convert = F
+           )
+
+c17 <- 
+  rmtl_baseline2016 %>% select(hh_id, starts_with("C17"))  %>% 
+  select(hh_id, matches("^[^_]+_[^_]+_[^_]+$")) %>% 
+  pivot_longer(-hh_id, names_to = "c17", values_to = "ans") %>% 
+  separate(c17, into = c("c17", "rank", "hhm"), sep = "_", convert = F
+  )
+
+df_work_extra_bl <- 
+  rbind(c13 %>% select(-c13) ,
+        c17 %>% select(-c17)) %>% 
+  select(hh_id,hhm, ans) %>%
+  filter(!is.na(ans)) %>% 
+  mutate(val= ifelse(ans %in% c(9:12),1,0 )) %>% 
+  select(hh_id, hhm,val ) %>% distinct() %>% 
+  group_by(hh_id) %>% summarise(val = sum(val),n=n()) %>% 
+  mutate(extra_work_pct_bl=val/n,
+         extra_work_freq_bl=ifelse(val !=0, 1,0)) %>% 
+  select(hh_id,extra_work_pct_bl,extra_work_freq_bl )
+
+
+# Gander : woman at work
+# df_work_gender_22
+df_gender_roster <- 
+  rmtl_srvy22 %>% 
+  select(hh_id,starts_with("r4_")) %>% 
+  pivot_longer(-hh_id, names_to = "rc", values_to = "gender") %>% 
+  separate(rc, into = c("rc", "hhm"), sep = "_hh_gender_", convert = F)%>% 
+  filter(!is.na(gender)) %>% 
+  select(hh_id,hhm,gender)
+
+rc1 <- 
+  rmtl_srvy22 %>% 
+  select(hh_id, starts_with("rc1_")) %>%   
+  select(hh_id, matches("^[^_]+_[^_]+_[^_]+$")) %>% 
+  pivot_longer(-hh_id, names_to = "rc", values_to = "val") %>% 
+  separate(rc, into = c("rc", "ans", "hhm"), sep = "_", convert = F)%>% 
+  filter(!is.na(val)) %>% 
+  select(hh_id,hhm, ans,val)
+
+df_work_gender_22 <- 
+  rc1 %>% mutate(val= ifelse(ans %in% c(9:12) & val==1,1,0 )) %>% 
+  select(hh_id,hhm,val) %>% distinct() %>% 
+  group_by(hh_id,hhm) %>% summarise(val = sum(val)) %>% 
+  left_join( df_gender_roster) %>% 
+  group_by(hh_id,gender) %>% summarise(val = sum(val),n=n()) %>% 
+  group_by( hh_id) %>% mutate(n=sum(n)) %>% ungroup() %>% 
+  filter(gender ==2) %>% 
+  mutate(
+         woman_work_pct_22=val/n,
+         woman_work_freq_22=ifelse(val !=0, 1,0)) %>% 
+  select(hh_id,woman_work_pct_22,woman_work_freq_22 )
+
+
+# df_work_gender_bl
+
+df_gender_rosterBL <- 
+  rmtl_baseline2016 %>% 
+  select(hh_id,starts_with("c3_")) %>% 
+  pivot_longer(-hh_id, names_to = "c3", values_to = "gender") %>% 
+  separate(c3, into = c("c3", "hhm"), sep = "_", convert = F) %>% 
+  filter(!is.na(gender)) %>% mutate(gender=ifelse(gender==0,2,gender)) %>% 
+  select(hh_id,hhm,gender)
+
+c17 <- 
+  rmtl_baseline2016 %>% select(hh_id, starts_with("C17"))  %>% 
+  select(hh_id, matches("^[^_]+_[^_]+_[^_]+$")) %>% 
+  pivot_longer(-hh_id, names_to = "c17", values_to = "ans") %>% 
+  separate(c17, into = c("c17", "rank", "hhm"), sep = "_", convert = F
+  )
+
+
+df_work_gender_bl <- 
+  c17 %>% 
+  select(hh_id,hhm, ans) %>%
+  filter(!is.na(ans)) %>% 
+  mutate(val= ifelse(ans %in% c(9:12),1,0 )) %>% 
+  select(hh_id, hhm,val ) %>% distinct() %>% 
+  group_by(hh_id,hhm) %>% summarise(val = sum(val)) %>% 
+  left_join( df_gender_rosterBL) %>% 
+  group_by(hh_id,gender) %>% summarise(val = sum(val),n=n()) %>% 
+  group_by( hh_id) %>% mutate(n=sum(n)) %>% ungroup() %>% 
+  filter(gender ==2) %>% 
+  mutate(
+    woman_work_pct_bl=val/n,
+    woman_work_freq_bl=ifelse(val !=0, 1,0)) %>% 
+  select(hh_id,woman_work_pct_bl,woman_work_freq_bl )
+
+
+
+
+
+migrants_work_22
+migrants_work_BL
+
+
+
+
+df_social_22 <- 
+  literacy22 %>% rename(literacy_rates=literacy_22) %>% 
+  left_join(edu_level_2nd_gen_22 %>% rename(edu_gen2=edu_gen2_22)
+  ) %>%
+  left_join(edu_private_22 %>% select(hh_id,Private_22) %>% rename(private_school=Private_22) 
+            ) %>% 
+  left_join( migration_NEW
+             ) %>% 
+  left_join(df_work_extra_22 %>% 
+              rename(extra_work_pct=extra_work_pct_22 ,extra_work_freq= extra_work_freq_22)
+            ) %>%
+  left_join(df_work_gender_22 %>% 
+              rename(woman_work_pct=woman_work_pct_22  ,woman_work_freq=woman_work_freq_22)
+            ) %>% 
+  pivot_longer(-hh_id,names_to = "social_vars", values_to = "val_22")
+  
+  
+df_social_bl <- 
+  literacy15 %>% rename(literacy_rates=literacy_15) %>% 
+  left_join(edu_level_2nd_gen_15 %>% rename(edu_gen2=edu_gen2_15)
+            ) %>% 
+  left_join(edu_private_15 %>% select(hh_id,Private_15) %>% rename(private_school=Private_15) 
+            ) %>% 
+  left_join (
+    migrants_work_BL
+    ) %>% 
   left_join(
-    rmtl_InOut %>% select(hh_id, farmers_hh) ) %>% 
-  group_by(farmers_hh,ans) %>% 
-  summarise(n=n(), .groups = "drop" ) %>% 
-  left_join(total_hh_members) %>% 
-  mutate(pct=n/N)
+    df_work_extra_bl %>% rename(extra_work_pct=extra_work_pct_bl  ,extra_work_freq= extra_work_freq_bl)
+    ) %>%
+  left_join(df_work_gender_bl %>% 
+              rename(woman_work_pct=woman_work_pct_bl ,woman_work_freq=woman_work_freq_bl)
+            ) %>% 
+  pivot_longer(-hh_id,names_to = "social_vars", values_to = "val_bl")
+  
 
-RC1 %>% arrange(desc(pct))
+df_social <- 
+  df_social_22 %>% 
+  left_join(df_social_bl) %>% 
+  left_join(hh_info) 
+
+controls <- c(
+  "dist_Km_boundary", "hh_haed_age", "hh_haed_gendar", "hh_haed_edu_level", 
+  "total_acre16", "housing_str321", "job_income_sourceS", "govPnsin_scheme", 
+  "rent_property", "livestock_dairy", "Bullock", "Tractor", "Plough", 
+  "Thresher", "Seed_drill", "Motorcycle", "Fridge"
+)
+
+
+library(tidyverse)
+library(broom)
+
+fits <- df_social %>%  
+  group_by(social_vars) %>%  
+  nest() %>%
+  mutate(
+    model = map(data, ~ {
+      f_vars <- c("in_project", "dist_Km_boundary", controls, "val_bl")
+      fml <- as.formula(paste("val_22 ~", paste(f_vars, collapse = " + ")))
+      lm(fml, data = .x)
+    }),
+    coefs = map(model, tidy),
+    stats = map(model, glance) )
+
+reg_table_social <- fits %>% 
+  unnest(coefs) %>%
+  filter(term == "in_project") %>%
+  select(social_vars, estimate, std.error, p.value) %>% 
+  mutate(
+    stars = case_when(p.value < 0.01 ~ "***", p.value < 0.05 ~ "**", p.value < 0.1 ~ "*", TRUE ~ ""),
+    estimate = paste0(sprintf("%.3f", estimate), stars),
+    std.error = paste0("(", sprintf("%.3f", std.error), ")"),
+    p.value = paste0("[", sprintf("%.3f", p.value), "]")
+  ) %>%
+  left_join(fits %>% unnest(stats) %>% select(social_vars, nobs, r.squared)) %>%
+  left_join( # Join control means
+    df_social %>% 
+      filter(in_project == 0) %>% 
+      group_by(social_vars) %>% 
+      summarise(c_mean = mean(val_22,na.rm = T))
+  )
+
+plot_social <- fits %>%
+  mutate(results = map(model, ~ tidy(.x, conf.int = TRUE))) %>%
+  unnest(results) %>%
+  filter(term == "in_project",
+         !str_detect(social_vars, "freq$")
+         ) %>%
+  mutate( color_group = ifelse(social_vars=="migrated", "orange4",
+                               ifelse(social_vars %in% c("extra_work_pct","woman_work_pct" ),"orange3","blue4"))
+          ) %>% 
+  mutate(social_vars = case_when(
+    social_vars == "literacy_rates" ~ "Literacy \nrate",
+    social_vars == "edu_gen2" ~ "Education \nlevel: \n2nd Gen ",
+    social_vars == "private_school" ~ "Education: \nPrivate \nschool",
+    social_vars == "migrated_pct" ~ "Work \nmigration",
+    social_vars == "extra_work_pct" ~ "Off-farm \nwork",
+    social_vars == "woman_work_pct" ~ "Off-farm \nwork. \nWomen")
+    )
+
+plot_social %>%  
+  ggplot(aes(x = social_vars, y = estimate, color = color_group)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, size = 1.5) +
+  geom_point(size = 4) +
+  scale_color_identity() +
+  labs(title = 'Impact of "in_project" (Balanced Sample)', 
+       y = "Change in Coefficient Estimate", x = "") +
+  theme_classic(base_family = "serif") +
+  theme(
+    axis.text.x = element_text(size = 16, color = "black"),
+    axis.text.y = element_text(size = 20, color = "gray25"),
+    plot.title = element_text(size = 12, hjust = 0.5),
+    axis.title = element_text(size = 14)
+  )
+
+
+
+
+
+
+
 
 RC1$farmers_hh <- factor(RC1$farmers_hh,
                         levels = c("outside_ramthal", "inside_ramthal"))
@@ -1387,6 +1703,7 @@ C5_15 = # C5 elationship to the head of household
   pivot_longer(
     !hh_id, names_to = "id_member", values_to = "relation_HH_head") 
 C5_15$id_member <- sub("^C5_(\\d{1,2})","C_\\1",C5_15$id_member )
+
 
 edu_level_2nd_gen_15 <- 
   left_join (c7_15,C5_15) %>% 
@@ -1649,7 +1966,7 @@ attr(rmtl_srvy22$h2, "labels") # 1=important|2|3|4=Not
 
 #++ H1 +++++++++++++++++++++++++++++++++++++++++++++++++++|
 
-H1 <- 
+H1 <- # 1- 5
   social_22 %>% 
   select(hh_id, farmers_hh,h1 ) %>% 
   group_by(farmers_hh) %>% 
@@ -1777,6 +2094,9 @@ ggplot(H3, aes( y = pct, x =Ans , fill = factor(farmers_hh) )) +
 # 	From the following list, rank the top 3 most important factors 
 # H4 determining whether a farmer will have water for irrigation
 
+# 	From the following list, rank the top 3 most important factors 
+# H3 factors to a determining agricultural success
+# H4 factors determining whether a farmer will have water for irrigation
 
 H4 =
   social_22 %>% 
@@ -1819,25 +2139,50 @@ H18_H23 <-
   summarise_if(is.numeric, mean, na.rm = TRUE) %>% 
   select(-hh_id) %>% 
   pivot_longer(!farmers_hh, names_to = "POV",
-               values_to = "value")
+               values_to = "value") %>% 
+  mutate(Value=value/2)
 
 
 # reorder POV so it plots top-to-bottom correctly
 H18_H23$POV <- factor(H18_H23$POV, levels = rev(unique(df_long$POV)))
 
-ggplot(H18_H23, aes(x = value, y = POV, color = farmers_hh)) +
+p_in <- 
+  H18_H23 %>% filter(farmers_hh == "In Project") %>%
+  ggplot(aes(x = Value, y = POV, color = farmers_hh)) +
   geom_point(size = 4) +
-  geom_text(aes(label = round(value, 2)), hjust = -0.5, size = 4) +
-  scale_color_manual(values = c("steelblue3", "orange")) +
+  geom_text(aes(label = round(Value, 2)), hjust = -0.5, size = 4) +
+  scale_color_manual(values = c("steelblue3")) +
   theme_minimal(base_size = 14) +
   labs(x = NULL, y = NULL, color = NULL) +
   theme(
+    text = element_text(family = "serif"),
+    legend.position = "none",
     panel.grid.major.y = element_blank(),
-    panel.grid.minor = element_blank()
-  )
+    panel.grid.minor = element_blank(),
+    plot.background = element_rect(fill = "transparent", color = NA),
+    panel.background = element_rect(fill = "transparent", color = NA)
+  ) + xlim(1.8,4.5)
+
+p_out <- 
+  H18_H23 %>% filter(farmers_hh!= "In Project") %>%
+  ggplot(aes(x = Value, y = POV, color = farmers_hh)) +
+  geom_point(size = 4) +
+  geom_text(aes(label = round(Value, 2)), hjust = 1.5, size = 4) +
+  scale_color_manual(values = c( "gray55")) +
+  theme_minimal(base_size = 14) +
+  labs(x = NULL, y = NULL, color = NULL) +
+  theme(
+    text = element_text(family = "serif"),
+    legend.position = "none",
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.background = element_rect(fill = "transparent", color = NA),
+    panel.background = element_rect(fill = "transparent", color = NA)
+  )+ xlim(1.8,4.5)
 
 
-
+ggsave("views_plot.png", p, bg = "transparent", 
+       width = 14, height = 6)
 
 
 
