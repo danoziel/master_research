@@ -88,9 +88,24 @@ write_xlsx(df_drip_bl, "C:/Users/Dan/Downloads/df_drip_bl.xlsx")
 
 names(df_drip_bl)
 
-cv = irrigation_BL_to_22 %>% 
+df_overlap = 
+  irrigation_BL_to_22 %>% 
   left_join(hh_2022) %>% filter(in1_out0 == 1) %>%
-  mutate(both = ifelse(drip_use_6y==1 & flood_use_6y==1,1,0 )) 
+  select(hh_id,starts_with("drip"),starts_with("flood"),-ends_with("2022")) %>% 
+  pivot_longer(-hh_id,names_to = "name",values_to = "vl") %>% 
+  mutate(name= ifelse(name=="drip_use_2021_22","drip_use_2022",name))%>% 
+  mutate(name= ifelse(name=="flood_use_2021_22","flood_use_2022",name)) %>% 
+  separate(name,into = c("ir","yr"),sep="_use_") %>% 
+  pivot_wider(names_from = "ir",values_from = "vl") %>% 
+  mutate(drip_flood = ifelse(drip==1 & flood ==1,1,0 ))%>% 
+  group_by(yr) %>% 
+  summarise(dripPCT=mean(drip,na.rm=T)*100, 
+            floodPCT=mean(flood,na.rm=T)*100,
+            overlapPCT=mean(drip_flood,na.rm=T)*100
+  )
+
+df_overlap[c(8,1:7),] %>%   mutate(across(where(is.numeric), ~ round(.x, 2))) %>% 
+  kable() %>% kable_paper()
 
 
 df_project %>% 

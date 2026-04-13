@@ -19,7 +19,9 @@ df_economic_22 <-
   rbind(
     df_income_NonCrop_22 %>% select(-income_NonCrop_mhh) %>% 
       rename(economic_vars = income_type, val_22=income_NonCrop)
-    ) %>% arrange(hh_id)
+    ) %>% 
+  rbind(df_income_agri_22) %>% 
+  arrange(hh_id)
 
 ####
 df_economic_bl <- 
@@ -31,14 +33,105 @@ df_economic_bl <-
   rbind(
     df_income_NonCrop_bl %>% select(-income_NonCrop_mhh) %>% 
       rename(economic_vars = income_type, val_BL=income_NonCrop)
-    ) %>% arrange(hh_id)
+    ) %>%  rbind(df_income_agri_BL  ) %>% arrange(hh_id)
 
 df_economic <- df_economic_22 %>% left_join(df_economic_bl) %>% 
   left_join(rmtl_cntrl_vars )%>%
   mutate(	
     val_22= ifelse(economic_vars =="k_revenue_per_acre" & val_22>80,NA,val_22))
 
-df_land %>% left_join(hh_2022) %>% group_by(farmers_hh) %>% summarise(mean(land_holding_2022,na.rm=T))
+
+
+# (1) model formula inputs  ----
+fml <- val_22   ~ in_project +
+  dist_Km_boundary + val_BL +
+  hh_haed_age + hh_haed_gendar + hh_haed_edu_level + 
+  total_acre16 + housing_str321 + 
+  job_income_sourceS + govPnsin_scheme + rent_property+
+  livestock_dairy + Bullock + Tractor + Plough + 
+  Thresher + Seed_drill + Motorcycle + Fridge
+
+# (2) Nest by status and fit 
+fits <- df_economic %>%
+  group_by(economic_vars) %>%
+  nest() %>%
+  mutate(
+    model = map(data, ~ lm(fml, data = .x)),
+    coefs = map(model, tidy),
+    stats = map(model, glance))
+
+# (3) Stacked outputs + (4) Join with model summary stats
+inproj_with_fit <- 
+  fits %>% unnest(coefs) %>% 
+  filter(term == "in_project") %>% 
+  select(economic_vars, estimate, std.error, p.value) %>% ungroup() %>% 
+  left_join(
+    fits %>% unnest(stats) %>% select(economic_vars,nobs, r.squared) 
+  ) %>% 
+  pivot_longer(-economic_vars, names_to = "metric", values_to = "value") %>%
+  pivot_wider(names_from = economic_vars, values_from = value )
+
+# (5) control mean
+control_mean <- df_economic %>% 
+  filter(in_project==0) %>% 
+  group_by(economic_vars) %>% 
+  summarise(Mean = mean(val_22,na.rm=T)) %>% 
+  pivot_wider (names_from = "economic_vars", values_from = "Mean") %>% 
+  mutate(metric="control_mean") 
+
+df_html <- inproj_with_fit %>%
+  rbind(control_mean) %>% 
+  mutate(across(-metric, ~ case_when(
+    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
+    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
+    TRUE                  ~ as.character(round(.x,3))
+  )))
+
+
+df_html %>% kable() %>% kable_paper()
+
+df_economic %>% 
+  group_by(in_project,economic_vars) %>% 
+  summarise(Mean = mean(val_BL,na.rm=T)) %>% ungroup() %>% 
+  pivot_wider(names_from = "economic_vars",values_from = "Mean") %>% 
+  kable() %>% kable_paper()
+
+
+############## BASIC MODEL - NO CONTROL VARS
+# (1) 
+fml <- val_22   ~ in_project 
+
+# (2) Nest by status and fit 
+fits <- df_economic %>%
+  group_by(economic_vars) %>%
+  nest() %>%
+  mutate(
+    model = map(data, ~ lm(fml, data = .x)),
+    coefs = map(model, tidy),
+    stats = map(model, glance))
+
+# (3)
+nr1=fits %>% unnest(coefs) %>% 
+  select(economic_vars,term, estimate, std.error, p.value) %>% ungroup() %>%
+  pivot_longer(-c(economic_vars,term), names_to = "metric", values_to = "value") %>% pivot_wider(names_from = economic_vars, values_from = value )
+#
+nr2=fits %>% unnest(stats) %>% select(economic_vars,nobs, r.squared) %>% 
+  rename(Num.Obs.=nobs,R2=r.squared ) %>% ungroup() %>% 
+  pivot_longer(cols = c(`Num.Obs.`, R2),
+               names_to = "term",values_to = "vl") %>%
+  mutate(vl=round(vl, digits = 5)) %>% 
+  pivot_wider(names_from = economic_vars,values_from = vl)
+
+# (4)
+nr1 %>% 
+  mutate(across(-c(term, metric), ~ case_when(
+    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
+    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
+    TRUE                  ~ as.character(round(.x,3))
+  ))) %>% 
+  select(-metric) %>% 
+  rbind(nr2) %>% kable() %>% kable_classic_2()
+
 
 #custom theme to format ----
 mp_theme=theme_bw()+
@@ -700,6 +793,16 @@ df_income_NonCrop_22 <-
   mutate(income_NonCrop_mhh=income_NonCrop/r1 ) %>% select(-r1)
 
 
+df_income_agri_22 <- 
+  rmtl_srvy22 %>% 
+  select(hh_id, f3_amt) %>% 
+  mutate(economic_vars="k_income_agri",val_22=f3_amt/1000 ,
+         val_22= ifelse(val_22==0,NA,val_22),
+         val_22= ifelse(val_22>4000,NA,val_22),
+  ) %>% 
+  select(hh_id, economic_vars,val_22)
+
+
 F_2022 <- rmtl_srvy22 %>% select(hh_id, starts_with("f") ) 
 names(F_2022)
 
@@ -732,16 +835,25 @@ df_income_NonCrop_bl <-
   mutate(C1=ifelse(C1<1,1,C1),
     income_NonCrop_mhh=income_NonCrop/C1 ) %>% select(-C1)
 
+df_income_agri_BL <- 
+  rmtl_baseline2016  %>% 
+  select(hh_id, F3_year ) %>% 
+  mutate(economic_vars="k_income_agri",val_BL=F3_year/1000,
+         val_BL=ifelse(val_BL==0,NA,val_BL)) %>% 
+  select(hh_id, economic_vars,val_BL)
+
+
 df_income_NonCrop_bl_binary <- 
   rmtl_baseline2016 %>%
   select(hh_id,starts_with("F")) %>% 
-  select(hh_id, contains("year"),-F3_year, -F12_year)%>%
+  select(hh_id, contains("year"),-F3_year,-F4_year, -F12_year)%>%
   pivot_longer(-hh_id ,
                names_to = "income_type_f",
                values_to = "income22") %>% 
   mutate(income_type=
            ifelse(income_type_f %in% c("F1_year","F2_year","F9_year"),
-                  "income_assistance","income_NonCrop" ))  %>% 
+                  "income_assistance", # Income by seasonal/  permanent  migrating OR Government pension or scheme
+                  "income_NonCrop" ))  %>% 
   group_by(hh_id, income_type ) %>% 
   summarise(income_NonCrop = sum(income22,na.rm = T)/1000,.groups = "drop"
             ) %>% 
@@ -986,7 +1098,7 @@ assets_15 <-  vars_e01_BL %>%
 # desc stat  ----
 assets <- assets_22 %>% 
   inner_join(assets_15) %>% 
-  left_join(rmtl_con_vars) 
+  left_join(rmtl_cntrl_vars) 
 
 assets %>% group_by(Asset,in_project) %>% 
   summarise(Mean = mean(Num_assets_22,na.rm=T)) %>% 
@@ -1212,11 +1324,7 @@ migration_bl <-
   mutate(migrated_BL_01=ifelse(migrated_BL_pct==0,0,1) )%>% 
   select(hh_id,migrated_BL_pct,migrated_BL_01 )
 ________________________
-migrants_work_seasonal 
-migrants_work_permanent
 
-migrants_work_permanent_15 
-migrants_work_seasonal15 
 
 
 # DESC STST ----
@@ -1235,7 +1343,7 @@ migration_NEW %>%
   summarise(mean( migrants_work_seasonal_15),
             mean( migrants_work_permanent_15))
 
-
+public_assistance official_assistance 
 # REG ----
 m1 <-  lm(migrants_work_permanent_22  ~ in_project +
             dist_Km_boundary + migrants_work_permanent_15 +
