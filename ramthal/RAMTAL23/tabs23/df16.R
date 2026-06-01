@@ -473,6 +473,44 @@ bl_d6$plot_num <- str_replace(bl_d6$plot_num, "^D6_", "plot_")
 bl6_plotAcre <- filter(bl_d6,!is.na(plot_acre))
 rm(bl_d6)
 
+# [D25]	Amount of land left fallow  ----
+D25 <- 
+  rmtl_baseline2016 %>% 
+  select(hh_id, starts_with("D25")) %>% 
+  select(hh_id, !ends_with("_0")) %>% 
+  # 1. Pivot and extract all components including the final digits
+  pivot_longer(
+    cols = -hh_id,
+    names_to = c("season", "unit", "crop", "plot"), 
+    names_pattern = "^(D25_\\d)_(acer|guntas)_(\\d+)_(\\d+)$",
+    values_to = "val"
+  ) %>% 
+  # 2. Clean values (<0 and NA become 0)
+  mutate(val = replace_na(val, 0)) %>% 
+  mutate(val = if_else(val < 0, 0, val)) %>% 
+  # 3. Convert gunthas to acres
+  mutate(val = if_else(unit == "guntas", val / 40, val)) %>% 
+  group_by(hh_id, season,plot) %>% 
+  summarise(val = sum(val),.groups="drop")
+
+# land_fallow_2014_15 =  rabi 2014-15 kharif 2015  | 
+# land_fallow_2015_16 =  kharif 2015  rabi 2015-16 |
+land_fallow_2015_16 <- D25 %>% 
+  filter(season %in% c("D25_2","D25_3") ) %>% 
+  group_by( hh_id, plot) %>% slice_max(order_by = val, n = 1)%>% ungroup() %>% 
+  select(-season) %>% distinct() %>% 
+  group_by(hh_id) %>% summarise(val_BL = sum(val),.groups="drop")
+
+land_fallow_2014_15 <- D25 %>% 
+  filter(season %in% c("D25_1","D25_2") ) %>% 
+  group_by( hh_id, plot) %>% slice_max(order_by = val, n = 1)%>% ungroup() %>% 
+  select(-season) %>% distinct() %>% 
+  group_by(hh_id) %>% summarise(val_BL = sum(val),.groups="drop")
+
+
+
+
+
 
 # [D12] plot irri last 5 years         ||  bl_d12                  ----
 # Has this plot been irrigated at least once during the last 5 years? 
@@ -661,38 +699,38 @@ D24_os2 <- D24_os1 %>%  select(-contains("os") )%>%
 D24_os2 %>% count(crop_bl)
 
 D24_os3 <- D24_os2 %>%
-  mutate(crop_bl_2 = case_when(
-    crop_bl == "ULLAGADDI"  ~ "Other_Specify", 
-    crop_bl == "THENGU" ~ "Coconut",                 # THENGU -> Coconut
-    crop_bl == "SUNFLOWER" ~ "Sunflower",           # SUNFLOWER -> Sunflower
-    crop_bl == "SUGARCANE" ~ "Sugarcane",           # SUGARCANE -> Sugarcane
+  mutate(crop_code = case_when(
+    crop_bl == "ULLAGADDI"  ~ "28",              # ULLAGADDI -> Onions
+    crop_bl == "THENGU" ~ "63",                # THENGU -> Coconut
+    crop_bl == "SUNFLOWER" ~ "18",           # SUNFLOWER -> Sunflower
+    crop_bl == "SUGARCANE" ~ "17",           # SUGARCANE -> Sugarcane 
     crop_bl == "SPICES" ~ "Spices",                 # SPICES -> Spices
-    crop_bl == "SOUTE KAYI" ~ "Bitter Gourd",      # SOUTE KAYI -> Bitter Gourd
-    crop_bl == "SHIBEHANU" ~ "Banana",              # SHIBEHANU -> Banana
-    crop_bl == "SHIBEHANNU" ~ "Banana",             # SHIBEHANNU -> Banana
+    crop_bl == "SOUTE KAYI" ~ "30",      # SOUTE KAYI -> Bitter Gourd
+    crop_bl == "SHIBEHANU" ~ "41",              # SHIBEHANU -> Banana
+    crop_bl == "SHIBEHANNU" ~ "41",             # SHIBEHANNU -> Banana
     crop_bl == "RAIN PROBLEM EMPTY LAND" ~ NA_character_,  # RAIN PROBLEM EMPTY LAND -> NA
-    crop_bl == "PIRALA HANNU" ~ "Guava",            # PIRALA HANNU -> Guava
-    crop_bl == "PERU" ~ "Guava",                    # PERU -> Guava
-    crop_bl == "ONION" ~ "Onion",                   # ONION -> Onion
+    crop_bl == "PIRALA HANNU" ~ "46",            # PIRALA HANNU -> Guava
+    crop_bl == "PERU" ~ "46",                    # PERU -> Guava
+    crop_bl == "ONION" ~ "28",                   # ONION -> Onions
     crop_bl == "NP" ~ NA_character_,                # NP -> NA
     crop_bl == "NO CROPS IN THIS LAND" ~ NA_character_,  # NO CROPS IN THIS LAND -> NA
     crop_bl == "NO CROPS" ~ NA_character_,          # NO CROPS -> NA
     crop_bl == "NO CROP" ~ NA_character_,           # NO CROP -> NA
     crop_bl == "NO" ~ NA_character_,                # NO -> NA
-    crop_bl == "MAYU" ~ "Jackfruit",                # MAYU -> Jackfruit
-    crop_bl == "MANGO" ~ "Mango",                   # MANGO -> Mango
-    crop_bl == "KUSUBI" ~ "Sorghum_jowar",         # KUSUBI -> Sorghum_jowar
-    crop_bl == "KOTAMBIRI" ~ "Coriander",           # KOTAMBIRI -> Coriander
-    crop_bl == "KOTAMBARE" ~ "Coriander",           # KOTAMBARE -> Coriander
+    crop_bl == "MAYU" ~ "43",                # MAYU -> Jackfruit
+    crop_bl == "MANGO" ~ "40",                   # MANGO -> Mango
+    crop_bl == "KUSUBI" ~ "2",         # KUSUBI -> Sorghum_jowar
+    crop_bl == "KOTAMBIRI" ~ "96",           # KOTAMBIRI -> Coriander
+    crop_bl == "KOTAMBARE" ~ "96",           # KOTAMBARE -> Coriander
     crop_bl == "KABBU" ~ "Pumpkin",                 # KABBU -> Pumpkin
-    crop_bl == "GREENCHILLY" ~ "Green Chilly",      # GREENCHILLY -> Green Chilly
-    crop_bl == "GOVINA JOLA" ~ "Sorghum_jowar",     # GOVINA JOLA -> Sorghum_jowar
+    crop_bl == "GREENCHILLY" ~ "59",      # GREENCHILLY -> Green Chilly
+    crop_bl == "GOVINA JOLA" ~ "2",     # GOVINA JOLA -> Sorghum_jowar
     crop_bl == "EMPTY LAND RAIN PROBLEM" ~ NA_character_, # EMPTY LAND RAIN PROBLEM -> NA
-    crop_bl == "COTTON" ~ "Cotton",                 # COTTON -> Cotton
-    crop_bl == "COCONUTE" ~ "Coconut",              # COCONUTE -> Coconut
-    crop_bl == "COCONUT" ~ "Coconut",               # COCONUT -> Coconut
-    crop_bl == "CHIKKU" ~ "Chikoo",                 # CHIKKU -> Chikoo
-    TRUE ~ crop_bl                                 # Default: Keep the original value if no match
+    crop_bl == "COTTON" ~ "16",                 # COTTON -> Cotton
+    crop_bl == "COCONUTE" ~ "63",              # COCONUTE -> Coconut
+    crop_bl == "COCONUT" ~ "63",               # COCONUT -> Coconut
+    crop_bl == "CHIKKU" ~ "42",                 # CHIKKU -> Chikoo
+    TRUE ~    crop_bl                                 # Default: Keep the original value if no match
   ))
 
 
@@ -715,42 +753,35 @@ D24[,1] %>% distinct() # A tibble: 1,729 × 1
 
 D24[,1] %>% distinct() # A tibble: 1,723 × 1 
 
-library(readr)
-list_crop <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/list_crop.csv")
-View(list_crop)
-crops <- list_crop %>% 
-  select(crop_code, crop_name, crop_type, crop_common) %>% 
-  mutate(crop_code = as.character(crop_code))
+# library(readr)
+# list_crop <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/list_crop.csv")
+# crops <- list_crop %>% select(crop_code, crop_name, crop_common) %>% mutate(crop_code = as.character(crop_code))
+
+library(readxl)
+list_crop <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/list_crop.xlsx")
+
+bl_crop_plot_3s <-
+  D24 %>%
+  left_join(list_crop %>% mutate(crop_code = as.character(crop_code))) %>% 
+  mutate(crop_common = case_when(crop_code == "Spices" ~ "Horticulture", 
+                                 crop_code == "Pumpkin" ~ "Vegetables",
+                                 TRUE ~ crop_common ))%>% 
+  mutate(crop_name = case_when(crop_code == "Spices" ~ "Spices", 
+                               crop_code == "Pumpkin" ~ "Pumpkin",
+                               TRUE ~ crop_name ))%>% 
+  mutate(crop_family = case_when(crop_code == "Spices" ~ "Horticulture", 
+                                 crop_code == "Pumpkin" ~ "Vegetables",
+                                 TRUE ~ crop_family )) %>% 
+  select(-crop_bl)
 
 
-bl_crop_plot_3s= 
-  D24 %>%rename(crop_code =crop_bl) %>% 
-  left_join(crops) %>% mutate(
-  crop_common = case_when(
-    crop_code %in% c("Banana", "Jackfruit", "Mango", "Guava", "Bitter Gourd",
-                     "Onion","Coconut","Pumpkin","Green Chilly","Chikoo") ~ "VegetablesANDFruits",  # Fruits and Vegetables
-    crop_code == "Sorghum_jowar" ~ "Sorghum_jowar",         # Sorghum_jowar
-    crop_code == "Sunflower" ~ "Sunflower",                 # Sunflower
-    crop_code == "Sugarcane" ~ "Sugarcane",                 # Sugarcane
-    crop_code == "Cotton" ~ "Cotton",                       # Cotton
-    crop_code == "Spices" ~ "Other",                        # Spices -> Other
-    crop_code == "Coriander" ~ "Other", 
-    crop_code == "Other_Specify" ~ "Other",
-    TRUE ~ crop_common                                    # Default: NA for all others
-  )
-) %>% mutate(
-  crop_common = case_when(
-    crop_name %in% c("Guava", "Jackfruit", "apaya","Papaya",
-                     "Pineapple","Pomegranate","Sapota") ~ "VegetablesANDFruits",  # Fruits and Vegetables
-    crop_name %in% c( "Tobacco", "Fig","Cocoa") ~ "Other",
-    TRUE ~ crop_common                                
-  )
-)%>% mutate(crop_name=ifelse(is.na(crop_name),crop_code,crop_name)) %>% 
-  mutate(
-    crop_common = case_when(
-      crop_common %in% c("Chillies","Vegetables") ~ "VegetablesANDFruits",
-      TRUE ~ crop_common  )
-    )           
+          
+
+bl_crop_plot_3s %>% count(crop_name)%>% as.data.frame()
+bl_crop_plot_3s %>% count(crop_common)
+
+rr %>% count(crop_name)%>% as.data.frame()
+rr %>% count(crop_common)
 
 
 library(writexl)

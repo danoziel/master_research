@@ -1,4 +1,17 @@
- 
+
+#  [ 
+library(readr)
+a_plots_crop <- 
+  read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/a_plots_crop.csv")
+
+m1 <-  lm(inputs_per_acre_K  ~ in_project + dist_Km_boundary +hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge,
+          data = dr22 )
+sjPlot::tab_model(m1 ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
+
+df %>% group_by(agri_vars) %>% 
+  summarise(n=n(),Q99=quantile(val_22, probs = 0.99, na.rm = TRUE))
+
+
 library(dplyr)
 library(tidyr)
 library(tidyverse)
@@ -35,731 +48,114 @@ df_economic_bl <-
       rename(economic_vars = income_type, val_BL=income_NonCrop)
     ) %>%  rbind(df_income_agri_BL  ) %>% arrange(hh_id)
 
-df_economic <- df_economic_22 %>% left_join(df_economic_bl) %>% 
+df_economic <- 
+  df_economic_22 %>% 
+  left_join(df_economic_bl) %>% 
   left_join(rmtl_cntrl_vars )%>%
   mutate(	
     val_22= ifelse(economic_vars =="k_revenue_per_acre" & val_22>80,NA,val_22))
 
 
 
-# (1) model formula inputs  ----
-fml <- val_22   ~ in_project +
-  dist_Km_boundary + val_BL +
-  hh_haed_age + hh_haed_gendar + hh_haed_edu_level + 
-  total_acre16 + housing_str321 + 
-  job_income_sourceS + govPnsin_scheme + rent_property+
-  livestock_dairy + Bullock + Tractor + Plough + 
-  Thresher + Seed_drill + Motorcycle + Fridge
-
-# (2) Nest by status and fit 
-fits <- df_economic %>%
-  group_by(economic_vars) %>%
-  nest() %>%
-  mutate(
-    model = map(data, ~ lm(fml, data = .x)),
-    coefs = map(model, tidy),
-    stats = map(model, glance))
-
-# (3) Stacked outputs + (4) Join with model summary stats
-inproj_with_fit <- 
-  fits %>% unnest(coefs) %>% 
-  filter(term == "in_project") %>% 
-  select(economic_vars, estimate, std.error, p.value) %>% ungroup() %>% 
-  left_join(
-    fits %>% unnest(stats) %>% select(economic_vars,nobs, r.squared) 
-  ) %>% 
-  pivot_longer(-economic_vars, names_to = "metric", values_to = "value") %>%
-  pivot_wider(names_from = economic_vars, values_from = value )
-
-# (5) control mean
-control_mean <- df_economic %>% 
-  filter(in_project==0) %>% 
-  group_by(economic_vars) %>% 
-  summarise(Mean = mean(val_22,na.rm=T)) %>% 
-  pivot_wider (names_from = "economic_vars", values_from = "Mean") %>% 
-  mutate(metric="control_mean") 
-
-df_html <- inproj_with_fit %>%
-  rbind(control_mean) %>% 
-  mutate(across(-metric, ~ case_when(
-    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
-    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
-    TRUE                  ~ as.character(round(.x,3))
-  )))
-
-
-df_html %>% kable() %>% kable_paper()
-
-df_economic %>% 
-  group_by(in_project,economic_vars) %>% 
-  summarise(Mean = mean(val_BL,na.rm=T)) %>% ungroup() %>% 
-  pivot_wider(names_from = "economic_vars",values_from = "Mean") %>% 
-  kable() %>% kable_paper()
-
-
-############## BASIC MODEL - NO CONTROL VARS
-# (1) 
-fml <- val_22   ~ in_project 
-
-# (2) Nest by status and fit 
-fits <- df_economic %>%
-  group_by(economic_vars) %>%
-  nest() %>%
-  mutate(
-    model = map(data, ~ lm(fml, data = .x)),
-    coefs = map(model, tidy),
-    stats = map(model, glance))
-
-# (3)
-nr1=fits %>% unnest(coefs) %>% 
-  select(economic_vars,term, estimate, std.error, p.value) %>% ungroup() %>%
-  pivot_longer(-c(economic_vars,term), names_to = "metric", values_to = "value") %>% pivot_wider(names_from = economic_vars, values_from = value )
-#
-nr2=fits %>% unnest(stats) %>% select(economic_vars,nobs, r.squared) %>% 
-  rename(Num.Obs.=nobs,R2=r.squared ) %>% ungroup() %>% 
-  pivot_longer(cols = c(`Num.Obs.`, R2),
-               names_to = "term",values_to = "vl") %>%
-  mutate(vl=round(vl, digits = 5)) %>% 
-  pivot_wider(names_from = economic_vars,values_from = vl)
-
-# (4)
-nr1 %>% 
-  mutate(across(-c(term, metric), ~ case_when(
-    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
-    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
-    TRUE                  ~ as.character(round(.x,3))
-  ))) %>% 
-  select(-metric) %>% 
-  rbind(nr2) %>% kable() %>% kable_classic_2()
-
-
-#custom theme to format ----
-mp_theme=theme_bw()+
-  theme(
-    panel.grid.major.y =element_blank(),
-    panel.grid.minor=element_blank(),
-    axis.line=element_line(),
-    
-    text=element_text(family="serif"),
-    legend.title=element_blank(), 
-    axis.text=element_text(size=14),
-    axis.title=element_text(size=10),
-    legend.text = element_text(size = 12))
-
-
-#__________________________  land holding  _______________________________ ----
 
 
 
-# ) DF
-df_land <- a_plots_size %>% 
+
+#__________________________  land holding  _ ----
+
+# ) DFs
+# df_land_holding is same as land_holding from agri_vars in impact.1.R script
+df_land_holding <- # former [df_land] and [df_land_bl]
+  a_plots_size %>% 
   filter(!plotStatus %in% c("1","6")) %>% 
   group_by(hh_id) %>% 
-  summarise(land_holding=sum(acres,na.rm = T)) %>% 
-  mutate(land_holding=
-           ifelse(land_holding >40,NA,land_holding )
-         ) # %>% left_join(rmtl_cntrl_vars)
-
-df_land_bl <- rmtl_cntrl_vars %>% 
-  select(hh_id, total_acre16) %>% rename(land_holding = total_acre16 )
-
-# ) DESC STAT
-df_land %>% 
-  group_by(in_project) %>%
-  summarise(land_holding=mean(land_holding_2022,na.rm=T)) %>% 
-  ungroup()
-
-# 1) model formula 
-fml_land <- land_holding_2022 ~ in_project + dist_Km_boundary  +
-  hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
-  housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property +
-  total_livestock + total_farm_equipments
-
-# 2) Nest by status and fit
-fits_land <- df_land %>% nest() %>%
-  mutate(model = map(data, ~ lm(fml_land, data = .x)),
-         coefs = map(model, tidy),
-         stats = map(model, glance))
-
-# 3) Stacked outputs
-coef_tbl_land <- fits_land %>% unnest(coefs) %>% 
-  filter(term == "in_project") %>%
-  select(estimate, std.error, p.value) %>% ungroup()
-##
-fit_stats_land <- fits_land %>% unnest(stats) %>%  
-  select(nobs, r.squared) %>% 
-  rename(Num.Obs.=nobs,R2=r.squared ) %>% ungroup()
-
-# 4) Join with model summary stats
-inproj_with_fit_land <- coef_tbl_land %>% cbind(fit_stats_land )
-
-# 5) Bild df for control group 
-control_mean <- df_land %>% 
-  group_by(in_project) %>%
-  summarise(land_holding=mean(land_holding_2022,na.rm=T)) %>% ungroup() %>% 
-  filter(in_project == 0) %>% 
-  select(-in_project) %>% rename(control_mean=land_holding)
-
-# 6) Create YES rows
-twoRows <- 
-  tribble( ~metric,~land_holding,
-           "Control vars", "Yes",
-           "Dist. boundary", "Yes",
-           "Baseline value","Yes")
-
-# ML Outcomes Table ...................................................
-
-df_html_land <- 
-  inproj_with_fit_land %>% cbind(control_mean ) %>% 
-  pivot_longer(estimate:control_mean, 
-               names_to = "metric", values_to = "land_holding") %>% 
-  mutate(across(-metric, ~ case_when(
-    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
-    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
-    TRUE                  ~ as.character(round(.x,3))
-  ))) %>% 
-  rbind(twoRows)
-
-library(kableExtra)
-df_html_land[c(1:3,7:8,4:6),] %>% 
-  kable("html", caption = "Land holding",align = "c") %>%
-  kable_classic( full_width = F) 
+  summarise(val_22=sum(acres,na.rm = T)) %>% 
+  mutate(ecomony_vars= "land_holding" ) %>% 
+  select(hh_id, ecomony_vars, val_22) %>% 
+  left_join(rmtl_cntrl_vars %>% select(hh_id,total_acre16)) %>% 
+  rename(val_bl= total_acre16) %>% 
+  # summarise(quantile(val_bl, probs = 0.99, na.rm = TRUE))
+  mutate(val_22= ifelse(val_22 > 40 ,NA,val_22) 
+  )
+                
+df_land_holding %>% summarise(quantile(val_bl, probs = 0.99, na.rm = TRUE))
 
 
+#__________________________  INPUTS  _______ ----
 
-# PLOT ----
-library(jtools)
-library(ggplot2)
+#_______ df_inputs
+# L70		irrigation equipment
+# L71		Mechanization
+# L72		Fuel
+# L73		Labor
 
-models_list_land <- 
-  fits_land %>% { setNames(.$model, .$status) } # names become model names in the legend
-
-m1_plot <- 
-  plot_summs(models_list_land ,coefs = c("In Project" = "in_project"),
-             model.names = names(models_list_land),
-             inner_ci_level = NULL, point.shape = F) + 
-  labs(x = "Land Holding in Acre", y = NULL) +
-  xlim(-1, 2) 
-
-m1_plot + mp_theme
+land_cult_2022 <-  # same as in impact.1.R script
+  a_plots_crop %>% 
+  left_join(a_plots_size) %>% 
+  select(hh_id, season, plotID, acres) %>% distinct()  %>% 
+  group_by(hh_id,season) %>% summarise(acres=sum(acres,na.rm = T),.groups = "drop") %>% 
+  filter(season != "KHA22") %>% 
+  group_by(hh_id) %>% summarise(cult_acre_22=sum(acres,na.rm = T),.groups = "drop")
 
 
-#__________________________ INPUTS  _______________________________  ----
-
-df1 <- rmtl_srvy22 %>% 
-  select(hh_id, contains ("l70"),contains ("l71"),contains ("l72"),contains ("l73")) %>% 
+df_inputs_22 <- 
+  rmtl_srvy22 %>% 
+  select(hh_id, contains ("l70"),contains ("l71"),# contains ("l72"),
+         contains ("l73")) %>% 
   pivot_longer(-hh_id,names_to = "observation",values_to = "inputs_Rs" ) %>% 
   separate(observation, into = c("inputs", "season"), sep = "_") %>% 
   filter(season != "KHA22") %>% 
   group_by(hh_id) %>% 
-  summarise(inputs_Rs = sum(inputs_Rs,na.rm = T),.groups = "drop") %>% 
-  filter(inputs_Rs != 0)
+  summarise(inputs_Rs = sum(inputs_Rs,na.rm = T),.groups = "drop"
+  ) %>% 
+  left_join(land_cult_2022) %>% 
+  mutate(val_22 = inputs_Rs/cult_acre_22/1000,
+         val_22 = ifelse(val_22==0, NA, val_22),
+         ecomony_vars= "inputs_per_acre_K") %>% 
+  select(hh_id, ecomony_vars, val_22)
 
-df2 <- a_plots_crop %>% 
-  count(hh_id,season,plotID) %>% 
-  left_join(a_plots_size %>% select(hh_id, plotID, acres)) %>%   
-  filter(season != "KHA22") %>% 
+cult_acre_2016 <- BL_plotCrop  %>% select( hh_id,plotID,season) %>% distinct() %>% 
+  left_join(bl6_plotAcre %>% rename(plotID=plot_num)) %>% 
+  filter(season != "rabi_2014_15") %>% 
+  # filter(season != "rabi_2015_16") %>% 
   group_by(hh_id) %>% 
-  summarise(acres = sum(acres,na.rm = T),.groups = "drop")
+  summarise(cult_acre=sum(plot_acre))
 
-df_inputs <- df1 %>% left_join(df2) %>% 
-  mutate(inputs_per_acre_K= inputs_Rs/acres/1000) %>% 
-  select(hh_id, inputs_per_acre_K )
-
-
-
-# costs of  [__].   Season wise
-
-costesA <- rmtl_srvy22 %>% 
-  select(hh_id, 
-         contains ("l70"),  # irrigation equipment
-         contains ("l71"),  # Mechanization
-         contains ("l72"),  # Fuel
-         contains ("l73"))  # Labor
-
-costesB <- costesA %>% 
-  pivot_longer(-hh_id,names_to = "observation",values_to = "inputs_Rs" ) %>% 
-  separate(observation, into = c("inputs", "season"), sep = "_") %>% 
-  mutate(
-    inputs = case_when(
-      inputs=="l70" ~ "irriEquipment",
-      inputs=="l71" ~ "mechanization",
-      inputs=="l73" ~ "labor",
-      TRUE ~ "fuel")
-  ) %>% 
-  filter(!is.na(inputs_Rs)) %>% 
-  mutate(inputs_Rs=ifelse(inputs_Rs == -999,NA,inputs_Rs), 
-         season=ifelse(season == "rab","rabi",season))
-
-
-#  [ 
-library(readr)
-a_plots_crop <- 
-  read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/a_plots_crop.csv")
-
-inputs_season_2022 <- a_plots_crop %>% 
-  count(hh_id,season,plotID) %>% 
-  left_join(
-    a_plots_size %>% select(hh_id, plotID, acres)
-  ) %>% 
-  group_by(hh_id,season) %>% 
-  summarise(sum_acre=sum(acres,na.rm = T),.groups = "drop") %>% 
-  left_join(costesB,by=c("hh_id","season")) %>% 
-  filter(!is.na( inputs ))
-
-inputs_Y_2022 <- inputs_season_2022 %>% 
-  # filter(season != "KHA22") %>%
-  filter(season != "kha") %>% 
-  group_by(hh_id,inputs) %>% 
-  summarise(sum_acre=sum(sum_acre),inputs_Rs=sum(inputs_Rs)) %>%
-  ungroup() %>% 
-  mutate(inputs_per_acre=inputs_Rs/sum_acre )
-
-#   ]
-
-
-# desc stat 2022 ----
-inputs_season_2022 %>% left_join(hh_2022) %>% 
-  mutate(season=ifelse(season == "rabi","Rabi","Kharif")) %>% 
-  mutate(inputs_per_acre=inputs_Rs/sum_acre ) %>%  
-  group_by(season,inputs,farmers_hh) %>% 
-  summarise(inputs_per_acre=mean(inputs_per_acre,na.rm = T)) %>% 
-  ungroup() %>% 
-  pivot_wider(names_from = farmers_hh,values_from = inputs_per_acre) %>% 
-  mutate(gap_pct=(inside_ramthal - outside_ramthal)/inside_ramthal)
-
-inputs_Y_2022 %>% left_join(hh_2022) %>% 
-  group_by(inputs,farmers_hh) %>% 
-  summarise(inputs_per_acre=mean(inputs_per_acre,na.rm = T)) %>% 
-  ungroup() %>% 
-  pivot_wider(names_from = farmers_hh,values_from = inputs_per_acre) %>% 
-  mutate(gap_pct=(inside_ramthal - outside_ramthal)/inside_ramthal)
-
-# code for plot
-inputs_Y_2022 %>% left_join(hh_2022) %>% 
-  group_by(inputs,farmers_hh) %>% 
-  summarise(inputs_per_acre=mean(inputs_per_acre,na.rm = T)) %>% 
-  ungroup()
-
-
-
-# inputs Baseline 
-inputs_2015 <- rmtl_baseline2016 %>% 
+inputs_bl <- 
+  rmtl_baseline2016 %>% 
   select(hh_id,D49_2015:D60_2014) %>% select(hh_id , contains("2015")) %>% 
   pivot_longer(-hh_id,names_to = "inputs", values_to = "inputs_Rs" ) %>% 
   separate(inputs, into = c("inputs", "year"), sep = "_") %>% 
   select(-year) %>% 
-  mutate(
-    inputs = case_when(
-      inputs=="D58" ~ "irriEquipment",
-      inputs=="D59" ~ "mechanization",
-      inputs=="D60" ~ "labor",
-      TRUE ~ "Else")
-  ) %>% filter(inputs != "Else" ) %>% 
-  group_by(hh_id ) %>% # Create total_inputs to remove HH with NA inputs
-  mutate(total_inputs=sum(inputs_Rs,na.rm = T)) %>% ungroup() %>% 
-  filter(total_inputs !=0)
-inputs_2015$inputs_Rs[is.na(inputs_2015$inputs_Rs)] <- 0
-inputs_2015[,1] %>% distinct()
-
-
-cult_acre_2015 <- 
-  BL_plotCrop  %>% select( hh_id,plotID,season) %>% distinct() %>% 
-  left_join(bl6_plotAcre %>% rename(plotID=plot_num)) %>% 
-  filter(season != "rabi_2014_15") %>% 
+  filter(inputs %in% c( "D58", # "irriEquipment"
+                        "D59", # "mechanization"
+                        "D60")) %>%  # "labor"
   group_by(hh_id) %>% 
-  summarise(acre_2015=sum(plot_acre))
+  summarise(inputs_Rs=sum(inputs_Rs,na.rm = T)) %>% 
+  left_join( cult_acre_2016) %>% 
+  mutate(val_bl= inputs_Rs/cult_acre/1000, 
+         val_bl = ifelse(val_bl==0, NA, val_bl),
+         ecomony_vars="inputs_per_acre_K") %>% 
+  select(hh_id, ecomony_vars, val_bl)
 
-# type inputs 
-inputs_BL <- 
-  inner_join(inputs_2015,cult_acre_2015) %>% 
-  mutate(inputs_per_acre_BL=inputs_Rs/acre_2015 ) %>% 
-  select(hh_id,inputs,inputs_per_acre_BL)
+inputs_bl %>% right_join(hh_2022) %>% t_test(val_bl ~ farmers_hh,detailed = T)
 
-# total_inputs
-df_inputs_bl <- 
-  inputs_2015 %>% select(hh_id, total_inputs) %>% distinct() %>% 
-  left_join(cult_acre_2015) %>% 
-  mutate(inputs_per_acre_K= total_inputs/acre_2015/1000) %>% 
-  mutate(inputs_per_acre_K=ifelse(inputs_per_acre_K>14,NA,inputs_per_acre_K) ) %>% 
-  select(hh_id, inputs_per_acre_K )
-  
+df_inputs_22 %>% summarise(p99 = quantile(val_22, probs = 0.99, na.rm = TRUE))
+inputs_bl %>% summarise(p99 = quantile(val_bl, probs = 0.99, na.rm = TRUE))
+ 
+df_inputs <- 
+  df_inputs_22 %>% left_join(inputs_bl) %>% 
+  mutate(val_22= ifelse(val_22 > 40, NA, val_22 )) 
 
-# REG  ----
 
-inputs_22 <- inputs_Y_2022 %>% 
-  select(hh_id, inputs, inputs_per_acre) %>% 
-  filter(inputs != "fuel") %>% 
-  left_join(inputs_BL) %>% 
-  left_join(rmtl_con_vars)
 
-library(tidyr)
-library(purrr)
-library(broom)
 
-# 1) model formula inputs
-# NO BASLINE "YIELD %" VALUES IN THIS REG
 
-fml_inputs <- inputs_per_acre ~ in_project + dist_Km_boundary  + inputs_per_acre_BL+
-  hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
-  housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property +
-  total_livestock + total_farm_equipments
+#__________________________  Revenue  _______ ----
 
-# 2) Nest by status and fit
-fits_inputs_22 <- inputs_22 %>%
-  group_by(inputs) %>%
-  nest() %>%
-  mutate(
-    model = map(data, ~ lm(fml_inputs, data = .x)),
-    coefs = map(model, tidy),
-    stats = map(model, glance))
+#__________________________  income_agri  _______ ----
 
-# 3) Stacked outputs
-coef_inputs <- fits_inputs_22 %>% unnest(coefs) %>% 
-  filter(term == "in_project") %>%
-  select(inputs, estimate, std.error, p.value) %>% ungroup()
-##
-stats_inputs <- fits_inputs_22 %>% unnest(stats) %>%  
-  select(inputs,nobs, r.squared) %>% 
-  rename(Num.Obs.=nobs,R2=r.squared ) %>% ungroup()
-
-# 4) Join with model summary stats
-inproj_with_fit_inputs <- coef_inputs %>%
-  left_join(stats_inputs,by = "inputs") %>% ungroup()
-
-twoRows <- 
-  tribble(~metric, ~irriEquipment, ~labor, ~mechanization,
-          "Control vars", "Yes","Yes", "Yes",
-          "Dist. boundary", "Yes","Yes", "Yes",
-          "Baseline value", "Yes","Yes", "Yes")
-
-control_mean <- 
-  inputs_22 %>% group_by(in_project,inputs) %>% 
-  summarise(
-    inputs_per_acre =  mean(inputs_per_acre,na.rm=T)
-  ) %>% ungroup() %>% 
-  filter(in_project == 0) %>% 
-  pivot_wider(names_from = "inputs", 
-              values_from = "inputs_per_acre" ) %>% 
-  rename(metric=in_project)
-control_mean$metric[control_mean$metric==0] <- "control_mean"
-
-
-df_html_inputs <- inproj_with_fit_inputs %>%
-  pivot_longer(-inputs, 
-               names_to = "metric", values_to = "value") %>%
-  pivot_wider(names_from = inputs, values_from = value
-  ) %>% 
-  rbind(control_mean) %>% 
-  mutate(across(-metric, ~ case_when(
-    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
-    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
-    TRUE                  ~ as.character(round(.x,3))
-  ))) %>% 
-  rbind(twoRows) %>% 
-  rename_with(~ c("Irrigation", "Labor", "Mechanization"), .cols = 2:4)
-
-# reg table
-library(kableExtra)
-df_html_inputs[c(1:3,7:9,4:6),] %>% 
-  kable("html", caption = "Annual inputs for 2022 (in ₹ INR)",align = "c") %>%
-  kable_classic( full_width = F) 
-
-
-# PLOT ----------------------------------
-library(jtools)
-models_list <- fits_inputs_22 %>% 
-  # filter(status == "Lost_in_harvest") %>% 
-  { setNames(.$model, .$inputs) }    # names become model names in the legend
-
-m1_plot <- 
-  plot_summs(models_list ,coefs = c("In Project" = "in_project"),
-             model.names = c("Irrigation", "Labor", "Mechanization"),
-             inner_ci_level = NULL, point.shape = F) + 
-  labs(x = "Amount  in INR", y = NULL) +
-  xlim(-1100, 100) 
-
-m1_plot + mp_theme
-
-
-
-#__________________________  CROP SELLING  ___________________________ ----
-
-# L56	Season Level	Who did you sell crop to?  
-
-# 1	Market (specify market name)
-# 2	APMC (specify)
-# 3	Other trader/wholesaler
-# 4	Government society/NGO
-# 5	Private company (specify name)
-# -888	Other (specify)
-
-
-L56_crop_sell <- 
-  rmtl_srvy22 %>% 
-  select(farmers_hh,hh_id, starts_with( "l56")) %>% 
-  select(farmers_hh,hh_id,ends_with(c("1","_2","3","4","5"))) %>% 
-  pivot_longer(-c(farmers_hh,hh_id),names_to = "Q",values_to = "ans" ) %>% 
-  filter(ans == 1) %>%    
-  separate(Q, into = c("part1", "season", "ans_num"), sep = "_"
-  ) %>% 
-  group_by(farmers_hh,season) %>% 
-  mutate( unique_hhid = n_distinct(hh_id)
-  ) %>% 
-  group_by(unique_hhid ,farmers_hh,season,ans_num) %>% 
-  summarise(SUM=sum(ans)) %>% 
-  mutate(pct = SUM/unique_hhid 
-  ) %>% 
-  group_by(farmers_hh,ans_num) %>% 
-  summarise(pct=mean(pct)) %>% ungroup() 
-
-
-# desc stat ----
-library(ggplot2)
-library(treemapify)
-.................................................................
-# To whom is the crop sold  
-
-L56_crop_sell %>% 
-  mutate(
-    Crop_sale_to = case_when(
-      ans_num=="1" ~ "Market",
-      ans_num=="2" ~ "APMC",
-      ans_num=="3" ~ "Other trader",
-      ans_num=="4" ~ "Gov society/NGO",
-      TRUE ~ "Private company")
-  ) %>% 
-  mutate_at(3,round,3) %>% 
-  ggplot(
-    aes(area = pct, fill = Crop_sale_to, label = paste0(Crop_sale_to, "\n", pct*100, "%"))) +
-  geom_treemap(color = "white",show.legend = T) +
-  geom_treemap_text(colour = "black", 
-                    place = "centre", grow = TRUE, 
-                    family = "serif",reflow = TRUE,
-                    size = .75) +
-  facet_wrap(~farmers_hh) +
-  scale_fill_brewer(palette = "Pastel1") +
-  theme_minimal(base_size = 12, base_family = "serif") +
-  labs(
-    title = "Where the crop is sold",
-    subtitle = "Percentage of produce sold in each market type"
-  )
-
-.................................................................
-# Where is the crop sold?  
-
-L56_sell_to <- 
-  rmtl_srvy22 %>% 
-  select(farmers_hh,hh_id, starts_with( c("l56_a","l56_b"  )  )) %>% 
-  pivot_longer(-c(farmers_hh,hh_id),names_to = "Q",values_to = "ans" )%>%    
-  separate(Q, into = c("part1", "ab", "season"), sep = "_"
-  ) %>% 
-  mutate(ans=ifelse(ans %in% c("none","0","-999","Middle Man","Pink","Shops"),NA, ans )) %>% 
-  mutate(
-    ans_clean = case_when(
-      str_starts(ans, "Hun") ~ "Hungund",
-      str_starts(ans, "Hub") ~ "Hubli",
-      str_starts(ans, "Bag") ~ "Bagalkot",
-      str_starts(ans, "Ami") ~ "Aminagad",
-      str_starts(ans, "I") ~ "Ilkal",
-      str_starts(ans, "l") ~ "Ilkal",
-      str_starts(ans, "Kar") ~ "Karadi",
-      str_starts(ans, "No") ~ NA,
-      TRUE ~ ans)
-  ) %>% 
-  filter(!is.na(ans_clean)) %>% 
-  select(farmers_hh,hh_id,ab,ans_clean) %>% distinct() %>% 
-  count(farmers_hh,ab,ans_clean
-  ) %>%  
-  group_by(farmers_hh,ab) %>% 
-  mutate(N=sum(n),pct = n/N) %>% 
-  mutate(MtMc=ifelse(pct<0.04,"Else",ans_clean)
-  ) %>% 
-  group_by(farmers_hh,ab,MtMc) %>% 
-  summarise (pct = sum(pct)*100) %>% ungroup()%>% 
-  mutate_at(4,round,0)
-
-
-# table MARKET  .....................................
-L56_sell_to %>% 
-  filter(ab=="a",farmers_hh =="inside_ramthal") %>% 
-  rename(Market=MtMc,pct_IN=pct) %>% 
-  select(Market,pct_IN) %>% 
-  full_join(
-    L56_sell_to %>% 
-      filter(ab=="a",farmers_hh !="inside_ramthal") %>% 
-      rename(Market=MtMc,pct_OUT=pct) %>% 
-      select(Market,pct_OUT)
-  ) %>% 
-  arrange(desc(pct_IN)) %>% 
-  kbl() %>% kable_styling()
-
-# table APMC  ........................................
-L56_sell_to %>% 
-  filter(ab=="b",farmers_hh =="inside_ramthal") %>% 
-  rename(APMC=MtMc,pct_IN=pct) %>% 
-  select(APMC,pct_IN) %>% 
-  full_join(
-    L56_sell_to %>% 
-      filter(ab=="b",farmers_hh !="inside_ramthal") %>% 
-      rename(APMC=MtMc,pct_OUT=pct) %>% 
-      select(APMC,pct_OUT)
-  ) %>% 
-  arrange(desc(pct_IN)) %>% 
-  kbl() %>% kable_styling()
-
-
-
-
-#__________________________  Revenue  ____________________________________ ----
-# L78	Total revenue? [season-crop]
-
-library(readr)
-a_plots_revenue <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/a_plots_revenue.csv")
-View(a_plots_revenue)
-
-size_acre <- a_plots_size %>% select(hh_id,plotID,acres) %>% filter(!is.na(acres))
-
-# year 2022
-df_revenue_22 = # 01012026
-  a_plots_revenue %>% 
-  group_by(season,hh_id,plotID) %>% 
-  summarise(plotRevenue=sum(plotRevenue,na.rm = T)) %>% 
-  left_join(size_acre) %>% 
-  filter(season !="KHA22") %>% 
-  group_by(hh_id) %>% 
-  summarise(revenue=sum(plotRevenue,na.rm = T),
-            acres = sum(acres, na.rm = T)) %>% ungroup() %>%  # filter(hh_id==100014)
-  mutate(k_revenue_per_acre=revenue/acres/1000) %>% 
-  select(hh_id,k_revenue_per_acre)
-
-# season
-revenue_22B =
-  a_plots_revenue %>% filter(plotRevenue>999) %>% 
-  left_join(size_acre) %>% 
-  mutate(season=ifelse(season=="rabi","Rabi","Kharif")) %>% 
-  group_by(season,hh_id) %>% 
-  summarise(revenue=sum(plotRevenue,na.rm = T),
-            acres = sum(acres, na.rm = T)) %>% ungroup() %>%  # filter(hh_id==100014)
-  mutate(revenue_per_acre=revenue/acres/1000) %>% 
-  left_join(rmtl_con_vars)
-
-revenue_22B %>% 
-  group_by(season,in_project) %>% summarise(mean(revenue_per_acre,na.rm = T),n())
-
-# ka # Kharif - full reg 
-# kb # Kharif - reg without "dist_Km_boundary"
-# kc # Kharif - only "revenue_per_acre ~ in_project"
-# ra rb rc for Rabi
-
-ka <- lm( revenue_per_acre ~ in_project + dist_Km_boundary  +
-            hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
-            housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property +
-            total_livestock + total_farm_equipments,
-          data = revenue_22B  %>% filter(season =="Kharif") )
-
-sjPlot::tab_model(ka ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
-sjPlot::tab_model(kb ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
-sjPlot::tab_model(kc ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
-sjPlot::tab_model(ra ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
-sjPlot::tab_model(rb ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
-sjPlot::tab_model(rc ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
-
-
-
-library(tidyr)
-library(purrr)
-library(broom)
-
-# REG    ----
-# 1) DF [revenue_22]
-
-revenue_22 =
-  a_plots_revenue %>% filter(plotRevenue>999) %>% 
-  left_join(size_acre) %>% 
-  filter(season !="kha") %>% 
-  group_by(season,hh_id) %>% 
-  summarise(revenue=sum(plotRevenue,na.rm = T),
-            acres = sum(acres, na.rm = T)) %>% ungroup() %>%  # filter(hh_id==100014)
-  mutate(revenue_per_acre=revenue/acres/1000) %>% 
-  left_join(rmtl_con_vars)
-
-revenue_22 %>% 
-  group_by(season,in_project) %>% summarise(mean(revenue_per_acre,na.rm = T),n())
-
-# 1) model formula 
-# NO BASLINE VALUES IN THIS REG
-fml_reve <- revenue_per_acre ~ in_project + dist_Km_boundary  +
-  hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
-  housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property +
-  total_livestock + total_farm_equipments
-
-# 2) Nest by status and fit
-fits_reve <- revenue_22 %>%
-  group_by(season) %>%
-  nest() %>%
-  mutate(
-    model = map(data, ~ lm(fml_reve, data = .x)),
-    coefs = map(model, tidy),
-    stats = map(model, glance))
-
-# 3) Stacked outputs
-coef_reve <- fits_reve %>% unnest(coefs) %>% filter(term == "in_project") %>%
-  select(season, estimate, std.error, p.value) %>% ungroup()
-##
-stats_reve <- fits_reve %>% unnest(stats) %>%  select(season,nobs, r.squared) %>% 
-  rename(Num.Obs.=nobs,R2=r.squared ) %>% ungroup()
-##
-inproj_reve <- coef_reve %>% left_join(stats_reve,by = "season")
-
-twoRows <-  tribble(~metric,  ~KHA22, ~rabi, "Control vars", "Yes", "Yes", "Dist. boundary", "Yes", "Yes", "Baseline value", "No","No")
-
-revenue_22 %>% 
-  group_by(season,in_project) %>% 
-  summarise(reve= mean(revenue_per_acre,na.rm = T)) %>% 
-  filter(in_project == 0) %>% rename(metric=in_project)
-
-control_mean <- 
-  revenue_22 %>% 
-  group_by(season,in_project) %>% 
-  summarise(reve= mean(revenue_per_acre,na.rm = T)) %>% 
-  filter(in_project == 0) %>% pivot_wider(names_from = season, values_from = reve
-  ) %>% rename(metric=in_project)
-control_mean$metric[control_mean$metric==0] <- "control_mean"
-
-
-df_html_reve <- inproj_reve %>%
-  pivot_longer(-season, names_to = "metric", values_to = "value") %>%
-  pivot_wider(names_from = season, values_from = value
-  ) %>% 
-  rbind(control_mean) %>% 
-  mutate(across(-metric, ~ case_when(
-    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
-    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
-    TRUE                  ~ as.character(round(.x,3))
-  ))) %>% 
-  rbind(twoRows)
-
-# reg table
-library(kableExtra)
-df_html_reve[c(1:3,7:9,4:6),] %>% 
-  kable("html", caption = "Revenue per acre",align = "c") %>%
-  kable_classic( full_width = F) 
-
-# PLOT   ----
-library(jtools)
-models_list <- fits_reve %>%  { setNames(.$model, .$season) }    
-
-m1_plot <- plot_summs(models_list ,coefs = c("In Project" = "in_project"),
-             model.names = c("Kharif","Rabi"),
-             inner_ci_level = NULL, point.shape = F) + 
-  labs(x = "Revenue per Acre (In thousands Rs.)", y = NULL) +
-  xlim(-4, 2) 
-
-m1_plot + mp_theme
-
-
-#__________________________  Income   ____________________________________ ----
+#____________________  df_income_NonCrop   ____________________________________ ----
 
 # F1	Income sent by seasonal migrating household members
 # F2	Remittances (from permanent migrants)
@@ -778,12 +174,12 @@ m1_plot + mp_theme
 df_income_NonCrop_22 <- 
   rmtl_srvy22 %>% 
   select(hh_id, f1_amt, f2_amt,f3_1_amt, f4_amt, f5_amt, f6_amt, f7_amt, f9_amt, f10_amt, f11_amt 
-         ) %>%
+  ) %>%
   pivot_longer(-hh_id ,
                names_to = "income_type_f",
                values_to = "income22") %>% 
   mutate(income22 = ifelse(income22 == -999,0,income22),
-    income_type=
+         income_type=
            ifelse(income_type_f %in% c("f1_amt","f2_amt","f9_amt"),
                   "k_income_assistance","k_income_independent" )) %>% 
   group_by(hh_id, income_type ) %>% 
@@ -792,33 +188,10 @@ df_income_NonCrop_22 <-
   mutate(r1 = ifelse(r1 == 0,1,r1)) %>% 
   mutate(income_NonCrop_mhh=income_NonCrop/r1 ) %>% select(-r1)
 
+d_I1 <- df_income_NonCrop_22 %>% select(-income_NonCrop_mhh) %>% rename(val_22=income_NonCrop)
+d_I2 <- df_income_NonCrop_22 %>% select(-income_NonCrop) %>% 
+  mutate(income_type = paste0(income_type, "_mhh"))%>% rename(val_22=income_NonCrop_mhh)
 
-df_income_agri_22 <- 
-  rmtl_srvy22 %>% 
-  select(hh_id, f3_amt) %>% 
-  mutate(economic_vars="k_income_agri",val_22=f3_amt/1000 ,
-         val_22= ifelse(val_22==0,NA,val_22),
-         val_22= ifelse(val_22>4000,NA,val_22),
-  ) %>% 
-  select(hh_id, economic_vars,val_22)
-
-
-F_2022 <- rmtl_srvy22 %>% select(hh_id, starts_with("f") ) 
-names(F_2022)
-
-F_2022 <- rmtl_srvy22 %>% 
-  select(hh_id, starts_with("f") ) %>% 
-  select(hh_id:f2_amt,f5:f10_amt,f12) %>% 
-  pivot_longer(-hh_id ,
-               names_to = "income_type",
-               values_to = "income22") %>% 
-  mutate(income_type = ifelse(income_type=="f12","f12_amt",income_type))
-
-
-## basline df
-
-
-# TOTAL income
 df_income_NonCrop_bl <- 
   rmtl_baseline2016 %>%
   select(hh_id,starts_with("F")) %>% 
@@ -832,41 +205,40 @@ df_income_NonCrop_bl <-
   group_by(hh_id, income_type ) %>% 
   summarise(income_NonCrop = sum(income22,na.rm = T)/1000,.groups = "drop") %>% 
   left_join( rmtl_baseline2016 %>% select(hh_id, C1 )) %>% 
-  mutate(C1=ifelse(C1<1,1,C1),
-    income_NonCrop_mhh=income_NonCrop/C1 ) %>% select(-C1)
+  mutate(C1=ifelse(C1<1,1,C1), # Total household members
+         income_NonCrop_mhh=income_NonCrop/C1 # Normalized to number of household members
+  ) %>% select(-C1)
 
-df_income_agri_BL <- 
-  rmtl_baseline2016  %>% 
-  select(hh_id, F3_year ) %>% 
-  mutate(economic_vars="k_income_agri",val_BL=F3_year/1000,
-         val_BL=ifelse(val_BL==0,NA,val_BL)) %>% 
-  select(hh_id, economic_vars,val_BL)
+d_I1b <- df_income_NonCrop_bl %>% select(-income_NonCrop_mhh) %>% rename(val_bl=income_NonCrop)
+d_I2b <- df_income_NonCrop_bl %>% select(-income_NonCrop) %>% 
+  mutate(income_type = paste0(income_type, "_mhh"))%>% rename(val_bl=income_NonCrop_mhh)
+
+df_income_NonCrop <- 
+  d_I1 %>% left_join(d_I1b) %>% 
+  # rbind( d_I2 %>% left_join(d_I2b) ) %>% 
+  rename(ecomony_vars=income_type) %>% 
+  mutate(
+    val_22 = case_when(
+      ecomony_vars == "k_income_assistance" & val_22 > 306   ~ NA_real_,
+      TRUE ~ val_22 ))
 
 
-df_income_NonCrop_bl_binary <- 
-  rmtl_baseline2016 %>%
-  select(hh_id,starts_with("F")) %>% 
-  select(hh_id, contains("year"),-F3_year,-F4_year, -F12_year)%>%
+# TYPE of income ----
+
+# TYPE of income - amt
+
+F_2022 <- rmtl_srvy22 %>% 
+  select(hh_id, starts_with("f") ) %>% 
+  select(hh_id:f2_amt,f5:f10_amt,f12) %>% 
   pivot_longer(-hh_id ,
-               names_to = "income_type_f",
+               names_to = "income_type",
                values_to = "income22") %>% 
-  mutate(income_type=
-           ifelse(income_type_f %in% c("F1_year","F2_year","F9_year"),
-                  "income_assistance", # Income by seasonal/  permanent  migrating OR Government pension or scheme
-                  "income_NonCrop" ))  %>% 
-  group_by(hh_id, income_type ) %>% 
-  summarise(income_NonCrop = sum(income22,na.rm = T)/1000,.groups = "drop"
-            ) %>% 
-  mutate(income_NonCrop_01=ifelse(income_NonCrop == 0,0,1) 
-         ) %>% select(-income_NonCrop) %>% 
-  pivot_wider(names_from = income_type,
-              values_from =income_NonCrop_01 )
+  mutate(income_type = ifelse(income_type=="f12","f12_amt",income_type))
 
-# TYPE of incomr
 
 rmtl_baseline2016 %>% select(hh_id,starts_with("F"))
 # library(stringr)
-F_2015 <- rmtl_baseline2016 %>% right_join(hh_2022) %>% 
+F_2015 <- rmtl_baseline2016 %>% # right_join(hh_2022) %>% 
   select(hh_id,starts_with("F")) %>% 
   select( -ends_with("month"),
           -starts_with(c("farmer","F3","F4","F11","F13","F14")) )%>% 
@@ -887,133 +259,37 @@ F_2015 <- rmtl_baseline2016 %>% right_join(hh_2022) %>%
 
 
 
-
-# desc stat
 income <- F_2022 %>% 
   left_join(F_2015) %>%
   mutate(income22=ifelse(income22==-999,NA,income22)) %>% 
   filter(!(is.na(income22) & is.na(income15))) %>%  
   mutate(income22= ifelse(income22 > 1, income22/1000, income22),
-         income15= ifelse(income15 > 1, income15/1000, income15) ) %>% 
-  left_join(rmtl_cntrl_vars) 
+         income15= ifelse(income15 > 1, income15/1000, income15) )
 income$income22[is.na(income$income22)] <- 0
 income$income15[is.na(income$income15)] <- 0
 
+# TYPE of income - binary
 
-
-income_summary <- income %>%
-  group_by(income_type, in_project) %>%
-  summarise(Mean = mean(income22, na.rm = TRUE), .groups = "drop") %>%
-  mutate(in_project=ifelse(in_project==1,"IN","OUT")) 
-
-control_mean <- income_summary %>%
-  mutate(
-    Mean = if_else(Mean < 1, round(Mean ,3), round(Mean))
+df_income_NonCrop_bl_binary <- 
+  rmtl_baseline2016 %>%
+  select(hh_id,starts_with("F")) %>% 
+  select(hh_id, contains("year"),-F3_year,-F4_year, -F12_year)%>%
+  pivot_longer(-hh_id ,
+               names_to = "income_type_f",
+               values_to = "income22") %>% 
+  mutate(income_type=
+           ifelse(income_type_f %in% c("F1_year","F2_year","F9_year"),
+                  "income_assistance", # Income by seasonal/  permanent  migrating OR Government pension or scheme
+                  "income_NonCrop" ))  %>% 
+  group_by(hh_id, income_type ) %>% 
+  summarise(income_NonCrop = sum(income22,na.rm = T)/1000,.groups = "drop"
   ) %>% 
-  pivot_wider(names_from = "income_type", values_from = "Mean" ) %>% 
-  filter(in_project =="OUT") %>% 
-  mutate(metric="control_mean") %>% 
-  select("metric",
-    "f1", "f2", "f5", "f6", "f7", "f9", "f10",
-    "f1_amt", "f2_amt", "f5_amt", "f6_amt",
-    "f7_amt", "f9_amt", "f10_amt", "f12_amt"
-  )
+  mutate(income_NonCrop_01=ifelse(income_NonCrop == 0,0,1) 
+  ) %>% select(-income_NonCrop) %>% 
+  pivot_wider(names_from = income_type,
+              values_from =income_NonCrop_01 )
 
-income_summary_tbl <- income_summary %>%
-  mutate(
-    Mean = if_else(Mean < 1, round(Mean * 100,1), round(Mean))
-  ) %>% 
-  pivot_wider(names_from = "in_project", values_from = "Mean" ) %>% 
-  mutate(income_type = factor(
-    income_type, levels = c("f1", "f2", "f5", "f6", "f7", "f9", "f10",
-                            "f1_amt", "f2_amt", "f5_amt", "f6_amt",
-                            "f7_amt", "f9_amt", "f10_amt", "f12_amt"))
-    ) %>%
-  arrange(income_type)%>% 
-  select(income_type, IN,OUT)
-
-income_summary_tbl[1:7,] %>% kbl() %>% kable_styling()
-income_summary_tbl[8:15,] %>% kbl() %>% kable_styling()
-
-
-# REG  ----
-
-library(tidyr)
-# library(purrr)
-# library(broom)
-
-# 1) model formula inputs # 2) Nest by status and fit 
-fits_income <- income %>%
-  group_by(income_type) %>%
-  nest() %>%
-  mutate(
-    model = map(data, ~ lm(
-        income22 ~ in_project + dist_Km_boundary + income15 +
-        hh_haed_age + hh_haed_gendar + hh_haed_edu_level + 
-        total_acre16 + housing_str321 + 
-        livestock_dairy + Bullock + Tractor + Plough + 
-        Thresher + Seed_drill + Motorcycle + Fridge, 
-        data = .x)),
-    coefs = map(model, broom::tidy),
-    stats = map(model, broom::glance))
-
-# 3) Stacked outputs # 4) Join with model summary stats
-inproj_with_fit_income <- 
-  fits_income %>% unnest(coefs) %>% 
-  filter(term == "in_project") %>% 
-  left_join(
-    fits_income %>% unnest(stats) %>% select(income_type,nobs, r.squared)
-  )%>% ungroup() %>% 
-  select(income_type, estimate, std.error, p.value,nobs, r.squared) %>% 
-  rename(Num.Obs.=nobs,R2=r.squared ) %>% 
-  pivot_longer(-income_type, names_to = "metric", values_to = "value") %>%
-  pivot_wider(names_from = income_type, values_from = value ) %>% 
-  select("metric",
-         "f1", "f2", "f5", "f6", "f7", "f9", "f10",
-         "f1_amt", "f2_amt", "f5_amt", "f6_amt",
-         "f7_amt", "f9_amt", "f10_amt", "f12_amt"
-  )
-
-
-# reg table ----
-df_html_income <- inproj_with_fit_income %>%
-  rbind(control_mean) %>% 
-  mutate(across(-metric, ~ case_when(
-    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
-    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
-    TRUE                  ~ as.character(round(.x,3))
-  )))
-
-# library(kableExtra)
-df_html_income[,1:8] %>% 
-  kable("html", caption = "% of household ",align = "c") %>%
-  kable_classic( full_width = F) 
-
-df_html_income %>% select(metric, f1_amt:f12_amt) %>% 
-  kable("html", caption = "Amount income in K Rs. ",align = "c") %>%
-  kable_classic( full_width = F) 
-
-
-# PLOT ----------------------------------
-library(jtools)
-models_listA <- fits_income[ c(1:5,7,9),] %>% { setNames(.$model, .$income_type) }
-models_listB <- fits_income[-c(1:5,7,9),] %>% { setNames(.$model, .$income_type) }
-
-m1_plot <- plot_summs( models_listA ,coefs = c("In Project" = "in_project"),
-  model.names = c("Income 1", "Income 2","Income 3", "Income 4", "Income 5", "Income 6", "Income 7     " ),
-  inner_ci_level = NULL, point.shape = F,colors = my_colors) + 
-  labs(x = "% of HH to Incom type", y = NULL) +
-  xlim(-.12, .12) 
-m1_plot + mp_theme
-
-m2_plot <- plot_summs( models_listB ,coefs = c("In Project" = "in_project"),
-                       model.names = c("Income 1", "Income 2","Income 3", "Income 4", "Income 5", "Income 6", "Income 7","Income 2022" ),
-                       inner_ci_level = NULL, point.shape = F,colors = my_colors) + 
-  labs(x = "Income amount (In thousands Rs.)", y = NULL)
-m2_plot + mp_theme
-
-
-#__________________________ ASSET  __________________________       ----
+#____________________  df_assets  __________________________       ----
 
 # How many of this item does the household currently own? (0 if none)
 
@@ -1024,10 +300,6 @@ m2_plot + mp_theme
 
 ### REMOVE [E14 JCB]
 ### skip E20Gold E21Silver
-
-df_assets_22 <- rmtl_srvy22 %>% select(hh_id,starts_with("e"),-e21)%>% 
-  pivot_longer(-hh_id ,names_to = "Asset",values_to = "Num_assets_22") %>% 
-  group_by(hh_id) %>% summarise(total_assets =sum(Num_assets_22))
 
 # assets_22 .........
 vars_e01 <- rmtl_srvy22 %>% select(hh_id,starts_with("e"),-e21) %>% 
@@ -1042,25 +314,19 @@ vars_e01[is.na(vars_e01)] <- 0
 # vars_e01 %>% count(Buffaloes)
 # vars_e01$Buffaloes=ifelse(vars_e01$Buffaloes>9,NA,vars_e01$Buffaloes)
 
-assets_22 <-  vars_e01 %>%  
+assets_22 <-  
+  vars_e01 %>%  
   mutate(
     Livestock= Cows+Bullock+Buffaloes+Goats_sheep,
     Farm_equipments=Tractor+Plough+Thresher+Seed_drill,
-    Vehicles= Cycles+Motorcycles+Cars,
-    HH_items= Fridge+TV,
-    Total_assets= Livestock+Farm_equipments+Vehicles+HH_items) %>% 
-  filter(Total_assets>0) %>% 
-  select(hh_id,Livestock:Total_assets) %>% 
-  pivot_longer(-hh_id ,names_to = "Asset",values_to = "Num_assets_22")
+    Vehicles_Home= Cycles+Motorcycles+Cars+Fridge+TV,
+    Total_assets= Livestock+Farm_equipments+Vehicles_Home) %>% 
+  select(hh_id,Livestock,Farm_equipments,Vehicles_Home) %>%
+  mutate(across( -hh_id, ~ ifelse(if_all(-hh_id, ~ .x == 0), NA, .x)
+  )) %>% 
+  pivot_longer(-hh_id ,names_to = "ecomony_vars",values_to = "val_22")
 
 # assets_15 .........
-
-df_assets_bl <- 
-  rmtl_baseline2016 %>% select(hh_id,starts_with("E")) %>% 
-  select(hh_id, ends_with("_1"),-c(E20_1:E11_to_E13_1)) %>% 
-  pivot_longer(-hh_id ,names_to = "Asset",values_to = "Num_assets") %>% 
-  group_by(hh_id) %>% summarise(total_assets =sum(Num_assets,na.rm = T))
-
 
 vars_e01_BL <- 
   rmtl_baseline2016 %>% select(hh_id,starts_with("E")) %>% 
@@ -1073,126 +339,225 @@ vars_e01_BL <-
   select(-JCB)
 vars_e01_BL[is.na(vars_e01_BL)] <- 0
 
-assets_15 <-  vars_e01_BL %>% 
-  mutate(
-         Livestock_BL= Cows+Bullock+Buffaloes+Goats_sheep,
-         Farm_equipments_BL=Tractor+Plough+Thresher+Seed_drill,
-         Vehicles_BL= Cycles+Motorcycles+Cars,
-         HH_items_BL= Fridge+TV,
-         Total_assets_BL= Livestock_BL + Farm_equipments_BL + 
-           Vehicles_BL + HH_items_BL) %>% 
-  filter(Total_assets_BL>0) %>% 
-  select(hh_id,Livestock_BL:Total_assets_BL) 
-
-assets_15 <-  vars_e01_BL %>% 
+assets_15 <-  
+  vars_e01_BL %>% 
   mutate(
     Livestock= Cows+Bullock+Buffaloes+Goats_sheep,
     Farm_equipments=Tractor+Plough+Thresher+Seed_drill,
-    Vehicles= Cycles+Motorcycles+Cars,
-    HH_items= Fridge+TV,
-    Total_assets= Livestock+Farm_equipments+Vehicles+HH_items) %>% 
-  filter(Total_assets>0) %>% 
-  select(hh_id,Livestock:Total_assets) %>% 
-  pivot_longer(-hh_id ,names_to = "Asset",values_to = "Num_assets_BL")
+    Vehicles_Home= Cycles+Motorcycles+Cars + Fridge+TV,
+    Total_assets = Livestock + Farm_equipments + Vehicles_Home) %>% 
+  select(hh_id,Livestock,Farm_equipments,Vehicles_Home) %>%
+  mutate(across( -hh_id, ~ ifelse(if_all(-hh_id, ~ .x == 0), NA, .x)
+  )) %>% 
+  pivot_longer(-hh_id ,names_to = "ecomony_vars",values_to = "val_bl")
 
-# desc stat  ----
-assets <- assets_22 %>% 
+df_assets <- assets_22 %>% 
   inner_join(assets_15) %>% 
-  left_join(rmtl_cntrl_vars) 
+  mutate(
+    val_22 = case_when(
+      ecomony_vars == "Farm_equipments" & val_22 > 6   ~ NA_real_,
+      ecomony_vars == "Livestock" & val_22 >= 100   ~ NA_real_, # 60
+      ecomony_vars == "Vehicles_Home" & val_22 > 7   ~ NA_real_, # 7
+      TRUE ~ val_22 ))
 
-assets %>% group_by(Asset,in_project) %>% 
-  summarise(Mean = mean(Num_assets_22,na.rm=T)) %>% 
-  mutate(in_project=ifelse(in_project==1,"IN","OUT")) %>%
-  pivot_wider (names_from = "in_project", values_from = "Mean") %>% 
-  mutate((IN - OUT)/IN)
+# Analysis ----
 
+df_economic <- 
+  df_land_holding %>% 
+  rbind(df_inputs) %>% 
+  rbind(df_return_invest %>% rename(ecomony_vars=economic_vars)) %>% 
+  rbind(df_income_NonCrop) %>% 
+  rbind(df_assets) %>% 
+  left_join(rmtl_cntrl_vars)
+#
 
-# REG  ----
-
-library(tidyr)
-library(purrr)
+# Balance Tests ----
+library(kableExtra)
+library(rstatix)
 library(broom)
 
-# 1) model formula inputs
-fml_assets <- Num_assets_22 ~ in_project + dist_Km_boundary  + Num_assets_BL+
-  hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 +
-  housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property
-
-# 2) Nest by status and fit 
-fits_assets_22 <- assets %>%
-  group_by(Asset) %>%
-  nest() %>%
-  mutate(
-    model = map(data, ~ lm(fml_assets, data = .x)),
-    coefs = map(model, tidy),
-    stats = map(model, glance))
-
-# 3) Stacked outputs
-coef_assets <- fits_assets_22 %>% unnest(coefs) %>% 
-  filter(term == "in_project") %>%
-  select(Asset, estimate, std.error, p.value) %>% ungroup()
-##
-stats_assets <- fits_assets_22 %>% unnest(stats) %>%  
-  select(Asset,nobs, r.squared) %>% 
-  rename(Num.Obs.=nobs,R2=r.squared ) %>% ungroup()
-
-# 4) Join with model summary stats
-inproj_with_fit_assets <- coef_assets %>%
-  left_join(stats_assets,by = "Asset") %>% ungroup() %>%
-  pivot_longer(-Asset, 
-               names_to = "metric", values_to = "value") %>%
-  pivot_wider(names_from = Asset, values_from = value )
+df_economic %>% # filter(cardinal_direction == "south" ) %>% 
+  group_by(ecomony_vars) %>%
+  do(tidy(t.test(val_bl ~ in_project, data = .))) %>% 
+  mutate(across(c(estimate2, estimate1, p.value), ~ round(., 3))) %>% 
+  select(ecomony_vars, estimate2,estimate1, p.value) %>% 
+  rename(In = estimate2 ,Out = estimate1 ) %>% 
+  kableExtra::kable() %>% kableExtra::kable_paper()
 
 
-# reg table df I
-twoRows <- tribble(
-  ~metric, ~Livestock, ~Farm_equipments, ~Vehicles, ~HH_items, ~Total_assets,
-  "Control vars", "Yes","Yes", "Yes","Yes", "Yes",
-  "Dist. boundary", "Yes","Yes", "Yes","Yes", "Yes",
-  "Baseline value", "Yes","Yes", "Yes","Yes", "Yes")
+# REG model     ----
+# (1) model formula inputs
+fml <- val_22   ~ in_project + dist_Km_boundary + 
+  val_bl + hh_haed_age + hh_haed_gendar + hh_haed_edu_level + 
+  total_acre16 + housing_str321 + 
+  job_income_sourceS + govPnsin_scheme + rent_property+
+  livestock_dairy + Bullock + Tractor + Plough + 
+  Thresher + Seed_drill + Motorcycle + Fridge
+# fml <- val_22   ~ in_project
 
-# reg table df II
-control_mean <- assets %>% 
-  filter(in_project==0) %>% 
-  group_by(Asset) %>% 
-  summarise(Mean = mean(Num_assets_22,na.rm=T)) %>% 
-  pivot_wider (names_from = "Asset", values_from = "Mean") %>% 
-  mutate(metric="control_mean") %>% 
-  select( metric ,Livestock ,Farm_equipments, Vehicles, HH_items, 
-          Total_assets)
-  
+# (2) Nest by status and fit ----
+fits <- df_economic %>%
+  group_by(ecomony_vars) %>% nest() %>%
+  mutate(  model = map(data, ~ lm(fml, data = .x)),
+           coefs = map(model, tidy),
+           stats = map(model, glance))
 
-# reg table ----
-df_html_assets <- inproj_with_fit_assets %>%
+# (3) Stacked outputs + (4) Join with model summary stats
+inproj_with_fit <- 
+  fits %>% unnest(coefs) %>%  filter(term == "in_project") %>% 
+  select(ecomony_vars, estimate, std.error, p.value) %>% ungroup() %>% 
+  left_join( fits %>% unnest(stats) %>% select(ecomony_vars,nobs, r.squared) 
+  ) %>% 
+  pivot_longer(-ecomony_vars, names_to = "metric", values_to = "value") %>%
+  pivot_wider(names_from = ecomony_vars, values_from = value )
+
+# (5) control mean
+control_mean <- df_economic %>% filter(in_project==0) %>% 
+  group_by(ecomony_vars) %>% summarise(Mean = mean(val_22,na.rm=T)) %>% 
+  pivot_wider (names_from = "ecomony_vars", values_from = "Mean") %>% 
+  mutate(metric="control_mean") 
+
+# REG table     ----
+
+inproj_with_fit %>%
   rbind(control_mean) %>% 
   mutate(across(-metric, ~ case_when(
     metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
     metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
     TRUE                  ~ as.character(round(.x,3))
-  ))) %>% 
-  rbind(twoRows) %>% 
-  rename_with(~ c("Farming","Vehicles", "Electronics", "Total"), .cols = 3:6)
+  )))   %>%    
+  kableExtra::kable() %>% kableExtra::kable_paper()
 
-library(kableExtra)
-df_html_assets[c(1:3,7:9,4:6),] %>% 
-  kable("html", caption = "Total number of asset household own",align = "c") %>%
-  kable_classic( full_width = F) 
 
-# PLOT ----------------------------------
+# (Intercept) for naive model
+fits %>% unnest(coefs) %>%  filter(term == "(Intercept)") %>% 
+  select(term,agri_vars, estimate) %>% ungroup()  %>% 
+  left_join( fits %>% unnest(stats) %>% select(agri_vars) 
+  ) %>% 
+  pivot_longer(-c(term,agri_vars), names_to = "metric", values_to = "value") %>%
+  pivot_wider(names_from = agri_vars, values_from = value ) %>% 
+  select(-metric) %>% 
+  kable() %>% kable_paper()
+
+
+# PLOT                  ----
 library(jtools)
-models_list <- fits_assets_22 %>% { setNames(.$model, .$Asset) }
+library(ggplot2)
 
-m1_plot <- plot_summs(
-  models_list ,coefs = c("In Project" = "in_project"),
-  model.names = c("Livestock", "Farming","Vehicles", "Electronics", "Total" ),
-  inner_ci_level = NULL, point.shape = F) + 
-  labs(x = "Number of Items", y = NULL) +
-  xlim(-.8, 2.8) 
+#custom theme to format ----
+mp_theme=theme_bw()+
+  theme(
+    panel.grid.major.y =element_blank(),
+    panel.grid.minor=element_blank(),
+    axis.line=element_line(),
+    
+    text=element_text(family="serif"),
+    legend.title=element_blank(), 
+    axis.text=element_text(size=14),
+    axis.title=element_text(size=10),
+    legend.text = element_text(size = 12))
+
+models_list_land <- 
+  fits_land %>% { setNames(.$model, .$status) } # names become model names in the legend
+
+m1_plot <- 
+  plot_summs(models_list_land ,coefs = c("In Project" = "in_project"),
+             model.names = names(models_list_land),
+             inner_ci_level = NULL, point.shape = F) + 
+  labs(x = "Land Holding in Acre", y = NULL) +
+  xlim(-1, 2) 
 
 m1_plot + mp_theme
 
 
 
+
+  
+
+
+
+
+# LEVELS -------------{Season}---{input_type}----
+# inputs  {Season} {input_type} ----
+
+
+costesA <- rmtl_srvy22 %>% 
+  select(hh_id, contains ("l70"),  # irrigation equipment
+                contains ("l71"),  # Mechanization
+                # contains ("l72"),  # Fuel
+                contains ("l73")) %>%  # Labor
+  pivot_longer(-hh_id,names_to = "observation",values_to = "inputs_Rs" ) %>% 
+  separate(observation, into = c("inputs", "season"), sep = "_") %>% 
+  mutate(inputs=case_when(inputs=="l70"~"irriEquipment",inputs=="l71" ~ "mechanization",inputs=="l73" ~ "labor", T ~ "fuel")
+         ) %>% 
+  mutate(inputs_Rs=ifelse(inputs_Rs <= 0 ,NA,inputs_Rs) ) 
+
+a_plots_crop %>% count(hh_id,season,plotID) %>% 
+  # [a_plots_size] in the top of this script
+  left_join( a_plots_size %>% select(hh_id, plotID, acres)) %>% 
+  group_by(hh_id,season) %>% 
+  summarise(sum_acre=sum(acres,na.rm = T),.groups = "drop") %>% 
+  left_join(costesA) %>% 
+  filter(!is.na( inputs ))
+
+# inputs Baseline 
+inputs_2015 <- rmtl_baseline2016 %>% 
+  select(hh_id,D49_2015:D60_2014) %>% select(hh_id , contains("2015")) %>% 
+  pivot_longer(-hh_id,names_to = "inputs", values_to = "inputs_Rs" ) %>% 
+  separate(inputs, into = c("inputs", "year"), sep = "_") %>% 
+  select(-year) %>% 
+  mutate(
+    inputs = case_when(
+      inputs=="D58" ~ "irriEquipment",
+      inputs=="D59" ~ "mechanization",
+      inputs=="D60" ~ "labor",
+      TRUE ~ "Else")
+  ) %>% filter(inputs != "Else" ) %>% ungroup() 
+
+
+
+
+
+# Revenue {Season}  ----
+# L78	Total revenue? [season-crop]
+
+
+revenue_rabi_22 =
+  a_plots_revenue %>% filter(season=="rabi") %>% 
+  group_by(hh_id) %>% 
+  summarise(revenue=sum(plotRevenue,na.rm = T)) %>% ungroup() %>% 
+  left_join(size_acre %>% group_by(hh_id) %>% summarise(acres= sum(acres)) ) %>% 
+  mutate(k_revenue_per_acre=revenue/acres/1000) %>% 
+  left_join(rmtl_cntrl_vars)
+
+quantile(revenue_rabi_22$k_revenue_per_acre, probs = 0.98)
+drS22 <- revenue_rabi_22  %>% filter(k_revenue_per_acre < 25 )
+drS22 %>% group_by(in_project) %>% summarise(rev=mean(k_revenue_per_acre,na.rm = T)) 
+
+m1 <-  lm(k_revenue_per_acre  ~ in_project + dist_Km_boundary +hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge,
+          data = drS22 )
+sjPlot::tab_model(m1 ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
+
+
+revenue_kharif_22 <- 
+  a_plots_revenue %>% filter(season !="rabi") %>% 
+  group_by(hh_id,season) %>% 
+  summarise(revenue=sum(plotRevenue,na.rm = T)) %>%
+  group_by(hh_id) %>% 
+  summarise(revenue=mean(revenue,na.rm = T)) %>% ungroup() %>% 
+  left_join(size_acre %>% group_by(hh_id) %>% summarise(acres= sum(acres)) ) %>% 
+  mutate(k_revenue_per_acre=revenue/acres/1000) %>% 
+  left_join(rmtl_cntrl_vars)
+
+quantile(revenue_kharif_22$k_revenue_per_acre, probs = 0.99)
+quantile(revenue_kharif_22$k_revenue_per_acre, probs = 0.98)
+
+drK22 <- revenue_kharif_22  %>% filter(k_revenue_per_acre < 35 )
+drK22 %>% group_by(in_project) %>% summarise(rev=mean(k_revenue_per_acre,na.rm = T)) 
+
+m1 <-  lm(k_revenue_per_acre  ~ in_project + dist_Km_boundary +hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge,
+          data = drK22 )
+sjPlot::tab_model(m1 ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
 
 
 

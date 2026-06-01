@@ -8,25 +8,12 @@ library(readr)
 BL_2015_16_crop_IRsource_IRmethod <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/BL_2015_16_crop_IRsource_IRmethod.csv")
 rmtl_16_18_22_sample <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_16_18_22_sample.csv")
 
-# The DiD Model                     ----
-# Ensure your data frame (df) contains these variables:
-# Treatment: 1 if inside the project area, 0 otherwise
-# Post: 1 for endline, 0 for baseline
-# Y: Outcome variable (e.g., DI adoption)
-# Control variables: Age, Gender, Caste, Education (or others)
-
-#| DiD Model:
-#| 𝑌𝑖𝑡 =𝛽0 +𝛽1 Treatment𝑖 +𝛽2 Post t +𝛽3 (Treatment𝑖 ×Post𝑡)+γX 𝑖𝑡 + ϵ 𝑖𝑡
-# Treatment: 1 if inside the project area, 0 otherwise.
-# Post: 1 for endline, 0 for baseline.
-# Treatment x Post: Interaction term for DiD effect.
-# X: Vector of control variables (age, gender, caste, education).
-
-names(df1)
 
 # organize clean df                 ----
 rmtl_16_18_22_sample # ramthal treatment and control groups
- 
+
+rmtl_cntrl_vars 
+
 demographic_vars_2016 <- # baseline vars
   read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/demographic_vars_2016.csv")
 
