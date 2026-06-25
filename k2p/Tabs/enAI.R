@@ -228,6 +228,11 @@ m4 <- lm(self_efficacy_4 ~ self_image + Post_course+
 
 sjPlot::tab_model(m1,m2, m3,m4, show.se = TRUE, show.ci = FALSE, digits = 4)
 
+m5 <- lm(self_efficacy ~ self_image + Post_course+
+           gander_1male_2Female + Generation + sector01 + english_CERF_level, 
+         data = english_learning_ai)
+sjPlot::tab_model(m1,m2, m3,m4, show.se = TRUE, show.ci = FALSE, digits = 4)
+
 
 # ___________________ Leap AI SKY [leapAI_14032025] _______________________####
 

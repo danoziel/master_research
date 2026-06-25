@@ -692,8 +692,8 @@ crop_plot$crop[crop_plot$crop =="Neem tree"] <-93
 crop_plot$crop[crop_plot$crop =="palm tree"] <-94
 crop_plot$crop[crop_plot$crop =="Sandal and Neem trees"] <-95
 
-library(readr)
-list_crop <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/list_crop.xlsx")
+# library(readr)
+# list_crop <- read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/list_crop.xlsx")
 
 
 # Add the crop_type column using ifelse
@@ -715,9 +715,10 @@ list_crop$crop_type <- ifelse(list_crop$crop_name %in% c(
       "Sandal_and_Neem_trees","Palm_tree"
       ),
       "Perennial",
-      "Seasonal")))                     
+      "Seasonal")))             
 
-write.csv(list_crop, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/list_crop.csv", row.names=FALSE)
+# library(writexl)
+# write_xlsx(list_crop, path = "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/list_crop.xlsx")
 
 crop_plot_1 <-
   crop_plot %>%

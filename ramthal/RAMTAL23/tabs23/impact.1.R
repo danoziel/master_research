@@ -590,16 +590,17 @@ rdplot(dist_rd$drip_use_6y, dist_rd$dist_1.5Km,
 
 # ___________________[[[[[[[[[  Agricultural level ]]]]]]]] _________   ###-----
 
-land_holding=
+ # land_holding ----
+
+land_holding <- 
   a_plots_size %>% 
   filter(!plotStatus %in% c("1","6")) %>% 
   group_by(hh_id) %>% 
   summarise(val_22=sum(acres,na.rm = T)) %>% 
   mutate(agri_vars= "land_holding" ) %>% 
   select(hh_id, agri_vars, val_22) %>% 
-  left_join(
-    land_holding_BL
-    ) %>% rename(val_BL=land_holding_BL )
+  left_join(rmtl_cntrl_vars) %>% rename(val_BL=total_acre16 ) %>% 
+  select(hh_id, agri_vars, val_22, val_BL)
 
 
 hist(land_holding$val_22)
@@ -608,7 +609,7 @@ quantile(land_holding$val_22, 0.99,na.rm = T)
 hist(land_holding$val_BL)
 quantile(land_holding$val_BL, 0.99,na.rm = T)
 
-
+ # land_fallow_22BL ----
 land_fallow_22BL <- 
   a_plots_size %>% 
   mutate( val_22 = ifelse(plotStatus == 4,acres,0 )) %>% 
@@ -622,60 +623,8 @@ land_fallow_22BL <-
 
 
 
-# ................ CULTIVETED BY CROP 25.5.2026 ..     .....----
-
-
-unique(plots_crop_2022$crop_name)
-unique(plots_crop_2022$crop_common)
-
-## Crop Acre 22 {Acre}
-crop_acre_22 <-
-  plots_crop_2022 %>%   # in DF.22.R 
-  mutate(crop_common = ifelse(
-    crop_name %in% c("Pearl.millet_bajra","Foxtail_millet"),"Millet", crop_common)) %>% 
-  filter(season != "kharif_2022") %>% 
-  mutate(season=ifelse(season=="rabi_2021_22","Rabi","Kharif")
-         ) %>% 
-  group_by(hh_id, season, plotID) %>% mutate(n=n())%>% ungroup() %>% 
-  mutate(acre_crop=acres/n
-         ) %>% 
-  group_by(hh_id,crop_common) %>% 
-  summarise(acre_crop_22 = sum(acre_crop),.groups="drop") 
-
-## Crop Adopter 22 {% of HH}
-unique(crop_acre_22$crop_common)
-
-crop_adpt_22 <- 
-  plots_crop_2022 %>%   # in DF.22.R
-  mutate(crop_common = ifelse(
-    crop_name %in% c("Pearl.millet_bajra","Foxtail_millet"),"Millet", crop_common)) %>% 
-  select(hh_id, crop_common) %>% distinct() %>% mutate(crop_adopt_22=1)
-
-
-##  {Acre} 
-crop_acre_22BL <- expand_grid( 
-  hh_id = unique(crop_acre_22$hh_id),
-  crop_common = unique(crop_acre_22$crop_common)) %>% 
-  left_join(crop_acre_22) %>% 
-  left_join(crop_acre_BL) 
-crop_acre_22BL[is.na(crop_acre_22BL)] <- 0
-######## {Acre} By crop
-df_croping <- crop_acre_22BL %>% 
-  rename(val_22=acre_crop_22, val_BL= acre_crop_BL, agri_vars=crop_common) %>% 
-  left_join(rmtl_cntrl_vars)
-
-#### By crop
-##  {% of HH}
-crop_adpt <- expand_grid( 
-  hh_id = unique(crop_acre_22$hh_id),
-  crop_common = unique(crop_acre_22$crop_common)) %>% 
-  left_join(crop_adpt_22) %>% 
-  left_join(crop_adpt_BL) 
-crop_adpt[is.na(crop_adpt)] <- 0
-####### {% of HH} By crop
-df_croping <- crop_adpt %>% 
-  rename(val_22=crop_adopt_22, val_BL= crop_adopt_BL, agri_vars=crop_common) %>% 
-  left_join(rmtl_cntrl_vars)
+ # crop_acre_ crop_adpt_  ----
+# ................ CULTIVETED BY CROP 25.5.2026 
 
 #_____ BASELINE 2015 DATA 
 unique(BL_2015_16_crop_IRsource_IRmethod$crop_common)
@@ -687,11 +636,27 @@ crop_BL <- BL_2015_16_crop_IRsource_IRmethod %>%
   mutate(crop_common = ifelse(crop_name == "Chillies","Chillies", crop_common)) %>% 
   mutate(crop_common = ifelse(crop_name == "Cotton","Oilseeds", crop_common)) %>% 
   mutate(crop_common = ifelse(crop_name == "Onion","Onions", crop_common)
-         ) %>%
+  ) %>%
   mutate(crop_common = ifelse(crop_common %in% c("Pearl.millet_bajra","Cereals"),"Millet", crop_common)) %>% 
   mutate(crop_common = ifelse(crop_common == "Other","Horticulture", crop_common)) %>% 
   mutate(crop_common = ifelse(crop_common == "VegetablesANDFruits","Vegetables", crop_common)) 
 unique(crop_BL$crop_common)
+
+# crop Acre Annuly ......................................... ----
+unique(plots_crop_2022$crop_name)
+unique(plots_crop_2022$crop_common)
+
+## Crop Acre 22 {Acre}
+crop_acre_22 <-
+  plots_crop_2022 %>%   # in DF.22.R 
+  filter(season != "kharif_2022") %>% 
+  mutate(season=ifelse(season=="rabi_2021_22","Rabi","Kharif")
+  ) %>% 
+  group_by(hh_id, season, plotID) %>% mutate(n=n())%>% ungroup() %>% 
+  mutate(acre_crop=acres/n
+  ) %>% 
+  group_by(hh_id,crop_common) %>% 
+  summarise(acre_crop_22 = sum(acre_crop),.groups="drop") 
 
 ## Crop Acre BL {Acre}
 crop_acre_BL <- 
@@ -701,9 +666,81 @@ crop_acre_BL <-
   ) %>% 
   group_by(hh_id, season, plot_num) %>% mutate(n=n())%>% ungroup() %>% 
   mutate(acre_crop = plot_acre/n 
-         ) %>% 
+  ) %>% 
   group_by(hh_id,crop_common) %>% 
   summarise(acre_crop_BL = sum(acre_crop),.groups="drop") 
+
+##  crop_acre_22BL  {Acre} 
+crop_acre_22BL <- expand_grid( 
+  hh_id = unique(crop_acre_22$hh_id),
+  crop_common = unique(crop_acre_22$crop_common)) %>% 
+  left_join(crop_acre_22) %>% 
+  left_join(crop_acre_BL) 
+crop_acre_22BL[is.na(crop_acre_22BL)] <- 0
+
+# crop Acre season ......................................... ----
+unique(plots_crop_2022$crop_name)
+unique(plots_crop_2022$crop_common)
+
+# כדי שלא תהינה כפילות של גידולים בעונות נבר את העונה לגידול לפי באיזה עונה הגידול הכי נפוץ
+# "טור" הוא גידול שלקאריף אז "נעביר" את 44 תפיות שיש בראבי לקאריף.
+
+## נבדוק כל גידול לאיזה עונה הוא שייך
+plots_crop_2022 %>%   # in DF.22.R 
+  filter(season != "kharif_2022") %>% 
+  mutate(season=ifelse(season=="rabi_2021_22","Rabi","Kharif")) %>% 
+  group_by(hh_id, season, plotID) %>% mutate(n=n())%>% ungroup() %>% 
+  mutate(acre_crop=acres/n) %>% 
+  group_by(season,hh_id,crop_common) %>% 
+  summarise(acre_crop_22 = sum(acre_crop),.groups="drop") %>% 
+  count(season, crop_common) %>% arrange(crop_common) %>% 
+  group_by(crop_common) %>% slice_max(n, n = 1) %>% arrange(season)
+
+
+# נצמיד עונה לכל גידול
+crop_acre_season_22BL <- 
+  crop_acre_22BL %>%
+  mutate(season = if_else(
+    crop_common %in% c("Bengal_gram", "Groundnut", "Oilseeds", "Sorghum_jowar", "Wheat"),
+    "Rabi", "Kharif"))
+
+# crop_type_acre_22BL <- crop_acre_22BL %>%  
+crop_type_acre_season_22BL <- 
+  crop_acre_season_22BL %>%  
+  mutate(crop_type = case_when(
+    crop_common %in% c(
+      "Chillies","Onions","Sunflower","Oilseeds", "Sugarcane","Wheat", "Horticulture","Vegetables"
+      ) ~ "WaterIntensive_acre", TRUE ~ "Rainfed_acre")
+  ) %>% 
+  group_by(season,hh_id,crop_type) %>% 
+  summarise(val_22  =sum(acre_crop_22 ),
+            val_BL =sum(acre_crop_BL ),.groups="drop") %>% 
+  mutate(agri_vars = paste0(crop_type, "_", season)) %>% 
+  select(hh_id, agri_vars,val_22,val_BL)
+
+
+
+
+
+# Crop Adopters Annual..................................... ----
+
+## Crop Adopter 22 {% of HH}
+unique(crop_acre_22$crop_common)
+
+crop_adpt_22 <- 
+  plots_crop_2022 %>%   # in DF.22.R
+  select(hh_id, crop_common) %>% distinct() %>% mutate(crop_adopt_22=1)
+
+
+#### By crop
+##  {% of HH}
+crop_adpt <- expand_grid( 
+  hh_id = unique(crop_acre_22$hh_id),
+  crop_common = unique(crop_acre_22$crop_common)) %>% 
+  left_join(crop_adpt_22) %>% 
+  left_join(crop_adpt_BL) 
+crop_adpt[is.na(crop_adpt)] <- 0
+####### {% of HH} By crop
 
 ## Crop Adopters BL {% of HH}
 crop_adpt_BL <- 
@@ -711,8 +748,37 @@ crop_adpt_BL <-
   select(hh_id, crop_common) %>% distinct() %>% mutate(crop_adopt_BL=1)
 
 
-#______________ WaterIntensive/Rainfed 22 + BL _____________####
+# WaterIntensive/Rainfed 22 + BL _____________####
 
+
+############ descriptive table for paper
+crop_acre_BL %>% 
+  right_join(hh_2022) %>% 
+  # mutate(cat = case_when(
+  #   crop_common %in% c("Chillies","Onions","Sunflower","Oilseeds", "Sugarcane","Horticulture","Vegetables") ~ "WaterIntensive",
+  #   crop_common %in% c("Bengal_gram","Greengram","Sorghum_jowar","Toor") ~ "Rainfed",
+  #   TRUE ~ "Else" )
+  # ) %>%   
+  mutate(cat = case_when(
+    crop_common %in% c("Chillies","Onions","Sunflower","Oilseeds", "Sugarcane","Horticulture","Vegetables", "Bengal_gram","Greengram","Sorghum_jowar","Toor") ~ "catA",
+    TRUE ~ "catB" )
+  ) %>%   
+  summarise(acr=sum(acre_crop_BL,na.rm = T),.by = c(farmers_hh, cat)) %>% 
+  mutate(ttl_acr=sum(acr),.by = farmers_hh) %>% 
+  mutate(acr / ttl_acr)%>% arrange(cat)
+
+crop_adpt_BL %>% 
+  right_join(hh_2022) %>% 
+  mutate(cat = case_when(
+    crop_common %in% c("Chillies","Onions","Sunflower","Oilseeds", "Sugarcane","Horticulture","Vegetables") ~ "WaterIntensive",
+    crop_common %in% c("Bengal_gram","Greengram","Sorghum_jowar","Toor") ~ "Rainfed",
+    TRUE ~ "Else" )
+  ) %>%   
+  select( hh_id ,crop_adopt_BL, farmers_hh ,cat) %>% distinct() %>% 
+  # mutate(n_hh=n(),.by = hh_id)
+  # filter(n_hh == 1) %>% 
+  summarise(n=sum(crop_adopt_BL,na.rm = T),.by = c(cat, farmers_hh)) %>% 
+  mutate(pct=ifelse(farmers_hh== "inside_ramthal",n/946,n/666)) %>% arrange(cat)
 
 
 
@@ -740,170 +806,9 @@ crop_type_adpt <- crop_adpt %>%
             crop_adopt_BL =sum(crop_adopt_BL),.groups="drop")
 crop_type_adpt$crop_adopt_22[crop_type_adpt$crop_adopt_22 != 0] <- 1
 crop_type_adpt$crop_adopt_BL[crop_type_adpt$crop_adopt_BL != 0] <- 1
-
-# _________labor Mandays ----
-
-land_cult_2022 <- 
-  plots_crop_2022 %>% 
-  select(hh_id, season, plotID, acres) %>% distinct() %>% 
-  group_by(hh_id,season) %>% summarise(acres=sum(acres,na.rm = T),.groups = "drop") %>% 
-  filter(season != "kharif_2022") %>% 
-  group_by(hh_id) %>% summarise(cult_acre_22=sum(acres,na.rm = T),.groups = "drop")
+#
 
 
-library(haven)
-
-# l76_prev_1_hh_1_1_1
-# l76_[prev/new plot]_[season 1/2/3]_hh_[1 prev hh mmbr/2 new]_[mmbr num]_[plot num]
-## season 1 = kha / season 1 = rab / season 1 = KHA22
-L76 <- rmtl_srvy22 %>% 
-  select(hh_id, starts_with("l76")) %>% 
-  select(!where(is.character)) %>% 
-  pivot_longer(cols = -hh_id,names_to = "season",values_to = "days_22")
-
-family_labor_22 <-
-  L76 %>% 
-  filter(!is.na(days_22)) %>% 
-  mutate(
-    season = stringr::str_remove(season, "_hh.*"),
-    season = stringr::str_replace(season, "l76_[a-zA-Z_]+(?=[0-9])", "season_")
-  ) %>% # count(season)
-  filter(season != "season_3") %>% 
-  group_by(hh_id) %>% 
-  summarise(labor_days_total = sum(days_22, na.rm = TRUE),.groups = "drop") %>%
-  left_join(land_cult_2022) %>% 
-  mutate(labor_days_perAcre = labor_days_total/cult_acre_22  ) %>% 
-  select(-cult_acre_22) %>% 
-  pivot_longer(cols = -hh_id,names_to = "agri_vars",values_to = "val_22"
-  )
-family_labor_22 %>% left_join(hh_2022) %>% group_by(agri_vars,farmers_hh) %>% summarise(mean(val_22,na.rm=T))
-
-family_labor_22 %>% filter(agri_vars!="labor_days_total") %>% 
-  ggplot(aes(x = val_22)) + geom_histogram()
-
-family_labor_22 %>% group_by(agri_vars) %>% 
-  summarise(n=n(),Q99=quantile(val_22, probs = 0.99, na.rm = TRUE))
-
-
-# Amount used on plot - Labor	Mandays        
-D24 <- rmtl_baseline2016 %>% 
-  select(hh_id,starts_with("D43_uasge"),-ends_with("_0")) %>% 
-  pivot_longer(cols = -hh_id,names_to = c("observation"),values_to = "val_BL") %>% 
-  separate(observation, into = c("D" ,"pn","season", "plotID"), sep = "_") %>%
-  filter(val_BL >= 0,season != "3" ) %>% 
-  select(hh_id ,season ,plotID ,val_BL)
-
-labor_days_BL <- # rr <- 
-  D24 %>%   
-  group_by(hh_id) %>%
-  summarise(labor_days_total=sum(val_BL)) %>% 
-  left_join(rmtl_baseline2016 %>% select(hh_id,D3) ) %>% 
-  mutate(labor_days_total=labor_days_total*D3) %>% 
-  left_join(
-    crop_acre_BL %>%  group_by(hh_id) %>%
-    summarise(total_cult_acre = sum(acre_crop_BL,na.rm = T)) %>%
-    filter(total_cult_acre > 0)
-  ) %>%
-  mutate(labor_days_perAcre=labor_days_total / total_cult_acre )%>% 
-  mutate(across(everything(), ~na_if(., 0))) %>% 
-  select(hh_id ,labor_days_perAcre ,labor_days_total) %>% 
-  pivot_longer(-hh_id, names_to = "agri_vars", values_to = "val_BL"
-               ) 
-
-d24_bl <- labor_days_BL %>% inner_join(hh_2022[,1:2])
-d24_bl %>% inner_join(hh_2022) %>%  group_by(agri_vars,farmers_hh) %>% summarise(meanBL=mean(val_BL,na.rm=T) ,n=n())
-d24_bl %>% inner_join(hh_2022) %>%  group_by(agri_vars) %>% summarise(Q99=quantile(val_BL, probs = 0.99, na.rm = TRUE))
-
-d24_bl %>% filter(agri_vars=="labor_days_total") %>% 
-  ggplot(aes(x = val_BL)) + geom_histogram()
-
-d24_bl  %>%
-  mutate(val_BL=ifelse(agri_vars=="labor_days_total" & val_BL > 2780 ,NA,val_BL)) %>% 
-  group_by(agri_vars) %>% 
-  t_test(val_BL ~ farmers_hh, var.equal = F, detailed = T)
-
-
-labor_days = family_labor_22 %>%left_join(labor_days_BL)  
-
-
-
-# yield_per_acre נדרשת עבודה כאן 25.5.26 ----
-
-
-yield_22 <- 
-  plots_crop_2022 %>% 
-  filter(season != "kharif_2022") %>% 
-  group_by(hh_id, season,plotID) %>% 
-  mutate(n=n(), plot_acre=acres/n) %>% ungroup() %>% 
-  left_join( a_total_yield %>% select(-farmers_hh ) ) %>% 
-  
-  mutate(crop_common = ifelse(
-    crop_name %in% c("Pearl.millet_bajra","Foxtail_millet"),"Millet", crop_common)) %>% 
-  mutate(crop_type = case_when(
-    crop_common %in% c( "Chillies","Onions","Sunflower","Oilseeds", "Sugarcane",
-                        "Horticulture","Vegetables") ~ "WaterIntensive_yield", TRUE ~ "Rainfed_yield")) %>% 
-  mutate(season=ifelse(season=="rabi_2021_22","Rabi","Kharif")
-  ) # filter(hh_id %in% c(100078,100216, 100218))
-
-yield_acre_season_22 <- 
-  yield_22 %>% group_by(hh_id,season,crop_type) %>% 
-  summarise(kg_crop=sum(kg_crop,na.rm = T),
-            plot_acre=sum(plot_acre,na.rm = T),.groups = "drop") %>% 
-  mutate(val_22=kg_crop/plot_acre)%>% 
-  filter(val_22 >0 ) %>% 
-  select( hh_id,crop_type, val_22) %>% 
-  complete(hh_id, crop_type, fill = list(val_22 = 0))
-
-yield_acre_year_22 <- # hh_id: 1,558
-  yield_22 %>% group_by(hh_id,crop_type) %>% 
-  summarise(kg_crop=sum(kg_crop,na.rm = T),
-            plot_acre=sum(plot_acre,na.rm = T),.groups = "drop") %>% 
-  mutate(val_22=kg_crop/plot_acre) %>% 
-  filter(val_22 >0 ) %>% 
-  select( hh_id,crop_type, val_22) %>% 
-  complete(hh_id, crop_type, fill = list(val_22 = 0))
-
-
-
-yield_BL <- 
-  BL_plot.Crop.Yield %>%  filter(season != "rabi_2014_15") %>% 
-  left_join(BL_plotAcre) %>%   # 
-  filter(yield >0, plot_acre>0) %>% 
-  group_by(hh_id,season,plotID) %>% 
-  mutate(n=n(), plot_acre = plot_acre/n) %>%   
-  mutate(yield =ifelse(yield<50,yield*100,yield) # Quintals
-  ) %>% 
-  mutate(crop_type = case_when(
-    crop_common %in% c( "Chillies","Onions","Sunflower","Oilseeds", "Sugarcane",
-                        "Horticulture","Vegetables") ~ "WaterIntensive_yield", TRUE ~ "Rainfed_yield")) %>% 
-  mutate(season=ifelse(season=="rabi_2021_22","Rabi","Kharif")
-  ) # filter(hh_id %in% c(100078,100216, 100218))
-
-
-yield_acre_season_BL <- 
-  yield_BL %>% group_by(hh_id,season,crop_type) %>% 
-  summarise(kg_crop=sum(yield,na.rm = T),
-            plot_acre=sum(plot_acre,na.rm = T),.groups = "drop") %>% 
-  mutate(val_BL=kg_crop/plot_acre)%>% 
-  filter(val_BL >0 ) %>% 
-  select( hh_id,crop_type, val_BL) %>% 
-  complete(hh_id, crop_type, fill = list(val_BL = 0))
-
-yield_acre_year_BL <- 
-  yield_BL %>% group_by(hh_id,crop_type) %>% 
-  summarise(kg_crop=sum(yield,na.rm = T),
-            plot_acre=sum(plot_acre,na.rm = T),.groups = "drop") %>% 
-  mutate(val_BL=kg_crop/plot_acre)%>% 
-  filter(val_BL >0 ) %>% 
-  select( hh_id,crop_type, val_BL) %>% 
-  complete(hh_id, crop_type, fill = list(val_BL = 0))
-
-
-yield_per_acre_22BL <-
-  yield_acre_year_22 %>% 
-  left_join(yield_acre_year_BL) %>% 
-  rename(agri_vars = crop_type ) %>% 
-  select(hh_id, agri_vars, val_22, val_BL)
 
 
 
@@ -917,9 +822,9 @@ df_croping <-
   rbind(
     crop_type_adpt %>% rename(val_22=crop_adopt_22, val_BL= crop_adopt_BL, agri_vars=crop_type) 
   ) %>% 
-  rbind(land_holding) %>% 
-  rbind(land_fallow_22BL) %>% 
-  rbind(family_labor_22 %>% mutate(val_BL =0))
+  rbind(crop_type_acre_season_22BL) %>% 
+  rbind(land_holding %>% rename(agri_vars =ecomony_vars,val_BL=val_bl ) )
+  # rbind(land_fallow_22BL) 
 
 df_croping %>% group_by(agri_vars) %>% summarise(mean(val_BL,na.rm=T), mean(val_22,na.rm=T))
 
@@ -933,24 +838,29 @@ df_croping <-
     crop_type_adpt %>% rename(val_22=crop_adopt_22, val_BL= crop_adopt_BL, agri_vars=crop_type) 
   ) %>% 
   rbind(land_holding) %>% 
-  rbind(land_fallow_22BL) %>% 
-  rbind(labor_days
-        ) %>% 
+  rbind(crop_type_acre_season_22BL) %>% 
+  # rbind(land_fallow_22BL) %>% 
   left_join(rmtl_cntrl_vars
             ) %>% 
   mutate(val_22=ifelse(agri_vars=="land_holding" & val_22 > 43 ,NA,val_22),
-         val_22=ifelse(agri_vars=="land_fallow" & val_22 > 3.44, NA,val_22),
+         # val_22=ifelse(agri_vars=="land_fallow" & val_22 > 3.44, NA,val_22),
          val_22=ifelse(agri_vars=="Rainfed_acre" & val_22 > 45.1, NA,val_22),
-         val_22=ifelse(agri_vars=="yield_per_acre" & val_22 > 11049, NA,val_22),
-         val_22=ifelse(agri_vars=="WaterIntensive_acre" & val_22> 15 ,NA,val_22
+         # val_22=ifelse(agri_vars=="yield_per_acre" & val_22 > 11049, NA,val_22),
+         val_22=ifelse(agri_vars=="WaterIntensive_acre" & val_22> 15 ,NA,val_22),
+         val_22=ifelse(agri_vars=="WaterIntensive_acre_Rabi" & val_22> 8 ,NA,val_22
          )) %>% 
-  mutate(val_BL=ifelse(agri_vars=="land_holding" & val_BL > 39.9 ,NA,val_BL),
-         val_BL=ifelse(agri_vars=="land_fallow" & val_BL > 17.11, NA,val_BL),
+  mutate(
+         # val_BL=ifelse(agri_vars=="land_fallow" & val_BL > 17.11, NA,val_BL),
          val_BL=ifelse(agri_vars=="Rainfed_acre" & val_BL > 40, NA,val_BL),
-         val_BL=ifelse(agri_vars=="yield_per_acre" & val_BL > 1713, NA,val_BL),
+         # val_BL=ifelse(agri_vars=="yield_per_acre" & val_BL > 1713, NA,val_BL),
          val_BL=ifelse(agri_vars=="WaterIntensive_acre" & val_BL> 18.1,NA,val_BL),
-         val_BL=ifelse(agri_vars=="labor_days_total" & val_BL > 2780 ,NA,val_BL)
-         ) # %>% filter (cardinal_direction=="south")
+         val_BL=ifelse(agri_vars=="WaterIntensive_acre_Rabi" & val_BL> 8,NA,val_BL),
+         ) %>% # %>% filter (cardinal_direction=="south")
+  mutate(dist_sqr  = if_else(in_project == 0, -(dist_Km_boundary ^ 2), dist_Km_boundary ^ 2))
+
+# filter(agri_vars=="land_holding")
+# %>% filter(str_ends(agri_vars, "Rabi|Kharif"))
+
 
 df_croping %>% group_by(in_project,agri_vars) %>% 
   summarise(Mean = mean(val_22,na.rm=T), sd = sd(val_22,na.rm=T)) %>% ungroup()
@@ -963,36 +873,41 @@ library(rstatix)
 library(broom)
 
 df= df_croping %>% # filter(agri_vars=="Fallow_Land" )
-t.test(val_22 ~ in_project, data = df)
+t_test(val_22 ~ in_project,detailed = T)
 
 df_croping %>% # filter(cardinal_direction == "south" ) %>% 
   group_by( agri_vars) %>%
-  do(tidy(t.test(val_BL ~ in_project, data = .))) %>% 
+  do(tidy(t.test(val_BL ~ in_project, data = .))) %>% ungroup() %>% 
   mutate(across(c(estimate2, estimate1, p.value), ~ round(., 3))) %>% 
-  
   select(agri_vars, estimate2,estimate1, p.value) %>% 
   rename(In = estimate2 ,Out = estimate1 ) %>% 
+  mutate(agri_vars = 
+           factor(agri_vars, levels = c(
+             "land_holding","WaterIntensive_acre","Rainfed_acre","WaterIntensive_acre_Rabi","Rainfed_acre_Rabi","WaterIntensive_acre_Kharif", "Rainfed_acre_Kharif","WaterIntensive_01", "Rainfed_01"
+             ))) %>% arrange(agri_vars) %>% 
   kable() %>% kable_paper()
 
 # REG model     ----
 # (1) model formula inputs
-fml <- val_22   ~ in_project + dist_Km_boundary + 
-  val_BL + hh_haed_age + hh_haed_gendar + hh_haed_edu_level + 
-  total_acre16 + housing_str321 + 
-  job_income_sourceS + govPnsin_scheme + rent_property+
-  livestock_dairy + Bullock + Tractor + Plough + 
-  Thresher + Seed_drill + Motorcycle + Fridge
+fml <- val_22   ~ in_project + dist_Km_boundary + val_BL + 
+  hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough + Thresher + Seed_drill + Motorcycle + Fridge
+#
+# RDD sqrt
+fml_sqr <- val_22 ~ in_project * dist_Km_boundary + 
+  in_project * I(dist_Km_boundary^2) + val_BL+ 
+  hh_haed_age+ hh_haed_gendar+hh_haed_edu_level+total_acre16 + housing_str321 +job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough + Thresher + Seed_drill + Motorcycle + Fridge
+#
+# (2) Nest by status and fit ----
+# library(broom)
+fits <- df_croping %>% group_by(agri_vars) %>% nest() %>%
+  mutate( model = map(data, ~ lm(fml, data = .x)), coefs = map(model, tidy), stats = map(model, glance))
 
-# (2) Nest by status and fit 
-fits <- df_croping %>%
-  group_by(agri_vars) %>%
-  nest() %>%
-  mutate(
-    model = map(data, ~ lm(fml, data = .x)),
-    coefs = map(model, tidy),
-    stats = map(model, glance))
-
-# (3) Stacked outputs + (4) Join with model summary stats
+fits <- 
+ df_croping %>% group_by(agri_vars) %>% nest() %>%
+  mutate( model = map(data, ~ lm(fml_sqr, data = .x)),coefs = map(model, tidy),stats = map(model, glance))
+#
+#
+# (3) Stacked outputs + (4) Join with model summary stats ----
 inproj_with_fit <- 
   fits %>% unnest(coefs) %>%  filter(term == "in_project") %>% 
   select(agri_vars, estimate, std.error, p.value) %>% ungroup() %>% 
@@ -1007,25 +922,28 @@ control_mean <- df_croping %>% filter(in_project==0) %>%
   pivot_wider (names_from = "agri_vars", values_from = "Mean") %>% 
   mutate(metric="control_mean") 
 
+# inproj_with_fit %>% rbind(control_mean)
+
+
 # REG table     ----
 
 inproj_with_fit %>%
   rbind(control_mean) %>% 
-  mutate(across(-metric, ~ case_when(
-    metric == "std.error" ~ paste0("(", round(.x, 3), ")"),
-    metric == "p.value"   ~ paste0("[", round(.x, 3), "]"),
-    TRUE                  ~ as.character(round(.x,3))
-  )))   %>%  kable() %>% kable_paper()
+  mutate(across(-metric, ~ case_when( metric == "std.error" ~ paste0("(", round(.x, 3), ")"), metric == "p.value"~ paste0("[", round(.x, 3), "]"), T ~ as.character(round(.x,3))
+  ))  ) %>%  select("metric", "land_holding","WaterIntensive_acre","Rainfed_acre","WaterIntensive_acre_Rabi","Rainfed_acre_Rabi","WaterIntensive_acre_Kharif", "Rainfed_acre_Kharif","WaterIntensive_01", "Rainfed_01"
+  ) %>% kable() %>% kable_paper()
 
-# (Intercept) for naive model
-fits %>% unnest(coefs) %>%  filter(term == "(Intercept)") %>% 
-  select(term,agri_vars, estimate) %>% ungroup()  %>% 
-  left_join( fits %>% unnest(stats) %>% select(agri_vars) 
-  ) %>% 
-  pivot_longer(-c(term,agri_vars), names_to = "metric", values_to = "value") %>%
-  pivot_wider(names_from = agri_vars, values_from = value ) %>% 
-  select(-metric) %>% 
-  kable() %>% kable_paper()
+ 
+
+
+
+# select(
+#   "land_holding",
+#   "WaterIntensive_acre" ,"Rainfed_acre" ,
+#   "WaterIntensive_acre_Rabi","Rainfed_acre_Rabi",
+#   "WaterIntensive_acre_Kharif", "Rainfed_acre_Kharif",
+#   "WaterIntensive_01", "Rainfed_01"
+# )
 
 
 # END SESSION "CULTIVETED CROPS 25.4.2026" 

@@ -788,7 +788,7 @@ library(writexl)
 write_xlsx(bl_crop_plot_3s, "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/bl_crop_plot_3s.xlsx")
 
 
-
+bl_crop_plot_3s
 
 
 # [D28]	Was the crop irrigated?        || bl28_irri_plot_season   ----

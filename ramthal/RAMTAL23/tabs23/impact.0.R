@@ -25,32 +25,10 @@ control_vars <- demographic_vars_2016 %>% #former demog_vars
 treatment <- rmtl_16_18_22_sample %>% select(hh_id, sample) %>%
   rename(in_project=sample)
 
-# LAND HOLDING
-# landholding is economic measurement for impact
-# names(land_holding_2022)
-land_holding_2022=
-  a_plots_size %>% 
-  filter(!plotStatus %in% c("1","6")) %>% 
-  group_by(hh_id) %>% 
-  summarise(total_num_plots=n(),total_acre=sum(acres,na.rm = T)) %>%
-  left_join(hh_2022) %>% 
-  rename( land_holding=total_acre)
-
-hist(land_holding_2022$land_holding)
-quantile(land_holding_2022$land_holding, 0.99,na.rm = T)
-
-# names(land_holding_2016)
-land_holding_2016 <- 
-  bl6_plotAcre %>% 
-  group_by(hh_id) %>% 
-  summarise(land_holding= sum(plot_acre))
-
-hist(land_holding_2016$land_holding)
-quantile(land_holding_2016$land_holding, 0.99,na.rm = T)
 
 
 
-#### IRRIGATION   _________________________________________________________ ----
+# IRRIGATION   _________________________________________________________ ----
 irrigation_2022         # in part1_WaterUsage.R
 irrigation_2018_2020   # in part1_WaterUsage.R
 irrigation_2017       # in part1_WaterUsage.R
@@ -88,7 +66,7 @@ ir_20 <- irrigation_2018_2020 %>% rename(drip_use=drip_use_2020,ir_use=ir_use_20
 # library(summarytools)
 freq(df$drip_use, plain.ascii = FALSE,cumul = T, style = "rmarkdown")
 
-# Cross Tab ----
+# Cross Tab
 crs_tab= ir_bl %>% full_join(treatment) %>% 
   rename(`Use DI`= drip_use,`Use IR`= ir_use,
          `In Project`=in_project) # %>% right_join(hh_2022 )
@@ -107,61 +85,9 @@ sjPlot::tab_xtab(var.row=crs_tab$`In Project`,var.col=crs_tab$`Use DI`) # title 
 # Use IR
 sjPlot::tab_xtab(var.row=crs_tab$`In Project`,var.col=crs_tab$`Use IR`)
 
-#    DiD           ----
-
-# df to DiD ...........................................
-df1=rbind(ir_bl,ir_end) %>% 
-  full_join(treatment) %>% 
-  full_join(control_vars) %>% 
-  mutate(inProject_Post = in_project * Post)
-
-df1=rbind(ir_bl, ir_all ) %>% full_join(treatment) %>% full_join(control_vars) %>% mutate(inProject_Post = in_project * Post) 
-
-df1=rbind(ir_bl,ir_17) %>% full_join(treatment) %>% full_join(control_vars) %>% mutate(inProject_Post=in_project*Post)
-
-df1=rbind(ir_bl,ir_18) %>% full_join(treatment) %>% full_join(control_vars) %>% mutate(inProject_Post=in_project*Post)
-df1=rbind(ir_bl,ir_19) %>% full_join(treatment) %>% full_join(control_vars) %>% mutate(inProject_Post=in_project*Post)
-df1=rbind(ir_bl,ir_20) %>% full_join(treatment) %>% full_join(control_vars) %>% mutate(inProject_Post=in_project*Post)
 
 
-# DiD regression model to drip_use   HH FE
-did_model_drip <- 
-  lm(drip_use ~ in_project + Post + in_project * Post + 
-         hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + 
-         housing_str321 + job_income_sourceS +govPnsin_scheme +rent_property +
-         total_livestock + total_farm_equipments+ 
-       factor (hh_id), # Adding fixed effects
-       data = df1)
-
-summary(did_model_drip)
-sjPlot::tab_model(did_model_drip ,  show.se = T,digits = 5,     show.stat  = TRUE )
-# modelsummary(list("Simple" = model_small, "Full" = model_big))
-modelsummary(did_model_drip)
-tidy(model_1, conf.int = TRUE) %>% kable() %>% kable_paper()
-
-# Simple linear regression
-mod<- lm(drip_use ~ in_project + Post + in_project*Post+ 
-               hh_haed_edu_level, 
-             data = df1)
-
-
-
-
-
-
-# DiD regression model to ir_use
-
-did_model_ir <- 
-  felm(ir_use ~ in_project + Post + inProject_Post + 
-         hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + 
-         housing_str321 + job_income_sourceS +govPnsin_scheme +rent_property +
-         total_livestock + total_farm_equipments | hh_id, # Adding fixed effects
-       data = df1)
-
-sjPlot::tab_model(did_model_ir ,  show.se = T,digits = 3,     show.stat  = TRUE )
-
-
-#### HIGH VALUE CROP   ____________________________________________________ ----
+# HIGH VALUE CROP   ____________________________________________________ ----
 # High-value crops: share of farmers cultivating
 
 hv22 <- plots_crop_2022 %>% # in DF.22.R
@@ -192,7 +118,7 @@ hv15 <- BL_2015_16_crop_IRsource_IRmethod %>%
   mutate(cashcrop_yn = ifelse(cashcrop_total==0,0,1)
          )%>% mutate(Post=0,Year=2015)
 
-#    summary stat  ----
+#    summary stat  
 rbind(hv15,hv22)%>% 
   left_join(treatment)%>%
   pivot_longer(
@@ -204,7 +130,7 @@ rbind(hv15,hv22)%>%
   summarise (N=n(),n=sum(value)) %>% ungroup() %>% 
   mutate(pct=n/N) %>%  kableExtra:: kable()
 
-#    DiD           -----
+#    DiD      
 #     DiD regression model to High-value crops   HH FE
 df2=rbind(hv15,hv22) %>% 
   left_join(treatment) %>% 
@@ -253,7 +179,7 @@ traditional_2015 <- BL_2015_16_crop_IRsource_IRmethod %>%
   mutate(traditional_crop_yn = ifelse(traditional_crop_total==0,0,1)) %>% 
  mutate(Post=0,Year=2015)
 
-#    summary stat  ----
+#    summary stat
 rbind(traditional_2015,traditional_2022) %>% 
   left_join(treatment)%>%
   pivot_longer(
@@ -265,7 +191,7 @@ rbind(traditional_2015,traditional_2022) %>%
   summarise (N=n(),n=sum(value)) %>% ungroup() %>% 
   mutate(pct=n/N) %>%  kableExtra:: kable()
 
-#    DiD           -----
+#    DiD      
 #     DiD regression model to traditional crops   HH FE
 traditional_df = rbind(traditional_2015,traditional_2022) %>% 
   left_join(treatment) %>% 
@@ -292,7 +218,7 @@ modelsummary(list("Toor"=mod_toor,"Chickpea"=mod_bg,"Sorghum (Jowar)"=mod_sj,"Gr
 
 
 
-#### CULTIVATION IRRIGATION LAND   ________________________________________ ----
+# CULTIVATION IRRIGATION LAND   ________________________________________ ----
 # Cultivated area (acres)
 
 # Make sure that the traditinal crop categorize in the same season
@@ -331,6 +257,10 @@ BL_2015_16_crop_IRsource_IRmethod %>% select(1,crop_name,season) %>%
   count(season) # rabi_2015_16
 
 
+
+
+
+# ________________________________________________________________
 # cultivated_land_2022
 cultivated_land_2022 <- a_irri_rain_method %>% 
   select(hh_id,season,plotID,irri_method)%>% distinct() %>% 
