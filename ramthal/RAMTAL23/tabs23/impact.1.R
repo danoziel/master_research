@@ -40,15 +40,23 @@ control_vars <- #  1,612
                   hh_haed_edu_level ) ) 
 #
 #________________
+# updated 27.06.26
 dist_elev_var  <-  # former [dist_var]
   Ramthal_dist_elev  %>% left_join(hh_2022) %>% 
   select(in1_out0,hh_id, dist_to_boundary_m, elevation_m) %>% # former var dist_to_south_m
   mutate(dist_Km_boundary =  dist_to_boundary_m*0.001,
          dist_Km_boundary = ifelse(in1_out0==0, dist_Km_boundary*-1,dist_Km_boundary)
          ) %>% 
-  mutate(elevation = elevation_m-506,
-         elevation= ifelse(in1_out0==0, elevation*-1 ,elevation))%>% 
-  select(-in1_out0)
+  mutate(elevation_0 = elevation_m-506,
+         elevation_0= ifelse(in1_out0==0, elevation_0*-1 ,elevation_0))%>% 
+  select(
+    hh_id,  elevation_m,  elevation_0,dist_to_boundary_m, dist_Km_boundary
+  )
+
+
+
+
+
 #
 #________________
 geo_var <- #  1,612
@@ -89,9 +97,9 @@ rmtl_con_vars <-
 
 
 # UPDATE 10/11/2025  [rmtl_cntrl_vars] #__________________#
+# updated 27.06.26 dist_elev_var
 rmtl_cntrl_vars <- 
   rmtl_con_vars %>% 
-  rename(Elevation-elevation) %>% 
   mutate(
     cardinal_direction = case_when(
       south1_north0 == 1 ~ "south",
@@ -103,7 +111,7 @@ rmtl_cntrl_vars <-
 
 library(writexl)
 write_xlsx(rmtl_cntrl_vars, 
-           "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_cntrl_vars.xlsx")
+           "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/rmtl_cntrl_vars_OLD.xlsx")
 
 
 

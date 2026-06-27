@@ -16,6 +16,14 @@ centroids_coords <-
 library(sf)
 centroids_sf <- st_read("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/centroids_sf.shp", stringsAsFactors = F, quiet=F)
 
+rmtl_cntrl_vars %>% count(village,farmers_hh) %>% as.data.frame()
+list_shape_code %>% filter(str_detect(shp_code, "^129") )%>% as.data.frame()
+rmtl_cntrl_vars %>% select(village, dist_Km_boundary) %>% 
+  filter(is.na(dist_Km_boundary)) %>% as.data.frame() %>% arrange(village)
+
+
+
+
 
 ############  Clean Ramthal_East.shp       [Ramthal_clean]              ####
 library(sf)
@@ -24,6 +32,7 @@ sf::sf_use_s2(FALSE)  # Disable S2 to avoid geometry engine issues
 
 # Adjust this path if your file is stored elsewhere
 Ramthal_East_shp <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/villages/Ramthal_East.shp")
+v_Chikkabadawadagi_shp <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/villages/Chikkabadawadagi.shp")
 
 dev.new()  # opens a new plotting window
 plot(st_geometry(Ramthal_East_shp))
@@ -34,6 +43,57 @@ st_crs(Ramthal_East_shp)
 # EPSG:32643 →  UTM (meters)
 # Ramthal_East_shp - mismach - EPSG:4326 AND  UTM (meters)
 # Ramthal_East_shp has mismach of Bounding box UTM  and Geodetic CRS:WGS 84
+
+st_crs(Ramthal_East_shp) <- 32643  # UTM zone 43N — coordinates are in meters
+st_crs(Ramthal_East_shp)
+
+rc= as.data.frame(Ramthal_East_shp) %>%select(-path) %>%   filter(str_detect(id, "^129") )
+# id, "^105" Chinnapur AND Chikkabadawadagi
+##    104 = Chikkabadawadagi  [] all HH inside project
+##    105 = Chinnapur []
+
+# id, "^129" Virapura AND Banihatti
+##    29 = Virapura  [Veerapur]
+##    31 = Banihatti [Bannihatti, bannihatti] all HH inside project
+
+library(stringr)
+
+Ramthal_shp_1 <- Ramthal_East_shp %>%
+  mutate(id = case_when(
+    str_starts(as.character(id), "129") & layer == "Banihatti" ~ {
+      paste0("131", substr(as.character(id), 4, 6))
+    },
+    str_starts(as.character(id), "105") & layer == "Chikkabadawadagi" ~ {
+      paste0("104", substr(as.character(id), 4, 6))
+    },
+    T ~ as.character(id))) %>% mutate(id = as.integer(id))
+
+# BDIKA
+Ramthal_shp_1 %>% filter(id >= 131000 & id <= 131999 ) %>%select(id, layer) %>%head(10)
+
+as.data.frame(Ramthal_shp_1) %>% select(geometry) %>% distinct() %>% count()
+as.data.frame(Ramthal_shp_1) %>% select(id) %>% distinct() %>% count()
+Ramthal_shp_2 <- Ramthal_shp_1 %>% select(-path) %>% filter(!is.na(layer))
+
+# Create centroids for each polygon (in meters)
+Ramthal_centroids_utm <- 
+  Ramthal_shp_2 %>% mutate(geometry = st_centroid(geometry))
+# class(Ramthal_centroids_utm) # sf , tbl_df , tbl , data.frame
+
+
+Ramthal_shp_3 <- Ramthal_shp_2 %>%
+  mutate(
+    X = st_coordinates(st_centroid(geometry))[, 1],
+    Y = st_coordinates(st_centroid(geometry))[, 2]
+  ) %>% as.data.frame() %>% select(id,X,Y)
+
+
+
+
+
+
+
+
 
 
 # STEP 1: Fix geometries with st_buffer(0)
@@ -88,7 +148,7 @@ rm(coords)
 
 # Missing coordinates
 Ramthal_points_XY = 
-  list_shape_code %>% right_join(hh_2022) %>% 
+  list_shape_code  %>% rename(hh_id=id,id=shp_code) %>% right_join(hh_2022) %>% 
   select(hh_id, id) %>%
   left_join(centroids_coords)
 
@@ -134,9 +194,9 @@ miss_xy_A <- Ramthal_points_XY %>% filter(is.na(X)) %>% select(hh_id) %>%
   mutate(plotVillage = tools::toTitleCase(plotVillage))
 
 # Replace variants with correct spellings
-miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Amaravati"]        <- "Amaravathi"
-miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Binjawadagi"]      <-  "Binjawadgi"
-miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Chikkabadawadagi"] <- "Chikkabadwadgi"
+miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Amaravati"]        <- "Amaravathi"                    
+miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Binjawadagi"]      <-  "Binjawadgi" # bannihatti
+miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Chikkabadawadagi"] <- "Chikkabadwadgi" # chikkabadawadagi
 miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Chittavadagi"]     <- "Chittawadagi"
 miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Ghattiganur"]     <- "Ghattignur"
 miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Hegedal"]     <- "Hagedal"
@@ -148,16 +208,17 @@ miss_xy_A$plotVillage[miss_xy_A$plotVillage == "Virapur"]     <- "Veerapur"
 
 list_villages <- read.csv("~/master_research/DATAs/list_villages.csv")
 
-miss_xy_A <-  Ramthal_points_XY_A %>% left_join(list_villages %>% rename(plotVillage = village) )
+miss_xy_B <-  miss_xy_A %>% left_join(list_villages %>% rename(plotVillage = village) )
 
 # library(stringer)
 # Remove anything after '-' or '/' AND trailing letters
-miss_xy_A$plotSrvy_clean <- sub("[-/_].*$", "", miss_xy_A$plotSrvy)
-miss_xy_A$plotSrvy_clean <- sub("[A-Za-z]+$", "", miss_xy_A$plotSrvy_clean)
-miss_xy_A$plotSrvy_clean <- as.numeric(miss_xy_A$plotSrvy_clean)
+miss_xy_B$plotSrvy_clean <- sub("[-/_].*$", "", miss_xy_B$plotSrvy)
+miss_xy_B$plotSrvy_clean <- sub("[A-Za-z]+$", "", miss_xy_B$plotSrvy_clean)
+miss_xy_B$plotSrvy_clean <- as.numeric(miss_xy_B$plotSrvy_clean)
+
 miss_XY$id_new <-  floor(miss_XY$id / 1000) * 1000 # down to the nearest thousand
 
-miss_point_A <- miss_xy_A %>% 
+miss_point_A <- miss_xy_B %>% select(hh_id, village_code, plotSrvy_clean,plotID) %>% 
   mutate(plotSrvy_clean = ifelse(plotSrvy_clean>1000,NA,plotSrvy_clean)) %>% 
   mutate(id_new=100000+(village_code*1000)+ plotSrvy_clean ) %>% 
   mutate(id=id_new) %>% 
@@ -169,25 +230,65 @@ miss_point_A <- miss_xy_A %>%
 
 # combin [Ramthal_points]  ----
 
-# Adjust polygons with 2-3 farm
-# Adjust farmer coordinates to offset multiple households per polygon 
-# (25m step in X and Y)
+rr=hh_2022 %>% select(hh_id) %>% 
+  left_join(
+    Ramthal_points_XY %>% filter(!is.na(X)) %>%  # 1452
+      rbind(miss_point_A %>% rename(id = id_new) )  # 117
+  )
 
 
-Ramthal_points <- 
+  
+  
+  
+Ramthal_pointsA <- 
   Ramthal_points_XY %>% 
   left_join(miss_point_A, by = join_by(hh_id)) %>% 
-  mutate(X.z=ifelse(is.na(X.x),X.y,X.x),
-         Y.z=ifelse(is.na(Y.x),Y.y,Y.x)) %>% 
-  group_by(X.z) %>%
+  mutate(X=ifelse(is.na(X.x),X.y,X.x),
+         Y=ifelse(is.na(Y.x),Y.y,Y.x),
+         id=ifelse(is.na(id_new),id,id_new)) %>%
+  select(hh_id,id,X,Y) %>% arrange(id) %>% 
   mutate(
-    hh_count     = n(),                     # number of households per polygon
-    offset_index = row_number(),            # row index within group
-    offset_m     = (offset_index - 1) * 25, # 25 meters per additional farmer
-    X        = X.z + offset_m,            # shift east
-    Y        = Y.z + offset_m             # shift north
-  ) %>%  ungroup() %>% 
-  select(hh_id,id,id_new,X,Y)
+    village = substr(as.character(id), 1, 3),
+    survey  = substr(as.character(id), 4, 6)
+  ) %>% 
+  group_by(village) %>%
+  mutate(
+    X_temp = ifelse(survey == "000", NA, X),
+    Y_temp = ifelse(survey == "000", NA, Y)
+  ) %>% fill(X_temp, Y_temp, .direction = "up") %>% 
+  mutate(
+    v_X = median(X, na.rm = TRUE),
+    v_Y = median(Y, na.rm = TRUE)
+  ) %>% 
+  mutate(
+    X = case_when(!is.na(X) ~ X, survey == "000" ~ v_X, TRUE ~ X_temp),
+    Y = case_when(!is.na(Y) ~ Y, survey == "000" ~ v_Y, TRUE ~ Y_temp)
+  ) %>%
+  ungroup() %>% select(hh_id,id,X,Y )
+
+Ramthal_pointsA %>%  filter(is.na(X))
+
+Ramthal_points <- Ramthal_pointsA %>% 
+  mutate(
+    X = case_when(
+      id %in% c(125058, 125064, 125067) ~ 608363.5,
+      id %in% c(125189, 125192, 125196, 125199, 125201) ~ 607797.1,
+      id == 139087 ~ 618306.2,
+      T ~ X),
+    Y = case_when(
+      id %in% c(125058, 125064, 125067) ~ 1769711.1,
+      id %in% c(125189, 125192, 125196, 125199, 125201) ~ 1770400.1,
+      id == 139087 ~ 1784913.0,
+      T ~ Y ))
+
+
+# Ramthal_points %>% filter(id %in% c(110000,111049 ,111050))
+
+
+
+
+
+
 
 
 
@@ -314,6 +415,7 @@ library(writexl)
 
 write_xlsx(Ramthal_dist_elev,
            "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/Ramthal_dist_elev.xlsx")
+
 
 
 
