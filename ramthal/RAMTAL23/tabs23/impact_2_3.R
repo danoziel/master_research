@@ -144,14 +144,6 @@ df_inputs %>% group_by(vars) %>%
   summarise(p99 = quantile(val_22, probs = 0.99, na.rm = TRUE))
 
 
-df_inputs <- 
-  df_inputs_22 %>% left_join(inputs_bl) %>% 
-  rbind(
-    df_inputs_type_22 %>% left_join(df_inputs_type_bl) 
-  ) %>% 
-  mutate(
-    val_bl=ifelse(vars =="input_mechanization" & val_bl > 3.9, NA,val_bl)
-  )
 
 
 # _________ labor Mandays ----
@@ -241,23 +233,10 @@ labor_days <-
   mutate( val_bl=ifelse(vars=="labor_days_total" & val_bl > 2780 ,NA,val_bl))
 
 
-# _________ Farm_equipments ----
 
 
-df_farmEquipments <- df_assets  %>% 
-  filter(ecomony_vars == "Farm_equipments" ) %>% 
-  mutate(val_22=case_when(
-    ecomony_vars=="Farm_equipments" & val_22 > 6 ~ NA_real_, T~ val_22 )) %>% 
-  rename(vars=ecomony_vars )
 
-# Analysis ----
 
-df_agriEco <- 
-  df_inputs %>% filter( vars != "inputs_annual") %>% 
-  rbind(labor_days) %>% 
-  rbind(df_farmEquipments) %>% 
-  left_join(rmtl_cntrl_vars
-  ) # %>% filter(cardinal_direction == "south" )
 
 
 # Balance Tests ----
@@ -395,20 +374,20 @@ d_I2b <- df_income_NonCrop_bl %>% select(-income_NonCrop) %>%
   df_income_NonCrop <- 
     d_I1 %>% left_join(d_I1b) %>% 
     rbind( d_I2 %>% left_join(d_I2b) ) %>% 
-    rename(ecomony_vars=income_type) %>% 
+    rename(vars=income_type) %>% 
     mutate(val_22 = case_when(
-      ecomony_vars == "k_income_assistance" & val_22 > 306 ~ NA_real_,
-      ecomony_vars == "k_income_assistance_mhh" & val_22 > 80 ~ NA_real_,
+      vars == "k_income_assistance" & val_22 > 306 ~ NA_real_,
+      vars == "k_income_assistance_mhh" & val_22 > 80 ~ NA_real_,
       
-      ecomony_vars == "k_income_independent" & val_22 > 505 ~ NA_real_,
-      ecomony_vars == "k_income_independent_mhh" & val_22 > 120 ~ NA_real_,
+      vars == "k_income_independent" & val_22 > 505 ~ NA_real_,
+      vars == "k_income_independent_mhh" & val_22 > 120 ~ NA_real_,
       TRUE ~ val_22 ))%>% 
     mutate(val_bl = case_when(
-      ecomony_vars == "k_income_assistance" & val_bl > 288 ~ NA_real_,
-      ecomony_vars == "k_income_assistance_mhh" & val_bl > 90 ~ NA_real_,
+      vars == "k_income_assistance" & val_bl > 288 ~ NA_real_,
+      vars == "k_income_assistance_mhh" & val_bl > 90 ~ NA_real_,
       
-      ecomony_vars == "k_income_independent" & val_bl > 404 ~ NA_real_,
-      ecomony_vars == "k_income_independent_mhh" & val_bl > 89 ~ NA_real_,
+      vars == "k_income_independent" & val_bl > 404 ~ NA_real_,
+      vars == "k_income_independent_mhh" & val_bl > 89 ~ NA_real_,
       TRUE ~ val_bl ))
 
 
@@ -489,89 +468,97 @@ df_income_NonCrop_bl_binary <-
 # How many of this item does the household currently own? (0 if none)
 
 # LIVESTOCK # [E6Cows E7Bullock E8Buffaloes E9Goats&sheep]
-# FARM EQUIPMENT # [E10Tractor E11Plough E12Thresher E13Seed drill] 
+# FARM EQUIPMENT # [E10Tractor E11Plough E12Thresher E13Seed drill E14JCB ] 
 # VEHICLES # [E15Cycles E16Motorcycles E17Cars] 
 # HH ITEMS # [E18Fridge # E19	Television]
-
+rmtl_srvy22 %>% select(hh_id,starts_with("e"),-e21) %>% 
+  pivot_longer(-hh_id ,names_to = "vars",values_to = "val") %>% 
+  filter(val>0) %>% count(vars) %>% as.data.frame()
 ### REMOVE [E14 JCB]
 ### skip E20Gold E21Silver
 
+tbl_t1 %>% filter(p.value<0.12) %>% 
+  full_join(tbl_t2 %>% filter(p_south<0.12))
+
 # assets_22 .........
-vars_e01 <- rmtl_srvy22 %>% select(hh_id,starts_with("e"),-e21) %>% 
+df_tabE22 <- rmtl_srvy22 %>% select(hh_id,starts_with("e"),-e21) %>% 
   rename_with(~ c(
     "Cows","Bullock","Buffaloes","Goats_sheep",       # LIVESTOCK
     "Tractor","Plough","Thresher","Seed_drill","JCB", # FARM EQUIPMENT 
-    "Cycles","Motorcycles","Cars",                    # VEHICLES
-    "Fridge","TV"), .cols = 2:15) %>%                 # HH ITEMS
-  select(-JCB)
-vars_e01[is.na(vars_e01)] <- 0
+    "Cycles","Motorcycles","Cars","Fridge","TV"       # VEHICLES # HH ITEMS
+    ), .cols = 2:15)
 
-# vars_e01 %>% count(Buffaloes)
-# vars_e01$Buffaloes=ifelse(vars_e01$Buffaloes>9,NA,vars_e01$Buffaloes)
+# remove "Motorcycles" bcoz it Statistically significant in the baseline
 
-assets_22 <-  
-  vars_e01 %>%  
-  mutate(
-    Livestock= Cows+Bullock+Buffaloes+Goats_sheep,
-    Farm_equipments=Tractor+Plough+Thresher+Seed_drill,
-    Vehicles_Home= Cycles+Motorcycles+Cars+Fridge+TV,
-    Total_assets= Livestock+Farm_equipments+Vehicles_Home) %>% 
-  select(hh_id,Livestock,Farm_equipments,Vehicles_Home) %>%
-  mutate(across( -hh_id, ~ ifelse(if_all(-hh_id, ~ .x == 0), NA, .x)
-  )) %>% 
-  pivot_longer(-hh_id ,names_to = "ecomony_vars",values_to = "val_22")
+df_tabE22[, paste0(c("Tractor","Plough","Thresher","Seed_drill","JCB","Cycles","Motorcycles","Cars","Fridge","TV"), "01")] <- 
+  +(df_tabE22[, c("Tractor","Plough","Thresher","Seed_drill","JCB","Cycles","Motorcycles","Cars","Fridge","TV")] >= 1)
 
+df_tabE22$Livestock_n <- rowSums(df_tabE22[, c( "Cows","Bullock","Buffaloes","Goats_sheep")], na.rm = TRUE)
+df_tabE22$Farm_equipments_n <- rowSums(df_tabE22[, c("Plough","Seed_drill","JCB")], na.rm = TRUE) # -Tractor, -Thresher
+df_tabE22$Farm_equipments_1 <- rowSums(df_tabE22[, c("Plough","Seed_drill","JCB")] > 0, na.rm = TRUE) # -Tractor, -Thresher
 
-df_machinery =
-  vars_e01 %>%  
-  select(hh_id, Tractor, Plough, Thresher, Seed_drill) %>% 
-  mutate(across(-hh_id, ~ replace_na(.x, 0))) %>% 
-  pivot_longer(-hh_id ,names_to = "vars",values_to = "val_22") %>% 
-  left_join(df_machinery_bl) %>% 
-  mutate(val_22 = ifelse(val_22 != 0,1,val_22)) %>% 
-  left_join(rmtl_cntrl_vars)
+df_tabE22$Vehicles_n <- rowSums(df_tabE22[, c("Cycles","Cars")], na.rm = TRUE) # -Motorcycles
+df_tabE22$Vehicles_1 <- rowSums(df_tabE22[, c("Cycles","Cars")] > 0, na.rm = TRUE) # -Motorcycles
+df_tabE22$Home_n <- rowSums(df_tabE22[, c("Fridge","TV")], na.rm = TRUE)
+df_tabE22$Home_1 <- rowSums(df_tabE22[, c("Fridge","TV")] > 0, na.rm = TRUE)
+df_tabE22$Vehicles_Home_n <- rowSums(df_tabE22[, c("Cycles","Cars","Fridge","TV")], na.rm = TRUE)# -Motorcycles
+df_tabE22$Vehicles_Home_1 <- rowSums(df_tabE22[, c("Cycles","Cars","Fridge","TV")] > 0, na.rm = TRUE)# -Motorcycles
 
+df_assets22 <- df_tabE22 %>% pivot_longer(-hh_id ,names_to = "vars",values_to = "val_22")
 
 # assets_15 .........
 
-vars_e01_BL <- 
+df_tabE16 <- 
   rmtl_baseline2016 %>% select(hh_id,starts_with("E")) %>% 
   select(hh_id, ends_with("_1"),-c(E20_1:E11_to_E13_1)) %>% 
   rename_with(~ c(
     "Cows","Bullock","Buffaloes","Goats_sheep",
     "Tractor","Plough","Thresher","Seed_drill","JCB",
-    "Cycles","Motorcycles","Cars",
-    "Fridge","TV"), .cols = 2:15)%>%
-  select(-JCB)
-vars_e01_BL[is.na(vars_e01_BL)] <- 0
+    "Cycles","Motorcycles","Cars","Fridge","TV"), .cols = 2:15)
 
-assets_15 <-  
-  vars_e01_BL %>% 
-  mutate(
-    Livestock= Cows+Bullock+Buffaloes+Goats_sheep,
-    Farm_equipments=Tractor+Plough+Thresher+Seed_drill,
-    Vehicles_Home= Cycles+Motorcycles+Cars + Fridge+TV,
-    Total_assets = Livestock + Farm_equipments + Vehicles_Home) %>% 
-  select(hh_id,Livestock,Farm_equipments,Vehicles_Home) %>%
-  mutate(across( -hh_id, ~ ifelse(if_all(-hh_id, ~ .x == 0), NA, .x)
-  )) %>% 
-  pivot_longer(-hh_id ,names_to = "ecomony_vars",values_to = "val_bl")
+df_tabE16[, paste0(c("Tractor","Plough","Thresher","Seed_drill","JCB","Cycles","Motorcycles","Cars","Fridge","TV"), "01")] <- +(df_tabE16[, c("Tractor","Plough","Thresher","Seed_drill","JCB","Cycles","Motorcycles","Cars","Fridge","TV")] >= 1)
 
-df_machinery_bl =
-  vars_e01_BL %>%  
-  select(hh_id, Tractor, Plough, Thresher, Seed_drill) %>% 
-  mutate(across(-hh_id, ~ replace_na(.x, 0))) %>% 
-  pivot_longer(-hh_id ,names_to = "vars",values_to = "val_bl")
+df_tabE16$Livestock_n <- rowSums(df_tabE16[, c( "Cows","Bullock","Buffaloes","Goats_sheep")], na.rm = TRUE)
+df_tabE16$Farm_equipments_n <- rowSums(df_tabE16[, c("Plough","Seed_drill","JCB")], na.rm = TRUE) # -Tractor, -Thresher 
+df_tabE16$Farm_equipments_1 <- rowSums(df_tabE16[, c("Plough","Seed_drill","JCB")] > 0, na.rm = TRUE) # -Tractor, -Thresher
 
+df_tabE16$Vehicles_n <- rowSums(df_tabE16[, c("Cycles","Cars")], na.rm = TRUE) # -Motorcycles
+df_tabE16$Vehicles_1 <- rowSums(df_tabE16[, c("Cycles","Cars")] > 0, na.rm = TRUE) # -Motorcycles
+df_tabE16$Home_n <- rowSums(df_tabE16[, c("Fridge","TV")], na.rm = TRUE)
+df_tabE16$Home_1 <- rowSums(df_tabE16[, c("Fridge","TV")] > 0, na.rm = TRUE)
+df_tabE16$Vehicles_Home_n <- rowSums(df_tabE16[, c("Cycles","Cars","Fridge","TV")], na.rm = TRUE) # -Motorcycles
+df_tabE16$Vehicles_Home_1 <- rowSums(df_tabE16[, c("Cycles","Cars","Fridge","TV")] > 0, na.rm = TRUE) # -Motorcycles
 
-df_assets <- assets_22 %>% 
-  inner_join(assets_15) %>% 
-  mutate(
-    val_22 = case_when(
-      ecomony_vars == "Farm_equipments" & val_22 > 6   ~ NA_real_,
-      ecomony_vars == "Livestock" & val_22 >= 100   ~ NA_real_, # 60
-      ecomony_vars == "Vehicles_Home" & val_22 > 7   ~ NA_real_, # 7
-      TRUE ~ val_22 ))
+df_assets15 <- df_tabE16 %>%  pivot_longer(-hh_id ,names_to = "vars",values_to = "val_bl")
+
+# assets 22 15 .........
+
+df_assets <- df_assets22 %>% inner_join(df_assets15)
+
+# בדיקת אפקט של נכסים בודדים
+df_29062026 <- df_assets22 %>% inner_join(df_assets15) %>%
+  filter(vars == "Livestock_n") %>% 
+  mutate(dist_Km_boundary=ifelse(dist_to_boundary_m > 3000, NA,dist_Km_boundary)
+  )
+
+df_29062026 <- df_assets22 %>% inner_join(df_assets15) %>%
+  filter(vars == "Livestock_n", cardinal_direction =="south") %>% 
+  mutate(dist_Km_boundary=ifelse(dist_to_boundary_m > 3000, NA,dist_Km_boundary)
+  )
+
+mA <-  lm(val_22  ~ in_project, df_29062026 )
+mB <-  lm(val_22  ~ in_project +hh_haed_age+val_bl + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge,
+          df_29062026 )
+m1 <-  lm(val_22  ~ in_project + dist_Km_boundary +val_bl+hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge,
+          df_29062026)
+m2 <-  lm(val_22  ~ in_project + dist_Km_boundary +val_bl+hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge,
+          df_29062026)
+
+summary(mA)$coefficients["in_project", c("Estimate", "Pr(>|t|)")]
+summary(mB)$coefficients["in_project", c("Estimate", "Pr(>|t|)")]
+summary(m1)$coefficients["in_project", c("Estimate", "Pr(>|t|)")]
+summary(m2)$coefficients["in_project", c("Estimate", "Pr(>|t|)")]
+
 
 # Analysis ----
 
