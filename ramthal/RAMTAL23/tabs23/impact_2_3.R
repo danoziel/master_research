@@ -322,6 +322,13 @@ fits %>% unnest(coefs) %>%  filter(term == "(Intercept)") %>% select(term,vars, 
 # F12	Total (Rs.) [sum F1-F11]
 # F13	   According to what you indicated, your total HH income is Rs. [     ].
 
+r1A_22 <- rmtl_srvy22 %>% 
+  select(hh_id, starts_with(c("r9_")), -ends_with("_bin")) %>% 
+  pivot_longer(
+    cols = !hh_id, 
+    names_to = "id_member", 
+    values_to = "at_school") %>% summarise(at_school=sum(at_school,na.rm = T),.by = hh_id) %>%   left_join( rmtl_srvy22 %>% select(hh_id, r1 )) %>% mutate(r1 = r1 - at_school) %>% select(hh_id, r1)
+
 df_income_NonCrop_22 <- 
   rmtl_srvy22 %>% 
   select(hh_id, f1_amt, f2_amt,f3_1_amt, f4_amt, f5_amt, f6_amt, f7_amt, f9_amt, f10_amt, f11_amt 
@@ -336,7 +343,7 @@ df_income_NonCrop_22 <-
   group_by(hh_id, income_type ) %>% 
   summarise(income_NonCrop = sum(income22,na.rm = T)/1000,.groups = "drop") %>% 
   left_join( rmtl_srvy22 %>% select(hh_id, r1 )) %>% 
-  mutate(r1 = ifelse(r1 == 0,1,r1)) %>% 
+  mutate(r1 = ifelse(r1 < 2,2,r1)) %>% 
   mutate(income_NonCrop_mhh=income_NonCrop/r1 ) %>% select(-r1)
 
 d_I1 <- df_income_NonCrop_22 %>% select(-income_NonCrop_mhh) %>% rename(val_22=income_NonCrop)
@@ -356,7 +363,7 @@ df_income_NonCrop_bl <-
   group_by(hh_id, income_type ) %>% 
   summarise(income_NonCrop = sum(income22,na.rm = T)/1000,.groups = "drop") %>% 
   left_join( rmtl_baseline2016 %>% select(hh_id, C1 )) %>% 
-  mutate(C1=ifelse(C1<1,1,C1), # Total household members
+  mutate(C1=ifelse(C1<2,2,C1), # Total household members
          income_NonCrop_mhh=income_NonCrop/C1 # Normalized to number of household members
   ) %>% select(-C1)
 
@@ -377,17 +384,17 @@ d_I2b <- df_income_NonCrop_bl %>% select(-income_NonCrop) %>%
     rename(vars=income_type) %>% 
     mutate(val_22 = case_when(
       vars == "k_income_assistance" & val_22 > 306 ~ NA_real_,
-      vars == "k_income_assistance_mhh" & val_22 > 80 ~ NA_real_,
+      vars == "k_income_assistance_mhh" & val_22 > 57 ~ NA_real_,
       
       vars == "k_income_independent" & val_22 > 505 ~ NA_real_,
-      vars == "k_income_independent_mhh" & val_22 > 120 ~ NA_real_,
+      vars == "k_income_independent_mhh" & val_22 > 114 ~ NA_real_,
       TRUE ~ val_22 ))%>% 
     mutate(val_bl = case_when(
       vars == "k_income_assistance" & val_bl > 288 ~ NA_real_,
-      vars == "k_income_assistance_mhh" & val_bl > 90 ~ NA_real_,
+      vars == "k_income_assistance_mhh" & val_bl > 37 ~ NA_real_,
       
       vars == "k_income_independent" & val_bl > 404 ~ NA_real_,
-      vars == "k_income_independent_mhh" & val_bl > 89 ~ NA_real_,
+      vars == "k_income_independent_mhh" & val_bl > 83 ~ NA_real_,
       TRUE ~ val_bl ))
 
 
@@ -481,21 +488,24 @@ tbl_t1 %>% filter(p.value<0.12) %>%
   full_join(tbl_t2 %>% filter(p_south<0.12))
 
 # assets_22 .........
-df_tabE22 <- rmtl_srvy22 %>% select(hh_id,starts_with("e"),-e21) %>% 
+df_tabE2022 <- rmtl_srvy22 %>% select(hh_id,starts_with("e"),-e21) %>% 
   rename_with(~ c(
     "Cows","Bullock","Buffaloes","Goats_sheep",       # LIVESTOCK
     "Tractor","Plough","Thresher","Seed_drill","JCB", # FARM EQUIPMENT 
     "Cycles","Motorcycles","Cars","Fridge","TV"       # VEHICLES # HH ITEMS
     ), .cols = 2:15)
 
+df_tabE22 <- df_tabE2022
 # remove "Motorcycles" bcoz it Statistically significant in the baseline
+df_tabE22[, 6:15] <- +(df_tabE22[, 6:15] >= 1)
 
-df_tabE22[, paste0(c("Tractor","Plough","Thresher","Seed_drill","JCB","Cycles","Motorcycles","Cars","Fridge","TV"), "01")] <- 
-  +(df_tabE22[, c("Tractor","Plough","Thresher","Seed_drill","JCB","Cycles","Motorcycles","Cars","Fridge","TV")] >= 1)
+
+# df_tabE22[, paste0(c("Tractor","Plough","Thresher","Seed_drill","JCB","Cycles","Motorcycles","Cars","Fridge","TV"), "01")] <-  +(df_tabE22[, c("Tractor","Plough","Thresher","Seed_drill","JCB","Cycles","Motorcycles","Cars","Fridge","TV")] >= 1)
 
 df_tabE22$Livestock_n <- rowSums(df_tabE22[, c( "Cows","Bullock","Buffaloes","Goats_sheep")], na.rm = TRUE)
-df_tabE22$Farm_equipments_n <- rowSums(df_tabE22[, c("Plough","Seed_drill","JCB")], na.rm = TRUE) # -Tractor, -Thresher
+# df_tabE22$Farm_equipments_n <- rowSums(df_tabE22[, c("Plough","Seed_drill","JCB")], na.rm = TRUE) # -Tractor, -Thresher
 df_tabE22$Farm_equipments_1 <- rowSums(df_tabE22[, c("Plough","Seed_drill","JCB")] > 0, na.rm = TRUE) # -Tractor, -Thresher
+df_tabE22$Farm_equipments <- rowSums(df_tabE22[, c("Plough","Seed_drill","JCB", "Tractor", "Thresher")] > 0, na.rm = TRUE) 
 
 df_tabE22$Vehicles_n <- rowSums(df_tabE22[, c("Cycles","Cars")], na.rm = TRUE) # -Motorcycles
 df_tabE22$Vehicles_1 <- rowSums(df_tabE22[, c("Cycles","Cars")] > 0, na.rm = TRUE) # -Motorcycles
@@ -504,11 +514,13 @@ df_tabE22$Home_1 <- rowSums(df_tabE22[, c("Fridge","TV")] > 0, na.rm = TRUE)
 df_tabE22$Vehicles_Home_n <- rowSums(df_tabE22[, c("Cycles","Cars","Fridge","TV")], na.rm = TRUE)# -Motorcycles
 df_tabE22$Vehicles_Home_1 <- rowSums(df_tabE22[, c("Cycles","Cars","Fridge","TV")] > 0, na.rm = TRUE)# -Motorcycles
 
-df_assets22 <- df_tabE22 %>% pivot_longer(-hh_id ,names_to = "vars",values_to = "val_22")
+df_assets22 <- df_tabE22 %>% 
+  select(-c(Cows:Goats_sheep)) %>% 
+  pivot_longer(-hh_id ,names_to = "vars",values_to = "val_22")
 
 # assets_15 .........
 
-df_tabE16 <- 
+df_tabE2016 <- 
   rmtl_baseline2016 %>% select(hh_id,starts_with("E")) %>% 
   select(hh_id, ends_with("_1"),-c(E20_1:E11_to_E13_1)) %>% 
   rename_with(~ c(
@@ -516,11 +528,16 @@ df_tabE16 <-
     "Tractor","Plough","Thresher","Seed_drill","JCB",
     "Cycles","Motorcycles","Cars","Fridge","TV"), .cols = 2:15)
 
-df_tabE16[, paste0(c("Tractor","Plough","Thresher","Seed_drill","JCB","Cycles","Motorcycles","Cars","Fridge","TV"), "01")] <- +(df_tabE16[, c("Tractor","Plough","Thresher","Seed_drill","JCB","Cycles","Motorcycles","Cars","Fridge","TV")] >= 1)
+df_tabE16 <-  df_tabE2016
+df_tabE16[, 6:15] <- +(df_tabE16[, 6:15] >= 1)
+ 
+# df_tabE16[, paste0(c("Tractor","Plough","Thresher","Seed_drill","JCB","Cycles","Motorcycles","Cars","Fridge","TV"), "01")] <- +(df_tabE16[, c("Tractor","Plough","Thresher","Seed_drill","JCB","Cycles","Motorcycles","Cars","Fridge","TV")] >= 1)
 
 df_tabE16$Livestock_n <- rowSums(df_tabE16[, c( "Cows","Bullock","Buffaloes","Goats_sheep")], na.rm = TRUE)
-df_tabE16$Farm_equipments_n <- rowSums(df_tabE16[, c("Plough","Seed_drill","JCB")], na.rm = TRUE) # -Tractor, -Thresher 
+# df_tabE16$Farm_equipments_n <- rowSums(df_tabE16[, c("Plough","Seed_drill","JCB")], na.rm = TRUE) # -Tractor, -Thresher 
 df_tabE16$Farm_equipments_1 <- rowSums(df_tabE16[, c("Plough","Seed_drill","JCB")] > 0, na.rm = TRUE) # -Tractor, -Thresher
+df_tabE16$Farm_equipments <- rowSums(df_tabE16[, c("Plough","Seed_drill","JCB","Tractor","Thresher")] > 0, na.rm = TRUE) 
+
 
 df_tabE16$Vehicles_n <- rowSums(df_tabE16[, c("Cycles","Cars")], na.rm = TRUE) # -Motorcycles
 df_tabE16$Vehicles_1 <- rowSums(df_tabE16[, c("Cycles","Cars")] > 0, na.rm = TRUE) # -Motorcycles
@@ -529,7 +546,11 @@ df_tabE16$Home_1 <- rowSums(df_tabE16[, c("Fridge","TV")] > 0, na.rm = TRUE)
 df_tabE16$Vehicles_Home_n <- rowSums(df_tabE16[, c("Cycles","Cars","Fridge","TV")], na.rm = TRUE) # -Motorcycles
 df_tabE16$Vehicles_Home_1 <- rowSums(df_tabE16[, c("Cycles","Cars","Fridge","TV")] > 0, na.rm = TRUE) # -Motorcycles
 
-df_assets15 <- df_tabE16 %>%  pivot_longer(-hh_id ,names_to = "vars",values_to = "val_bl")
+df_assets15 <- df_tabE16 %>%  
+  select(-c(Cows:Goats_sheep)) %>% 
+  pivot_longer(-hh_id ,names_to = "vars",values_to = "val_bl")
+
+df_assets15 %>% count(vars)
 
 # assets 22 15 .........
 

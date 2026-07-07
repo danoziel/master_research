@@ -4,19 +4,26 @@ library(tidyr)
 library(tidyverse)
 library(readxl)
 
+df_reg_22 <- 
+  df_assets %>% 
+  filter(vars %in% c("Tractor","Thresher","Seed_drill","JCB")) %>% # -Plough
+  # summarise(val_22=sum(val_22,na.rm = T),val_bl=sum(val_bl,na.rm = T),.by = hh_id) %>% mutate(vars="total_farm_equipment") %>% 
+  left_join(rmtl_cntrl_vars) 
+#
+
 # balance test - t-test ----
 tbl_t1 <- 
-  df_tableBbl  %>%
+  df_reg_22  %>%
   left_join(rmtl_cntrl_vars %>% select(hh_id,in_project,cardinal_direction)
             ) %>% 
   group_by(vars) %>%
   do(tidy(t.test(val_bl ~ in_project, data = .))) %>% ungroup() %>% 
   mutate(across(c(estimate2, estimate1, p.value), ~ round(., 3))) %>% 
-  select(vars, estimate2,estimate1, p.value) %>% 
+  select(vars,estimate2,estimate1, p.value) %>% 
   rename(In = estimate2 ,Out = estimate1) 
 
 tbl_t2 <- 
-  df_tableBbl  %>%
+  df_reg_22  %>%
   left_join(rmtl_cntrl_vars %>% select(hh_id,in_project,cardinal_direction)
   ) %>% filter(cardinal_direction=="south") %>% 
   group_by(vars) %>%
@@ -34,28 +41,55 @@ tbl_t1 %>% filter(p.value<0.12) %>%
 
 #
 # PLOT bin Km   Xaxis as boundry ----
-#  > bin Km
+## total farms on distanc to boundry X-axis  ----
+df_reg_22 %>% count(vars)
+
 bin <- 0.25
 bin_unit <- "Km"
-df_land_bins <- df_220626 %>% filter(!is.na(dist_Km_boundary)) %>%
+rmtl_cntrl_vars %>% 
+  filter(!is.na(dist_Km_boundary)) %>%
   mutate(dist_bin_numeric = floor(dist_Km_boundary / bin) * bin) %>%
   mutate(dist_bin = paste0(dist_bin_numeric, " : ", dist_bin_numeric + bin)) %>%
   summarise(
-    mean_dist = mean(dist_Km_boundary),mean_val = mean(val_22, na.rm = T),
-    in_project = first(in_project),n=n(),.by = c(dist_bin_numeric, dist_bin)
-  ) %>%
-  ungroup() %>%
+    n=n(),
+    in_project = first(in_project),.by = c(dist_bin_numeric, dist_bin)
+  ) %>% mutate(n_group=sum(n),.by = in_project, pct=n/n_group)%>%
   mutate(project_group = ifelse(in_project == 1, "In", "Out")) %>%
   arrange(dist_bin_numeric) %>% 
-  mutate(dist_bin = factor(dist_bin, levels = unique(dist_bin)),
-         pct=ifelse(in_project==1,n/923,n/646))
-#  > bin PLOT    
-ggplot(df_land_bins, aes(x = dist_bin, y = mean_val, fill = project_group)) +
+  mutate(dist_bin = factor(dist_bin, levels = unique(dist_bin))) %>% 
+  ggplot(
+    aes(x = dist_bin, y = pct, fill = project_group)) +
   geom_col(color = "white") + scale_fill_manual(values = c("Out" = "gray60", "In" = "steelblue")) +
   labs(title = paste0("Bin=", bin, bin_unit ), fill="Groups") +
   theme_minimal() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
+  
 
+# Vars on distanc to boundry X-axis  ----
+#  > bin Km
+bin <- 0.25
+bin_unit <- "Km"
+df_land_bins <- df_reg_22 %>% # filter(vars=="Seed_drill") %>%
+  filter(!is.na(dist_Km_boundary)) %>% select(-c(5:26,28:54)) %>%
+  mutate(dist_bin_numeric = floor(dist_Km_boundary / bin) * bin) %>%
+  mutate(dist_bin = paste0(dist_bin_numeric, " : ", dist_bin_numeric + bin)
+         ) %>%
+  summarise(
+    mean_val = mean(val_22, na.rm = T),sum_val = sum(val_22, na.rm = T),
+    in_project = first(in_project),.by = c(dist_bin_numeric, dist_bin)
+  ) %>% ungroup() %>%
+  mutate(project_group = ifelse(in_project == 1, "In", "Out")) %>%
+  arrange(dist_bin_numeric) %>% 
+  mutate(dist_bin = factor(dist_bin, levels = unique(dist_bin))
+         )
+#  > bin PLOT    
+ggplot(df_land_bins, aes(x = dist_bin, y = mean_val, fill = project_group)) +
+  geom_col(color = "white") + scale_fill_manual(values = c("Out" = "gray60", "In" = "steelblue")) +
+  labs(title = paste0("22 Bin=", bin, bin_unit ), fill="Groups") +
+  theme_minimal() + theme(axis.text.x = element_text(angle = 90, hjust = 1)
+                          ) + ylim(0, .25)
+
+#
 # PLOT bin nHH  Xaxis as boundry ----
 #  > bin No. of farmers
 bin <- 40
@@ -104,9 +138,14 @@ df_bl_cropACRE <-
   complete(hh_id, crop_common, fill = list(val_bl = 0)) %>% 
   inner_join(hh_2022[,1:2])
 
-df_bl_cropACRE%>% 
-  group_by(crop_common  ) %>%
-  do(tidy(t.test(val_bl ~ farmers_hh , data = .))) 
+df_bl_cropACRE  %>%
+  group_by(crop_common    ) %>%
+  do(tidy(t.test(val_bl ~ sample , data = .))) %>% 
+  mutate(across(c(estimate2, estimate1, p.value), ~ round(., 4))) %>% 
+  select(crop_common,estimate, estimate2,estimate1, p.value) %>% 
+  rename(In = estimate2 ,Out = estimate1) %>% 
+  # filter(p.value <0.15) %>% 
+  kable() %>% kable_styling()
 
 df_cropAcre_season <- 
   crop_BL %>%  
@@ -117,20 +156,88 @@ df_cropAcre_season <-
   select(hh_id, vars, val_bl) %>% 
   complete(hh_id, vars, fill = list(val_bl = 0)) 
 
+library(rstatix)
 df_cropAcre_season %>% 
   inner_join(rmtl_16_18_22_sample[,c(1,5)]) %>% 
   group_by(vars) %>% t_test(val_bl ~ sample )%>% 
-  filter(p <0.15)
+  filter(p <0.15) %>% kable() %>% kable_styling()
 
 df_cropAcre_season %>%
     group_by(vars  ) %>%
     do(tidy(t.test(val_bl ~ sample , data = .))) %>% 
-    mutate(across(c(estimate2, estimate1, p.value), ~ round(., 3))) %>% 
+    mutate(across(c(estimate2, estimate1, p.value), ~ round(., 4))) %>% 
     select(vars,estimate, estimate2,estimate1, p.value) %>% 
     rename(In = estimate2 ,Out = estimate1) %>% 
-    filter(p.value <0.15)
+    # filter(p.value <0.15) %>% 
+  kable() %>% kable_styling()
 
 #_______ DF croptype season __ [df_tableB]   ----
+
+df_crop_treemapBL <- crop_BL %>%
+  group_by(hh_id, season, plot_num) %>% mutate(n=n()) %>% ungroup() %>% mutate(acre_crop=plot_acre/n) %>% 
+  mutate(crop_common=ifelse(crop_common=="Horticulture" ,"Vegetables",crop_common)) %>% 
+  mutate(crop_common=ifelse(crop_common=="Oilseeds" ,"Oil crop",crop_common)) %>% 
+  group_by(season, hh_id, crop_common,irri_method) %>% 
+  summarise(acre_crop = sum(acre_crop, na.rm = T), .groups="drop") %>% filter(!is.na(irri_method)) %>% 
+  complete(season, hh_id, crop_common,irri_method, fill = list(acre_crop = 0))  %>%
+  mutate(val_bl = +(acre_crop != 0)) %>% 
+  mutate(ir_label = ifelse(irri_method == "Rain","Rainfed","Irrigated")) %>% 
+  left_join(rmtl_16_18_22_sample %>% select(hh_id,sample)) %>% 
+  summarise(Acre=mean(acre_crop), HH_freq=mean(val_bl)*100,.by = c(sample,season,crop_common,ir_label)) %>% 
+  filter(Acre>0, crop_common %in% c("Chillies","Onions","Sunflower","Oil crop", "Sugarcane","Wheat","Vegetables") ) %>% 
+  select(-season) %>% 
+  group_by(sample,crop_common,ir_label) %>% slice_max(HH_freq, n = 1) %>% 
+  group_by(sample,crop_common,ir_label) %>% slice_max(Acre, n = 1) %>% 
+  distinct() %>% ungroup() %>% 
+  mutate(sample = ifelse(sample==1,"In","Out"),
+         ir_label = paste0(sample, "-", ir_label),
+         box_label = paste0(crop_common, "\n", round(HH_freq, 2),"%")
+  )
+df_crop_treemapBL %>% summarise(HH_freq=sum(HH_freq),.by = ir_label) 
+
+
+df_crop_treemapBL_A <-  crop_BL %>%
+  group_by(hh_id, season, plot_num) %>% mutate(n=n()) %>% ungroup() %>% mutate(acre_crop=plot_acre/n) %>% 
+  mutate(crop_common=ifelse(crop_common=="Horticulture" ,"Vegetables",crop_common)) %>% 
+  mutate(crop_common=ifelse(crop_common=="Oilseeds" ,"Oil crop",crop_common)) %>%   mutate(ir_label = ifelse(irri_method == "Rain","Rainfed","Irrigated")) %>% group_by(season, hh_id, crop_common,ir_label) %>% 
+  summarise(acre_crop = sum(acre_crop, na.rm = T), .groups="drop") %>% filter(!is.na(ir_label)) %>%   complete(season, hh_id, crop_common,ir_label, fill = list(acre_crop = 0)) %>%   mutate(val_bl = +(acre_crop != 0)) %>%   left_join(rmtl_16_18_22_sample %>% select(hh_id,sample)) %>%   summarise(Acre=mean(acre_crop), HH_freq=mean(val_bl)*100,.by = c(sample,season,crop_common,ir_label)) %>% select(-season) %>%   group_by(sample,crop_common,ir_label) %>% slice_max(HH_freq, n = 1) %>% group_by(sample,crop_common,ir_label) %>% slice_max(Acre, n = 1) %>% ungroup() %>%  distinct() %>% 
+  mutate(sample = ifelse(sample==1,"In","Out"),
+         ir_label = paste0(sample, "-", ir_label),
+         box_label = paste0(crop_common, "\n", round(HH_freq, 2),"%")
+  )
+df_crop_treemapBL_A %>% filter(crop_common %in% c("Chillies","Onions","Sunflower","Oil crop", "Sugarcane","Wheat","Vegetables") 
+               ) %>%  summarise(HH_freq=sum(HH_freq),.by = ir_label) 
+
+
+
+df_add <- df_crop_treemapBL %>% summarise(Acre=sum(Acre),HH_freq=sum(HH_freq),.by = c(sample,ir_label)) %>% filter(ir_label %in% c("Out-Irrigated","In-Irrigated")) %>% mutate(ir_label = c("Out-Rainfed","In-Rainfed"), crop_common="land", box_label = paste0("Irrigated\n",crop_common, "\n",round(HH_freq, 2),"%"))%>% select(sample, crop_common, ir_label, Acre, HH_freq, box_label)
+df_add
+df_pct_wc <- df_crop_treemapBL %>% summarise(HH_freq=sum(HH_freq),.by = sample) 
+pct_in  <- round(df_pct_wc$HH_freq[df_pct_wc$sample == "In"], 1)
+pct_out <- round(df_pct_wc$HH_freq[df_pct_wc$sample == "Out"], 1)
+library(treemapify)
+
+df_crop_treemapBL %>% rbind(df_add) %>%
+  ggplot(aes(area = HH_freq, fill = crop_common, subgroup = box_label)) +
+  geom_treemap(color = "#FCFBF9", size = 2) +
+  geom_treemap_subgroup_text(place = "center", grow = FALSE, color = "#2D3748", fontface = "bold", size = 11) +
+  facet_wrap(~ ir_label) +
+  scale_fill_manual(values = c(
+    "Sunflower" = "#D4A373", "Oil crop" = "#E9D8A6", "Wheat" = "#CA6702", 
+    "Vegetables" = "#0A9396", "Sugarcane" = "#EE9B00", 
+    "Chillies" = "#BB3E03", "Onions" = "#AE2012"
+  )) +
+  labs(
+    title = paste0("Percentage of farmers cultivating water-intensive crops:\nInside Project ", pct_in, "% and Outside Project ", pct_out, "%")
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    strip.background = element_rect(fill = "white", color = NA),
+    strip.text = element_text(color = "gray40", size = 12),
+    panel.spacing = unit(.5, "lines")
+  )
+  
 
 df_tableBbl <- crop_BL %>%   # in impact1.R 
   group_by(hh_id, season, plot_num) %>% mutate(n=n()) %>% ungroup() %>% mutate(acre_crop=plot_acre/n) %>% 
@@ -411,9 +518,8 @@ df_assets_22 <-
          )
 df_assets_22 %>% count(vars)
 
-#_______df for fml ___________  ----
 
-###########  cultivated land
+#  cultivated land  .......................   -----
 df_tableCBD %>% count(vars)
 df_reg_22 <- df_tableCBD %>% left_join(rmtl_cntrl_vars) %>% 
   mutate(dist_Km_boundary=ifelse(dist_to_boundary_m > 3000, NA,dist_Km_boundary)
@@ -434,16 +540,17 @@ df_reg_22  %>% count(vars)
 df_reg_22 %>% count(vars)
 
 
-###########  Total assets ----
-df_assets_22 %>% count(vars)
+#  Total assets  ..........................   ----
+df_assets_22  %>% count(vars)
 
 df_assets_22_Agri <- df_assets_22 %>% filter(vars %in% c("land_holding", "Farm_equipments_n"  ))
 df_assets_22_Economic  <- df_assets_22 %>% filter(vars %in% c("Livestock_n", "Vehicles_Home_1"  ))
 
+
 df_assets_22_Agri %>% count(vars)
 df_assets_22_Economic %>% count(vars)
 
-########### inputs
+#  inputs .................................   ----
 df_inputs <- 
   df_inputs_type_22 %>% left_join(df_inputs_type_bl) %>% 
   mutate(
@@ -451,14 +558,14 @@ df_inputs <-
   )
 df_inputs %>% count(vars)
 
-########### labor_days
+#  labor_days  ............................   ----
 labor_days <- 
   family_labor_22 %>% left_join(labor_days_BL) %>% 
   mutate( val_bl=ifelse(vars=="labor_days_total" & val_bl > 2780 ,NA,val_bl))
 
 labor_days %>% count(vars)
 
-########### 2nd agricolture table reg outcome
+#  2nd agricolture table reg outcome  .....   ----
 
 df_assets_22_Agri %>% count(vars)
 df_inputs %>% count(vars)
@@ -473,7 +580,7 @@ df_reg_22 <-
   )
 df_reg_22 %>% count(vars)
 
-########### ### Economic  table reg outcome
+#  Economic  table reg outcome  ...........   ----
 
 df_return_invest %>% count(economic_vars)
 df_assets_22_Economic %>% count(vars)
@@ -484,6 +591,13 @@ df_reg_22 <-
   filter(vars != "hh_acre") %>% 
   rbind(df_assets_22_Economic) %>% 
   rbind(df_income_NonCrop) %>%  filter(vars != "k_income_assistance_mhh") %>%
+  left_join(rmtl_cntrl_vars) %>% 
+  mutate(dist_Km_boundary=ifelse(dist_to_boundary_m > 3000, NA,dist_Km_boundary)
+  )
+
+df_reg_22 <- 
+  df_income_NonCrop %>%  
+  filter(vars %in% c("k_income_independent_mhh", "k_income_assistance_mhh") )%>%
   left_join(rmtl_cntrl_vars) %>% 
   mutate(dist_Km_boundary=ifelse(dist_to_boundary_m > 3000, NA,dist_Km_boundary)
   )
@@ -500,14 +614,19 @@ library(tidyr)
 fml_a <- val_22 ~ in_project
 fml_b <- val_22 ~ in_project + val_bl + hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge
 fml_c <- val_22 ~ in_project + dist_Km_boundary +val_bl + hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge
-formulas <- list(model_a = fml_a, model_b = fml_b, model_c = fml_c)
+
+formulas_all <- list(model_a1 = fml_a, model_b1 = fml_b)
+formulas_south <- list(model_b2 = fml_b, model_c2 = fml_c)
 #
-# 2. control_mean  ----
-control_mean <- df_reg_22 %>% filter(in_project==0) %>% group_by(vars) %>% summarise(Mean = mean(val_22,na.rm=T)) %>% pivot_wider (names_from = "vars", values_from = "Mean") %>% mutate(metric="control_mean") 
+
+
+df_reg_22 %>% count(vars)
 #
 # [final_table] ________ Entire Sample __ [df_reg_22] ______________________ ----
 
-final_table <- map_dfr(formulas, function(fml) {
+control_mean <- df_reg_22 %>% filter(in_project==0) %>% group_by(vars) %>% summarise(Mean = mean(val_22,na.rm=T)) %>% pivot_wider (names_from = "vars", values_from = "Mean") %>% mutate(metric="control_mean") 
+
+final_table <- map_dfr(formulas_all, function(fml) {
   df_reg_22 %>% 
     group_by(vars) %>% 
     summarise(
@@ -532,7 +651,7 @@ df_reg_22_south <- df_reg_22 %>%
 
 control_mean_south <- df_reg_22_south %>% filter(in_project==0) %>% group_by(vars) %>% summarise(Mean = mean(val_22,na.rm=T)) %>% pivot_wider (names_from = "vars", values_from = "Mean") %>% mutate(metric="control_mean") 
 
-final_table_south <- map_dfr(formulas, function(fml) {
+final_table_south <- map_dfr(formulas_south, function(fml) {
   df_reg_22_south %>% 
     group_by(vars) %>% 
     summarise(
@@ -548,6 +667,26 @@ final_table_south <- map_dfr(formulas, function(fml) {
   pivot_wider(names_from = vars, values_from = value) 
 
 df_reg_22  %>% count(vars)
+
+# Print  _______________________________________________________________  -----
+
+library(kableExtra)
+
+final_table %>% 
+  rbind(control_mean %>% mutate(model_name="Model_A1",metric="control_mean") %>% select(model_name, metric,everything() ) 
+  ) %>% 
+  rbind( final_table_south ) %>% 
+  rbind(  
+    control_mean_south %>% mutate(model_name="Model_A2",metric="control_mean") %>% select(model_name, metric,everything() )
+  ) %>% 
+  kbl(caption = "model a1 & b1 = Entire sample / model b2 & c2 = South sample") %>% kable_styling()%>%
+  row_spec(c(1,6,12,17), background = "gray90") %>% 
+  row_spec(c(3,8,14,19), bold = T) %>%
+  row_spec(c(11,22), background = "gray70") %>%
+  footnote(c(" "))
+
+
+
 
 
 # Print crop acre per crop ________________________________________________  -----
@@ -584,15 +723,6 @@ final_table_south %>%
   rbind(control_mean_south %>% mutate(model_name="Model_A",metric="control_mean") %>% select(model_name, metric,everything() ) 
   ) %>% select(model_name,metric,Farming_income,revenue_per_acre,k_income_assistance,k_income_independent,k_income_independent_mhh,Livestock_n, Vehicles_Home_1
   ) %>% kbl(caption = "South") %>% kable_paper()
-
-
-
-
-
-
-
-
-
 
 
 # Print 2nd agri table [df_assets_22_Agri]___[df_inputs]____[labor_days]_____  -----
