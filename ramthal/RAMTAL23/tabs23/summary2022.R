@@ -212,16 +212,22 @@ bv_22bl_A <-
 bv_22bl_A %>% pivot_longer(-hh_id,names_to = "vars",values_to = "val") %>% 
   group_by(vars) %>% summarise(q99=quantile(val, probs = 0.99, na.rm=T))
 #
-#
+bv_revenue_income_22bl <- 
+  df_revenue_22 %>%
+  left_join(df_income_f3_bl) %>% 
+  left_join(rmtl_cntrl_vars %>% select(hh_id,total_acre16)) |> 
+  mutate(
+    reve_acre_22= revenue22/total_acre16,
+    reve_acre_bl=income_bl/total_acre16
+  )
+
 
 df_return_invest <- 
-  bv_22bl_A %>% 
-  select(hh_id, hh_acre22, hh_acre_bl, income_bl, revenue22, 
-         reve_acre_bl, reve_acre_22) %>% 
+  bv_revenue_income_22bl %>% 
+  select(hh_id,income_bl, revenue22, reve_acre_bl, reve_acre_22) %>% 
   rename(income_22=revenue22,
          revenue_per_acre_22=reve_acre_22,
-         revenue_per_acre_bl=reve_acre_bl,
-         hh_acre_22 = hh_acre22) %>%
+         revenue_per_acre_bl=reve_acre_bl) %>%
   pivot_longer(
     cols = -hh_id,
     names_to = c("economic_vars", ".value"),
@@ -229,12 +235,10 @@ df_return_invest <-
   ) %>% rename(val_22 = `22`, val_bl = bl) %>% 
   mutate(
     val_22 = case_when(
-      economic_vars == "hh_acre"          & val_22 > 41    ~ NA_real_,
       economic_vars == "income"           & val_22 >= 940   ~ NA_real_,
       economic_vars == "revenue_per_acre" & val_22 >= 175   ~ NA_real_,
       TRUE ~ val_22 ),
     val_bl = case_when(
-      economic_vars == "hh_acre"          & val_bl > 39   ~ NA_real_,
       economic_vars == "income"           & val_bl > 317   ~ NA_real_,
       economic_vars == "revenue_per_acre" & val_bl > 44  ~ NA_real_,
       TRUE ~ val_bl ) )
