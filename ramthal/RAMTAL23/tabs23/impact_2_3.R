@@ -4,7 +4,7 @@ library(readr)
 a_plots_crop <- 
   read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/a_plots_crop.csv")
 
-attr(a_rmtl_srvy22$l7_rank_3, "labels")
+attr(rmtl_srvy22$l7_rank_3, "labels")
 
 
 library(writexl)
@@ -442,7 +442,7 @@ df_economic <-
 library(jtools)
 library(ggplot2)
 
-#custom theme to format ----
+#custom theme to format
 mp_theme=theme_bw()+
   theme(
     panel.grid.major.y =element_blank(),

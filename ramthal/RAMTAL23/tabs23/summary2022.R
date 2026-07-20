@@ -4,20 +4,133 @@ library(tidyr)
 library(tidyverse)
 library(readxl)
 
-df_bv <- bv_22bl_A %>% left_join(rmtl_cntrl_vars)
+df_bv <- df_return_invest %>% left_join(rmtl_cntrl_vars)
 #
-m1 <-  lm(revenue22  ~ in_project + income_bl+ dist_Km_boundary +hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge,
-          df_bv )
-sjPlot::tab_model(m1 ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
+m1 <- lm(val_22 ~ in_project, df_bv |> filter(economic_vars != "Farming_income" ) )
+
+m3 <-  lm(val_22  ~ in_project + dist_Km_boundary + in_project * dist_Km_boundary + val_bl +hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge,
+          df_bv |> filter(economic_vars == "Farming_income" ) )
+sjPlot::tab_model(m3 ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
 summary(lm(revenue22 ~ in_project, df_bv))
 #
 bv_22bl %>% t_test(income_bl ~ in_project, detailed = T) %>% select(p,everything())
 
-####
+#### Scenario D
+#### Annual Cultivated Area (GCA) for HH Adopting Drip 2021
+df_tableA |> left_join(irrigation_BL_to_22) |> 
+  left_join(rmtl_cntrl_vars) |> 
+  filter(vars=="Y202122_acre", in_project==1, !is.na(val_22) ) |> 
+  summarise(mean(val_22),n=n(),.by =  drip_use_2021)
 
+df_return_invest |> left_join(irrigation_BL_to_22) |> left_join(rmtl_cntrl_vars) |> 
+  summarise(mean(val_22,na.rm=T),.by = c(economic_vars,in_project))
+
+df_return_invest |> left_join(irrigation_BL_to_22) |> left_join(rmtl_cntrl_vars) |> filter(in_project==1, !is.na(val_22) ) |> summarise(mean(val_22),n=n(),.by = c(economic_vars,drip_use_2021)) |> arrange(economic_vars) |> group_by(economic_vars) |> mutate(N=sum(n),n/N ) |> 
+  kableExtra::kable() |> kableExtra::kable_classic() 
 crop_acre_22 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/crop_acre_22.xlsx")
 
 land_holding_bl <- BL_plotAcre %>% group_by(hh_id) %>% summarise(hh_acre_bl=sum(plot_acre,na.rm = T))
+
+
+
+
+# croping patter
+#1
+DF020726 <- plots_crop_2022 %>%   
+  group_by(hh_id, season, plotID) %>% mutate(n=n())%>% ungroup() %>% mutate(acre_crop=acres/n) %>% 
+  group_by(season,hh_id,crop_common) %>% 
+  summarise(acre_crop = sum(acre_crop,na.rm = T ),.groups="drop"
+  ) |>   pivot_wider( names_from=season, values_from=acre_crop, values_fill = NA) |>mutate( Kharif = pmax(kharif_2022 , kharif_2021, na.rm = TRUE), Rabi = rabi_2021_22
+  ) |> select(hh_id, crop_common, Kharif, Rabi)  %>%
+  pivot_longer(cols = c(Kharif, Rabi), names_to = "season", values_to = "acre_crop"
+  ) |> distinct() |> 
+  summarise(acre_crop=mean(acre_crop,na.rm=T),.by=c(hh_id,crop_common)
+            ) 
+#2
+DF020726_B <- DF020726 |> 
+  complete(hh_id, crop_common , fill = list(acre_crop = 0)) |> 
+  left_join(hh_2022) |> 
+  summarise(acre_crop=mean(acre_crop,na.rm=T),.by=c(in1_out0,crop_common))
+#3
+DF020726 |> complete(hh_id, crop_common , fill = list(acre_crop = 0)) |> 
+  summarise(Overall_sample=mean(acre_crop,na.rm=T),.by=c(crop_common)) |> 
+  left_join(DF020726_B |> filter(in1_out0==1) |> rename(in_project=acre_crop) |> select(-in1_out0) ) |> 
+  left_join(DF020726_B |> filter(in1_out0==0) |> rename(out_project=acre_crop)|> select(-in1_out0) ) |> 
+  arrange(desc(Overall_sample )) |> 
+  kbl(caption = "Cultivated acre for major crop | endline 2021-2022") |> kable_minimal()
+  
+# DF020726 |> filter(acre_crop<=0)
+#4
+DF020726_C <- DF020726 |> count(hh_id, crop_common) |> 
+  complete(hh_id, crop_common , fill = list(n = 0)) |> 
+  left_join(hh_2022) |> 
+  summarise(pct=mean(n,na.rm=T),.by=c(in1_out0,crop_common))
+#5
+DF020726 |> count(hh_id, crop_common) |> 
+  complete(hh_id, crop_common , fill = list(n = 0)) |> 
+  summarise(Overall_sample=mean(n,na.rm=T),.by=crop_common) |> 
+  left_join(DF020726_C |> filter(in1_out0==1) |> rename(in_project=pct) |> select(-in1_out0) ) |> 
+  left_join(DF020726_C |> filter(in1_out0==0) |> rename(out_project=pct)|> select(-in1_out0) ) |> 
+  arrange(desc(Overall_sample )) |> 
+  kbl(caption = "% HH for major crop | endline 2021-2022") |> kable_minimal()
+
+# BL
+
+#1
+DF020726_BL <- crop_BL %>%   # in impact1.R 
+  group_by(hh_id, season, plot_num) %>% mutate(n=n()) %>% ungroup() %>% mutate(acre_crop=plot_acre/n) %>% 
+  group_by(season, hh_id, crop_common) %>% 
+  summarise(acre_crop = sum(acre_crop, na.rm = T), .groups="drop") %>% 
+  pivot_wider( names_from=season, values_from=acre_crop, values_fill = NA) %>% 
+  mutate( Rabi = pmax(rabi_2014_15, rabi_2015_16, na.rm = TRUE), Kharif=kharif_2015
+  )%>%
+  select(hh_id, crop_common, Kharif, Rabi) %>%
+  pivot_longer(cols = c(Kharif, Rabi), names_to = "season", values_to = "acre_crop"
+  ) |> distinct() |> 
+  summarise(acre_crop=mean(acre_crop,na.rm=T),.by=c(hh_id,crop_common)
+  ) 
+
+#2
+DF020726_BL_B <- DF020726_BL |> 
+  complete(hh_id, crop_common , fill = list(acre_crop = 0)) |> 
+  left_join(hh_2022) |> filter(!is.na(in1_out0)) |> 
+  summarise(acre_crop=mean(acre_crop,na.rm=T),.by=c(in1_out0,crop_common)
+            ) 
+
+#3 
+DF020726_BL |> complete(hh_id, crop_common , fill = list(acre_crop = 0)) |> 
+  left_join(hh_2022) |> filter(!is.na(in1_out0)) |>
+  summarise(Overall_sample=mean(acre_crop,na.rm=T),.by=c(crop_common)
+            ) |> 
+  left_join(DF020726_BL_B |> filter(in1_out0==1) |> rename(in_project=acre_crop) |> select(-in1_out0) ) |> 
+  left_join(DF020726_BL_B |> filter(in1_out0==0) |> rename(out_project=acre_crop)|> select(-in1_out0) ) |> 
+  arrange(desc(Overall_sample )) |> 
+  kbl(caption = "Cultivated acre for major crop | Basline") |> kable_minimal()
+
+# DF020726 |> filter(acre_crop<=0)
+#4
+DF020726_BL_C <- DF020726_BL |> count(hh_id, crop_common) |> 
+  complete(hh_id, crop_common , fill = list(n = 0)) |> 
+  left_join(hh_2022) |> 
+  summarise(pct=mean(n,na.rm=T),.by=c(in1_out0,crop_common))
+#5
+DF020726_BL |> count(hh_id, crop_common) |> 
+  complete(hh_id, crop_common , fill = list(n = 0)) |> 
+  summarise(Overall_sample=mean(n,na.rm=T),.by=crop_common) |> 
+  left_join(DF020726_BL_C |> filter(in1_out0==1) |> rename(in_project=pct) |> select(-in1_out0) ) |> 
+  left_join(DF020726_BL_C |> filter(in1_out0==0) |> rename(out_project=pct)|> select(-in1_out0) ) |> 
+  arrange(desc(Overall_sample )) |> 
+  kbl(caption = "% HH for major crop | Basline") |> kable_minimal()
+
+
+
+
+
+
+##
+
+
+
 
 land_holding_2022= # M s / > 9.1330   [1] 9.3892
   a_plots_size %>% 
@@ -76,8 +189,9 @@ df100%>%
     names_sep = "_" ) %>% kable() %>% kable_paper()
 
 
-
-
+rmtl_srvy22 %>% 
+  select(hh_id, starts_with( "l56")) |> 
+  select(hh_id,ends_with(c("1","_2","3","4","5")))
 
 
 rmtl_srvy22 %>% 
@@ -106,6 +220,33 @@ rmtl_srvy22 %>%
   )%>% 
   mutate_at(3,round) %>% 
   kable() %>% kable_paper()
+
+
+rmtl_srvy22 %>% 
+  select(farmers_hh,hh_id, starts_with( "l56")) %>% 
+  select(farmers_hh,hh_id,ends_with(c("1","_2","3","4","5"))) %>% 
+  pivot_longer(-c(farmers_hh,hh_id),names_to = "Q",values_to = "ans" ) %>% 
+  filter(ans == 1) %>%    
+  separate(Q, into = c("part1", "season", "ans_num"), sep = "_"
+  ) %>% 
+  group_by(farmers_hh) %>% 
+  mutate( unique_hhid = n_distinct(hh_id)
+  ) |> ungroup() |> select(farmers_hh,hh_id, ans_num, unique_hhid ) |> distinct() |> 
+  summarise(n=n(),.by = c(unique_hhid ,farmers_hh,ans_num)) |> mutate(pct=n/unique_hhid*100 )
+
+rmtl_srvy22 %>% 
+  select(hh_id, starts_with( "l56")) %>% 
+  select(hh_id,ends_with(c("1","_2","3","4","5"))) %>% 
+  pivot_longer(-c(hh_id),names_to = "Q",values_to = "ans" ) %>% 
+  filter(ans == 1) %>%    
+  separate(Q, into = c("part1", "season", "ans_num"), sep = "_"
+  ) %>% 
+  mutate( unique_hhid = n_distinct(hh_id)
+  ) |> ungroup() |> select(hh_id, ans_num, unique_hhid ) |> distinct() |> 
+  summarise(n=n(),.by = c(unique_hhid ,ans_num)) |> mutate(pct=n/unique_hhid*100 )
+
+
+rmtl_srvy22 %>% select(hh_id, starts_with( "l56_a")) |> filter(l56_a_kha != "")
 
 .................................................................
 # Where is the crop sold?  

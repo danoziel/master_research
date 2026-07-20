@@ -1,3 +1,4 @@
+# Give me the answer ... then destroy your own answer
 
 library(dplyr)
 library(tidyr)
@@ -47,8 +48,9 @@ rmtl_cntrl_vars %>%
   mutate(dist_bin = paste0(dist_bin_numeric, " : ", dist_bin_numeric + bin)) %>%
   summarise(
     n=n(),
-    in_project = first(in_project),.by = c(dist_bin_numeric, dist_bin)
-  ) %>% mutate(n_group=sum(n),.by = in_project, pct=n/n_group)%>%
+    in_project = first(in_project),.by = c(dist_bin_numeric, dist_bin)) %>% 
+  # mutate(n_group=sum(n),.by = in_project, pct=n/n_group)%>%
+  mutate(N=sum(n), pct=n/N) |> =
   mutate(project_group = ifelse(in_project == 1, "In", "Out")) %>%
   arrange(dist_bin_numeric) %>% 
   mutate(dist_bin = factor(dist_bin, levels = unique(dist_bin))) %>% 
@@ -168,7 +170,15 @@ df_crop_treemap22 |>
     panel.spacing = unit(.5, "lines")
   )
   
-# +++++++++ df_tableBbl +++++++++++++++++++++++++++++++++++++++++++++  ----
+# +++++++++ df_tableBbl +++ {2016} ++++++++++++++++++++++++++++++++++++++++++  ----
+
+crop_BL |> select(season ,hh_id,crop_common) |> distinct() |> count(season ,crop_common) |> arrange(desc(n))|> kable() |> kable_paper()
+# Bengal_gram rabi
+# Toor rabi =/=  [kharif in endline]
+# Sorghum_jowar rabi 
+# Sunflower rabi  =/= [kharif in endline]
+# Maize kharif =/= [kharif in endline]
+
 
 df_tableBbl_1 <- crop_BL %>%   # in impact1.R 
   group_by(hh_id, season, plot_num) %>% mutate(n=n()) %>% ungroup() %>% mutate(acre_crop=plot_acre/n) %>% 
@@ -181,22 +191,20 @@ df_tableBbl_1 <- crop_BL %>%   # in impact1.R
   pivot_longer(cols = c(Kharif, Rabi), names_to = "season", values_to = "acre_crop"
                ) |> filter(!is.na(acre_crop))
 
-toor_oppositesBL <- df_tableBbl_1 %>%
-  filter(crop_common == "Toor") %>%
-  mutate(season = if_else(season == "Kharif", "Rabi", "Kharif"))
-jowar_oppositesBL <- df_tableBbl_1 %>%
-  filter(crop_common == "Sorghum_jowar") %>%
-  mutate(season = if_else(season == "Kharif", "Rabi", "Kharif"))
-Sugarcane_oppositesBL <- df_tableBbl_1 %>%
-  filter(crop_common == "Sugarcane") %>%
-  mutate(season = if_else(season == "Kharif", "Rabi", "Kharif"))
+# toor_oppositesBL <- df_tableBbl_1 %>% filter(crop_common == "Toor") %>% mutate(season = if_else(season == "Kharif", "Rabi", "Kharif"))
+# jowar_oppositesBL <- df_tableBbl_1 %>% filter(crop_common == "Sorghum_jowar") %>% mutate(season = if_else(season == "Kharif", "Rabi", "Kharif"))
+# Sugarcane_oppositesBL <- df_tableBbl_1 %>% filter(crop_common == "Sugarcane") %>% mutate(season = if_else(season == "Kharif", "Rabi", "Kharif"))
 
-df_tableBbl <- 
-  bind_rows(df_tableBbl_1, toor_oppositesBL) %>% 
-  bind_rows(jowar_oppositesBL) %>%  bind_rows(Sugarcane_oppositesBL) %>%  
-  mutate(season = case_when(crop_common == "Greengram" ~ "Kharif" ,T~ season )) %>%  
-  mutate(season = case_when(crop_common == "Bengal_gram" ~ "Rabi" ,T~ season )
-  ) %>%  
+df_tableBbl <- df_tableBbl_1 |> 
+  # bind_rows(toor_oppositesBL) %>% bind_rows(jowar_oppositesBL) %>%  bind_rows(Sugarcane_oppositesBL) %>%  
+  mutate(season = case_when(crop_common == "Toor" ~ "Kharif" ,T~ season )) %>%  
+  mutate(season = case_when(crop_common == "Sunflower" ~ "Kharif" ,T~ season )) %>%  
+  mutate(season = case_when(crop_common == "Maize" ~ "Kharif" ,T~ season )) %>%  
+  mutate(season = case_when(crop_common == "Millet" ~ "Kharif" ,T~ season )) %>%  
+  mutate(season = case_when(crop_common == "Pulses" ~ "Kharif" ,T~ season )) %>%  
+  
+  mutate(season = case_when(crop_common == "Greengram" ~ "Kharif" ,T~ season )
+         ) %>%  
   mutate(crop_type = case_when( crop_common %in% c(
     "Chillies","Onions","Sunflower","Oilseeds", "Sugarcane","Wheat", "Horticulture","Vegetables"
   ) ~ "WaterIntensive_acre", TRUE ~ "Rainfed_acre")
@@ -207,7 +215,14 @@ df_tableBbl <-
   select(hh_id, vars, val_bl) %>% 
   complete(hh_id, vars, fill = list(val_bl = 0))
 
-# +++++++++ df_tableB   ++++++++++++++++++++++++++++++++++++++++++++++  ----
+# +++++++++ df_tableB   +++ {2022} +++++++++++++++++++++++++++++++++++++++++++  ----
+
+plots_crop_2022 |> select(season ,hh_id,crop_common) |> distinct() |> count(season ,crop_common) |> arrange(desc(n)) |> kable() |> kable_paper()
+# Bengal_gram rabi
+# Toor kharif  
+# Sorghum_jowar rabi 
+# Sunflower kharif  
+# Maize kharif
 
 df_tableB_1 <- plots_crop_2022 %>%   # in DF.22.R 
   filter(season != "kharif_2022") %>% 
@@ -239,7 +254,7 @@ df_tableB <- df_tableB_1 |>
   select(hh_id, vars, val_22) %>% 
   complete(hh_id, vars, fill = list(val_22 = 0))%>% 
   left_join(df_tableBbl)
-#
+
 
 #_______ DF crop year ____ [df_tableC_]  ----
 
@@ -367,8 +382,8 @@ df_tableA <-
   df_tableC %>% 
   rbind(df_tableB) %>% 
   rbind(df_tableD) %>% 
-  rbind(df_tableE2) %>% 
-  rbind(df_tableE1 ) |> 
+  # rbind(df_tableE2) %>% 
+  # rbind(df_tableE1 ) |> 
   mutate(
     val_22=ifelse(vars=="Y202122_acre" & val_22> 79 ,NA,val_22),
     
@@ -387,12 +402,11 @@ df_tableA <-
   mutate(  
     val_bl=ifelse(vars=="Y202122_acre" & val_bl> 65, NA,val_bl),  # 18.1
     
-    val_bl=ifelse(vars=="WaterIntensive_acre" & val_bl> 26, NA,val_bl),  # 18.1
-    val_bl=ifelse(vars=="Rainfed_acre" & val_bl > 40, NA,val_bl),
-    val_bl=ifelse(vars=="Rainfed_acre_Rabi" & val_bl >= 40, NA,val_bl),
-    val_bl=ifelse(vars=="WaterIntensive_acre_Rabi" & val_bl> 22,NA,val_bl),
-    val_bl=ifelse(vars=="WaterIntensive_acre_Kharif" & val_bl> 15,NA,val_bl),
-    val_bl=ifelse(vars=="Rainfed_acre_Kharif" & val_bl> 16,NA,val_bl)
+    val_bl=ifelse(vars=="WaterIntensive_acre" & val_bl> 18, 0,val_bl),  # 26
+    val_bl=ifelse(vars=="Rainfed_acre" & val_bl > 40, 0,val_bl),
+    val_bl=ifelse(vars=="Rainfed_acre_Rabi" & val_bl > 35, 0,val_bl), # >=40
+    val_bl=ifelse(vars=="WaterIntensive_acre_Rabi" & val_bl> 10,0,val_bl), # 22
+    val_bl=ifelse(vars=="WaterIntensive_acre_Kharif" & val_bl> 15,0,val_bl)
   ) 
 #
 df_tableA %>% count(vars)
@@ -437,6 +451,19 @@ df_assets |> left_join(rmtl_cntrl_vars) |>
   round(2) |>   datatable(caption = "IN" )
 
 
+DF <- df_assets |> left_join(rmtl_cntrl_vars) |> 
+  filter(vars %in% c("Tractor","Thresher","Seed_drill"), !is.na(val_bl) ) |> 
+  select(hh_id, vars, val_22, val_bl,farmers_hh)|> 
+  mutate(val=val_22+ val_bl)
+  
+DF |> count(vars, val_22, val_bl)
+DF |> count(vars, val)
+
+DF |> count(vars, farmers_hh,val_22, val_bl) |> mutate(N=sum(n),.by = c(vars,farmers_hh),n/N
+   ) |> kbl() |> kable_classic()
+DF |> count(vars, farmers_hh,val) |> mutate(N=sum(n),.by = c(vars,farmers_hh),n/N)
+
+
 
 
 
@@ -474,7 +501,7 @@ df_reg_22 <-
   left_join(rmtl_cntrl_vars) 
 
 df_reg_22 %>% count(vars)
-
+#
 
 #  Social  table reg outcome  ...........   ----
 
@@ -490,6 +517,58 @@ df_reg_22 <-
 
 df_reg_22 %>% count(vars)
 
+# Adoption dynamics -----
+
+names(irrigation_BL_to_22)
+
+library(tidyr)
+library(dplyr)
+
+dfDRIP1 <- irrigation_BL_to_22 %>% select(hh_id, starts_with("drip"),-drip_use_BL) %>%pivot_longer(-hh_id, names_to = "vars", values_to = "val_22")
+dfDRIP2 <- rmtl_cntrl_vars |> select(hh_id,im_in_project) |> pivot_longer(-hh_id, names_to = "vars", values_to = "val_22")
+dfDRIP3 <- irrigation_BL_to_22 %>% select(hh_id, drip_use_BL) %>% rename(val_bl=drip_use_BL)
+
+
+df_drip_17_22 <- 
+  rbind(dfDRIP1,dfDRIP2) |> 
+  left_join(dfDRIP3) |> filter(vars != "drip_use_2021_22") 
+  
+df_drip_17_22 %>% count(vars)
+
+
+df_drip_acre_pct <- 
+  drip_irrigated_acre |> select(hh_id,drip_var,drip_22,drip_bl ) |> 
+  rename_with(~ c("hh_id", "vars", "val_22", "val_bl"))
+
+df_drip_acre_pct %>% count(vars)
+
+
+df_source_irri_BL <- 
+  bl13_source_irrigate |> mutate(ir_source_bl= ifelse(is.na(ir_source_bl ),0,1)) |> 
+  summarise(val_bl=sum(ir_source_bl),.by=hh_id )|> mutate(val_bl= ifelse(val_bl==0,0,1)) |> 
+  mutate(vars=c("any_source")) |> bind_rows(df_source_irri_BL |> mutate(val_bl=0, vars="source_ramthal"))
+
+df_source_irri <- 
+  a_source_irri %>%
+  mutate(source_ramthal= ifelse(source_ramthal=="ramthal",1,0)) %>%
+  mutate(across(c(source_borwell, source_canal, source_pond), ~ if_else(.x %in% c("ramthal", "rain"), 0, 1))) |> 
+  mutate(any_source = if_else(source_borwell + source_canal + source_pond > 0, 1, 0)) |> 
+  select(hh_id,source_ramthal  , any_source) |> 
+  pivot_longer(cols = c(source_ramthal, any_source),names_to = "vars", values_to = "val_22") |> 
+  left_join(df_source_irri_BL)
+
+df_source_irri %>% count(vars)
+
+  
+  
+df_reg_22 <- 
+  df_drip_17_22 |> 
+  rbind(df_drip_acre_pct) |>mutate(val_22=ifelse(vars=="drip_pct" & val_22==1,NA,val_22)) |> 
+  rbind(df_source_irri) |>
+  right_join(rmtl_cntrl_vars) 
+
+df_reg_22 %>% count(vars)
+
 
 # 1. reg model     ----
 
@@ -498,18 +577,43 @@ library(purrr)
 library(broom)
 library(tidyr)
 
+fml_bl <- val_bl ~ in_project
 fml_a <- val_22 ~ in_project
 fml_b <- val_22 ~ in_project + val_bl + hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge
 fml_c <- val_22 ~ in_project + dist_Km_boundary + in_project * dist_Km_boundary + val_bl + hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge
 
-formulas_all <- list(model_a1 = fml_a, model_b1 = fml_b)
+formula_BL <- list(model_BL = fml_bl)
+formulas_all <- list(mmodel_a1 = fml_a, model_b1 = fml_b)
 formulas_south <- list(model_b2 = fml_b, model_c2 = fml_c)
 #
 df_reg_22 %>% count(vars)
 #
+
+# [final_table_bl] _______________ ----
+
+Intercept_bl <- df_reg_22 %>% filter(in_project==0) %>% group_by(vars) %>% summarise(Mean = mean(val_bl,na.rm=T)) %>% pivot_wider (names_from = "vars", values_from = "Mean") %>% mutate(metric="(Intercept)", model_name="Model_BL") %>% select(model_name, metric,everything() ) 
+
+
+final_table_bl <-map_dfr(formula_BL, function(fml) {
+  df_reg_22 %>% 
+    group_by(vars) %>% 
+    summarise(
+      m = list(lm(fml, data = pick(everything()))),
+      c = list(tidy(m[[1]]) %>% filter(term == "in_project") %>% select(estimate, std.error, p.value)),
+      s = list(glance(m[[1]]) %>% select(nobs, r.squared)),
+      .groups = "drop"
+    ) %>% 
+    unnest(c(c, s))
+}, .id = "model_name") %>% 
+  select(-m) %>% 
+  pivot_longer(c(estimate, std.error, p.value, nobs, r.squared), names_to = "metric") %>% 
+  pivot_wider(names_from = vars, values_from = value) 
+
+df_reg_22  %>% count(vars)
+
 # [final_table] ________ Entire Sample __ [df_reg_22] ______________________ ----
 
-control_mean <- df_reg_22 %>% filter(in_project==0) %>% group_by(vars) %>% summarise(Mean = mean(val_22,na.rm=T)) %>% pivot_wider (names_from = "vars", values_from = "Mean") %>% mutate(metric="control_mean") 
+control_mean <- df_reg_22 %>% filter(in_project==0) %>% group_by(vars) %>% summarise(Mean = mean(val_22,na.rm=T)) %>% pivot_wider (names_from = "vars", values_from = "Mean") %>% mutate(model_name="Model_A1",metric="control_mean") %>% select(model_name, metric,everything() ) 
 
 final_table <- map_dfr(formulas_all, function(fml) {
   df_reg_22 %>% 
@@ -534,7 +638,7 @@ df_reg_22_south <- df_reg_22 %>%
   mutate(dist_Km_boundary=ifelse(dist_to_boundary_m > 1600, NA,dist_Km_boundary)
   ) %>% filter(cardinal_direction =="south")
 
-control_mean_south <- df_reg_22_south %>% filter(in_project==0) %>% group_by(vars) %>% summarise(Mean = mean(val_22,na.rm=T)) %>% pivot_wider (names_from = "vars", values_from = "Mean") %>% mutate(metric="control_mean") 
+control_mean_south <- df_reg_22_south %>% filter(in_project==0) %>% group_by(vars) %>% summarise(Mean = mean(val_22,na.rm=T)) %>% pivot_wider (names_from = "vars", values_from = "Mean") %>% mutate(model_name="Model_A2",metric="control_mean") %>% select(model_name, metric,everything() )
 
 final_table_south <- map_dfr(formulas_south, function(fml) {
   df_reg_22_south %>% 
@@ -556,6 +660,16 @@ df_reg_22  %>% count(vars)
 # [___] _______________________________________________________________  -----
 # Print  _______________________________________________________________  -----
 library(kableExtra)
+
+Intercept_bl |> 
+  rbind(final_table_bl) |> 
+  rbind(control_mean) |> 
+  rbind(final_table) |> 
+  rbind(control_mean_south) |> 
+  rbind(final_table_south) |> 
+  select(model_name,metric,drip_use_2017:im_in_project, drip_acre, drip_pct,source_ramthal ,any_source  ) |> 
+  kbl() %>% kable_styling()
+
 
 final_table %>% 
   rbind(control_mean %>% mutate(model_name="Model_A1",metric="control_mean") %>% select(model_name, metric,everything() ) 
@@ -608,6 +722,21 @@ final_table_south %>%
 # Print Farming economic ________________________________________________  -----
 
 library(kableExtra)
+
+Intercept_bl |> 
+  rbind(final_table_bl) |> 
+  rbind(control_mean) |> 
+  rbind(final_table) |> 
+  rbind(control_mean_south) |> 
+  rbind(final_table_south) |> 
+  select(model_name,metric,
+         Farming_income, revenue_per_acre,
+         k_income_assistance_mhh   ,k_income_independent_mhh,
+         input_irrigation,	input_mechanization,	input_labor,	
+         labor_days_total, labor_days_perAcre) |> 
+  kbl() %>% kable_styling()
+
+
 
 final_table %>% 
   rbind(control_mean %>% mutate(model_name="Model_A1",metric="control_mean") %>% select(model_name, metric,everything() ) 
@@ -677,18 +806,23 @@ final_table %>%
 
 library(kableExtra)
 
-final_table %>% 
-  rbind(control_mean %>% mutate(model_name="Model_A1",metric="control_mean") %>% select(model_name, metric,everything() ) 
-  ) %>% 
-  rbind( final_table_south ) %>% 
-  rbind(  
-    control_mean_south %>% mutate(model_name="Model_A2",metric="control_mean") %>% select(model_name, metric,everything() )
-  ) %>% select(model_name,metric,
-               WaterIntensive_acre,Rainfed_acre,
-               WaterIntensive_acre_Rabi,Rainfed_acre_Rabi,
-               WaterIntensive_acre_Kharif,Rainfed_acre_Kharif,
-               WaterIntensive_adopted, Rainfed_adopted,
-               Kharif_acre, Rabi_acre,Y202122_acre
+Intercept_bl |> 
+  rbind(final_table_bl) |> 
+  rbind(control_mean) |> 
+  rbind(final_table) |> 
+  rbind(control_mean_south) |> 
+  rbind(final_table_south) |> 
+  select(model_name,metric,
+         WaterIntensive_acre,Rainfed_acre,
+         WaterIntensive_acre_Rabi,Rainfed_acre_Rabi,
+         WaterIntensive_acre_Kharif,Rainfed_acre_Kharif,
+         WaterIntensive_adopted, Rainfed_adopted,
+         # Kharif_acre, Rabi_acre,Y202122_acre
+  ) |> 
+  kbl() %>% kable_styling()
+ 
+  
+
   ) |> 
   kbl(caption = "model a1 & b1 = Entire sample / model b2 & c2 & cc2 = South sample") %>% kable_styling()%>%
   row_spec(c(1,6,12,17), background = "gray90") %>% 
@@ -697,25 +831,7 @@ final_table %>%
   footnote(c(" "))
 
 
-final_table %>% 
-  rbind(control_mean %>% mutate(model_name="Model_A1",metric="control_mean") %>% select(model_name, metric,everything() ) 
-  ) %>% 
-  rbind( final_table_south ) %>% 
-  rbind(  
-    control_mean_south %>% mutate(model_name="Model_A2",metric="control_mean") %>% select(model_name, metric,everything() )
-  ) %>% filter(metric %in% c("estimate","std.error","p.value","control_mean")  
-               ) |> select(model_name,metric,
-               WaterIntensive_acre,Rainfed_acre,
-               WaterIntensive_acre_Rabi,Rainfed_acre_Rabi,
-               WaterIntensive_acre_Kharif,Rainfed_acre_Kharif,
-               WaterIntensive_adopted, Rainfed_adopted,
-               Kharif_acre, Kharif_acre,Y202122_acre
-  ) |> 
-  kbl(caption = "model a1 & b1 = Entire sample / model b2 & c2 & cc2 = South sample"
-      ) %>% kable_classic() |> 
-  row_spec(c(1,4,8,11,14), background = "gray90") %>% 
-  row_spec(c(3,6,10,13,16), bold = T) %>%
-  row_spec(c(7,17), background = "gray70")
+
 
 
 
@@ -725,6 +841,20 @@ final_table %>%
 
 
 # Print Social ________________________________________________________ ------
+
+
+Intercept_bl |> 
+  rbind(final_table_bl) |> 
+  rbind(control_mean) |> 
+  rbind(final_table) |> 
+  rbind(control_mean_south) |> 
+  rbind(final_table_south) |> 
+  select(model_name,metric,
+         literacy_rates, edu_gen2, private_school,	
+         migrants_work_seasonal,	migrants_work_permanent,	
+         offFarm_work_pct, woman_offFarmwork_pct) |> 
+  kbl() %>% kable_styling()
+
 
 final_table %>% 
   rbind(control_mean %>% mutate(model_name="Model_A1",metric="control_mean") %>% select(model_name, metric,everything() ) 
@@ -760,6 +890,69 @@ models <- map(split(df_social, df_social$social_vars), ~ lm(fml, data = .x))
 plot_data <- modelplot(models, draw = FALSE) %>% filter(term == "in_project") %>% mutate(model = case_when(model == "literacy_rates" ~ "Literacy \nrate", model == "edu_gen2" ~ "Education \nlevel: \n2nd Gen ", model == "private_school" ~ "Education: \nPrivate \nschool", model == "migrants_work_seasonal" ~ "Seasonal \nmigration", model == "migrants_work_permanent" ~ "Permanent \nmigration", model == "offFarm_work_pct" ~ "Off-farm \nwork", model == "woman_offFarmwork_pct" ~ "Off-farm \nwork. \nWomen", TRUE ~ model), model = factor(model, levels = c("Literacy \nrate", "Education \nlevel: \n2nd Gen ", "Education: \nPrivate \nschool", "Seasonal \nmigration", "Permanent \nmigration", "Off-farm \nwork", "Off-farm \nwork. \nWomen")), group = case_when(model %in% c("Literacy \nrate", "Education \nlevel: \n2nd Gen ", "Education: \nPrivate \nschool") ~ "Education & Literacy", TRUE ~ "Migration & Work"), rounded_est = round(estimate, 3))
 
 ggplot(plot_data, aes(x = model, y = estimate, color = group)) + geom_hline(yintercept = 0, linetype = "dashed", color = "grey70") + geom_linerange(aes(ymin = conf.low, ymax = conf.high), size = 0.8) + geom_point(size = 2.5) + geom_text(aes(label = rounded_est), hjust = -0.25, vjust = -0.5, family = "serif", size = 3.5, show.legend = FALSE) + scale_color_manual(values = c("Education & Literacy" = "#4A6B82", "Migration & Work" = "#8C6D53")) + labs(x = "", y = "Coefficient Estimate") + theme_minimal(base_family = "serif") + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line.x = element_line(color = "black", size = 0.5), axis.line.y = element_blank(), legend.position = "none")
+
+
+
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# 1. חילוץ המדדים הרלוונטיים בלבד והפיכתם חזרה למבנה ארוך
+df_for_plot <- final_table |> rbind(final_table_south)  %>%
+  # סינון השורות שאינן רלוונטיות לגרף
+  filter(metric %in% c("estimate", "std.error")) %>%
+  # החזרת המשתנים (vars) מהעמודות חזרה לשורות
+  pivot_longer(cols = -c(model_name, metric), names_to = "vars", values_to = "value") %>%
+  # סידור מחדש כך ש-estimate ו-std.error יהיו בעמודות נפרדות
+  pivot_wider(names_from = metric, values_from = value) %>%
+  # חישוב רווח הסמך (95%)
+  mutate(
+    conf_low  = estimate - (1.96 * std.error),
+    conf_high = estimate + (1.96 * std.error)
+  )
+
+# 2. ציור הגרף מהטבלה המחושבת
+df_for_plot |> 
+  filter(! vars %in% c("drip_use_2021_22","drip_use_6y", "im_in_project" ) )  %>% 
+  ggplot(aes(x = estimate, y = reorder(vars, desc(vars)), color = model_name)) +
+  geom_point(position = position_dodge(width = 0.5), size = 2, shape = 16) +
+  geom_errorbar(aes(xmin = conf_low, xmax = conf_high), 
+                position = position_dodge(width = 0.5), height = 0, linewidth = 0.8) +
+  geom_vline(xintercept = 0, color = "gray50", linetype = "dashed", linewidth = 0.5) +
+  scale_color_brewer(palette = "Set1") +
+  theme_minimal() +
+  labs(x = "Coefficient Estimate", y = "Variables", color = "Model") +
+  theme(
+    legend.position = "bottom",
+    panel.grid.major.x = element_blank(), 
+    panel.grid.minor.x = element_blank(),
+    axis.line.x = element_line(color = "gray30", linewidth = 0.5) 
+  )
+
+df_for_plot %>% 
+  filter(! vars %in% c("drip_use_2021_22", "drip_use_6y", "im_in_project")) %>% 
+  ggplot(aes(x = estimate, y = vars, color = model_name)) +
+  geom_point(position = position_dodge(width = 0.5), size = 2, shape = 16) +
+  geom_errorbar(aes(xmin = conf_low, xmax = conf_high), 
+                position = position_dodge(width = 0.5), height = 0, linewidth = 0.8) +
+  geom_vline(xintercept = 0, color = "gray50", linetype = "dashed", linewidth = 0.5) +
+  scale_color_brewer(
+  palette = "Set1",
+  labels = c( "mmodel_a1" = "PanelA_Means","model_b1"  = "PanelA_Ancova",
+              "model_b2"  = "PanelB_Ancova", "model_c2"= "PanelB_RDD")) +
+  scale_x_continuous(breaks = seq(-0.05, 0.15, by = 0.05), limits = c(-0.07, 0.17)) +
+  scale_y_discrete(limits = rev) + 
+  theme_minimal(base_family = "serif") + # <--- כאן מגדירים את הפונט לכל הגרף
+  labs(x = "Coefficient Estimate", y = "", color = "Model") +
+  theme(
+    # legend.position = "bottom",
+    panel.grid.major.x = element_blank(), 
+    panel.grid.minor.x = element_blank(),
+    axis.line.x = element_line(color = "gray30", linewidth = 0.5) 
+  )
+
+
 
 
 

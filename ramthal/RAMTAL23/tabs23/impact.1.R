@@ -141,10 +141,10 @@ irrigation_BL_to_22 <-
   full_join(irrigation_6y) 
 
 ### df for reg ----
-# irrigation_dist <- rmtl_con_vars %>% left_join(irrigation_BL_to_22)
+# irrigation_dist <- rmtl_cntrl_vars %>% left_join(irrigation_BL_to_22)
 
 impact_ir <- irrigation_BL_to_22 %>% 
-  right_join(rmtl_con_vars) %>% as_tibble()
+  right_join(rmtl_cntrl_vars)
 
 # Histogram                              ----
 ### df [dist]    500m bins | up to 10 Km
@@ -524,6 +524,16 @@ dist_rd <-
          dist_1.5Km_sq= ifelse(in_project==0,dist_1.5Km_sq*(-1),dist_1.5Km_sq ))
 
 
+dist_rd <- 
+  irrigation_dist %>%
+  mutate(dist_Km_boundary = ifelse(in_project==0,dist_Km_boundary*-1,dist_Km_boundary)) %>% 
+  mutate(dist_1.5Km = ifelse(dist_Km_boundary <= 1.5, dist_Km_boundary,NA ) 
+  ) %>% 
+  mutate(dist_1.5Km = ifelse(dist_1.5Km >= (-1.5), dist_1.5Km,NA ) 
+  ) %>% 
+  mutate(dist_1.5Km_sq= dist_1.5Km^2,
+         dist_1.5Km_sq= ifelse(in_project==0,dist_1.5Km_sq*(-1),dist_1.5Km_sq ))
+
 
 
 # rd_drip_dist <- rdrobust(y = dist_rd$drip_use_2022, x = dist_rd$dist_to_south_km)
@@ -587,7 +597,7 @@ ggplot(impact_ir_south,aes(x = dist_to_south_km,  y= drip_use_6y, col= factor(in
   custom_layers + ggtitle("RD | DI usage 6 years") +coord_cartesian(ylim = c(0, 0.5))
 
 
-
+library(rdrobust)
 
 rdplot(dist_rd$drip_use_6y, dist_rd$dist_1.5Km,
        title="Drip Installation | Distance to Boundary",
