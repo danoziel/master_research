@@ -320,20 +320,20 @@ d_I2b <- df_income_NonCrop_bl %>% select(-income_NonCrop) %>%
     d_I1 %>% left_join(d_I1b) %>% 
     rbind( d_I2 %>% left_join(d_I2b) ) %>% 
     rename(vars=income_type) %>% 
-    mutate(val_22 = case_when(
-      vars == "k_income_assistance" & val_22 > 306 ~ NA_real_,
-      vars == "k_income_assistance_mhh" & val_22 > 57 ~ NA_real_,
-      
-      vars == "k_income_independent" & val_22 > 505 ~ NA_real_,
-      vars == "k_income_independent_mhh" & val_22 > 114 ~ NA_real_,
-      TRUE ~ val_22 ))%>% 
-    mutate(val_bl = case_when(
-      vars == "k_income_assistance" & val_bl > 288 ~ NA_real_,
-      vars == "k_income_assistance_mhh" & val_bl > 37 ~ NA_real_,
-      
-      vars == "k_income_independent" & val_bl > 404 ~ NA_real_,
-      vars == "k_income_independent_mhh" & val_bl > 83 ~ NA_real_,
-      TRUE ~ val_bl ))
+    # mutate(val_22 = case_when(
+    #   vars == "k_income_assistance" & val_22 > 306 ~ NA_real_,
+    #   vars == "k_income_assistance_mhh" & val_22 > 57 ~ NA_real_,
+    #   
+    #   vars == "k_income_independent" & val_22 > 505 ~ NA_real_,
+    #   vars == "k_income_independent_mhh" & val_22 > 114 ~ NA_real_,
+    #   TRUE ~ val_22 ))%>% 
+    # mutate(val_bl = case_when(
+    #   vars == "k_income_assistance" & val_bl > 288 ~ NA_real_,
+    #   vars == "k_income_assistance_mhh" & val_bl > 37 ~ NA_real_,
+    #   
+    #   vars == "k_income_independent" & val_bl > 404 ~ NA_real_,
+    #   vars == "k_income_independent_mhh" & val_bl > 83 ~ NA_real_,
+    #   TRUE ~ val_bl ))
 
 
 #__________________________  df_assets  ________  ----

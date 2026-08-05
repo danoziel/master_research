@@ -2228,7 +2228,7 @@ improved_seeds_22 <- L578 %>%
   pivot_longer(-hh_id,
                names_to = "status",
                values_to = "pct") %>% 
-  left_join(rmtl_con_vars) 
+  left_join(rmtl_cntrl_vars) 
  
 # DESC STAT  ----
 improved_seeds_22 %>% group_by(status, in_project) %>% 

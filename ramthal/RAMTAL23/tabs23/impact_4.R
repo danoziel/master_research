@@ -6,9 +6,60 @@ library(tidyverse)
 library(readxl)
 
 # balance test - t-test ----
+
+df_tableC_bl <- df_tableBbl|> mutate(vars = str_remove(vars, "_Kharif|_Rabi")) |> 
+  summarise(val_bl = sum(val_bl,na.rm = T),.by = c(hh_id,vars))
+
+df_tableD_bl <- df_tableC_bl |> 
+  mutate(vars = sub("acre", "adopted", vars),val_bl = +(val_bl != 0))
+
+bv_revenue_income_bl <- 
+  df_income_f3_bl%>% 
+  left_join(land_holding_bl) %>% 
+  mutate(reve_acre_bl=income_bl/hh_acre_bl)%>%
+  pivot_longer(cols = -hh_id, names_to = "vars",values_to = "val_bl")
+
+
+df_inputs <- 
+  df_inputs_type_22 %>% left_join(df_inputs_type_bl) %>% 
+  mutate(
+  )
+df_inputs %>% count(vars)
+
+
+labor_days <- 
+  family_labor_22 %>% left_join(labor_days_BL) %>% 
+
+labor_days %>% count(vars)
+
+
+df_reg_bl <- 
+  df_tableBbl |> rbind(df_tableC_bl) |> rbind(df_tableD_bl) |> 
+  mutate(  
+    val_bl=ifelse(vars=="Y202122_acre" & val_bl> 50, 0,val_bl),  # 18.1
+    val_bl=ifelse(vars=="WaterIntensive_acre" & val_bl> 18, 0,val_bl),  # 26
+    val_bl=ifelse(vars=="Rainfed_acre" & val_bl > 35, 0,val_bl),
+    val_bl=ifelse(vars=="Rainfed_acre_Rabi" & val_bl > 34, 0,val_bl), # >=40
+    val_bl=ifelse(vars=="WaterIntensive_acre_Rabi" & val_bl> 10,0,val_bl), # 22
+    val_bl=ifelse(vars=="WaterIntensive_acre_Kharif" & val_bl> 15,0,val_bl)
+  )
+
+df_reg_bl <-
+  bv_revenue_income_bl |> 
+  rbind(df_inputs_type_bl) |> rbind(labor_days_BL) |> 
+  mutate( val_bl=ifelse(vars=="labor_days_total" & val_bl >= 2780 ,NA,val_bl),
+          val_bl=ifelse(vars =="input_mechanization" & val_bl > 3.9, NA,val_bl)
+  ) |> 
+  rbind(
+    df_income_NonCrop_bl <- d_I1b |> rbind(d_I2b) |> rename(vars=income_type)
+  )
+
+
+
+
 library(rstatix)
 tbl_t1 <- 
-  df_reg_22  %>%
+  df_reg_bl  %>%
   left_join(rmtl_cntrl_vars %>% select(hh_id,in_project,cardinal_direction)
             ) %>% 
   group_by(vars) %>%
@@ -18,7 +69,7 @@ tbl_t1 <-
   rename(In = estimate2 ,Out = estimate1) 
 
 tbl_t2 <- 
-  df_reg_22  %>%
+  df_reg_bl  %>%
   left_join(rmtl_cntrl_vars %>% select(hh_id,in_project,cardinal_direction)
   ) %>% filter(cardinal_direction=="south") %>% 
   group_by(vars) %>%
@@ -384,36 +435,29 @@ df_tableA <-
   rbind(df_tableD) %>% 
   # rbind(df_tableE2) %>% 
   # rbind(df_tableE1 ) |> 
-  mutate(
-    val_22=ifelse(vars=="Y202122_acre" & val_22> 79 ,NA,val_22),
-    
-    val_22=ifelse(vars=="Rabi_acre" & val_22> 46 ,NA,val_22),
-    val_22=ifelse(vars=="Kharif_acre" & val_22> 56 ,NA,val_22), 
-    
-    val_22=ifelse(vars=="WaterIntensive_acre" & val_22> 26 ,NA,val_22), # 15
-    val_22=ifelse(vars=="Rainfed_acre" & val_22 > 50, NA,val_22), 
-    # RABI
-    val_22=ifelse(vars=="WaterIntensive_acre_Rabi" & val_22> 10 ,NA,val_22),
-    val_22=ifelse(vars=="Rainfed_acre_Rabi" & val_22> 47 ,NA,val_22),
-    # KHARIF
-    val_22=ifelse(vars=="WaterIntensive_acre_Kharif" & val_22> 15 ,NA,val_22),
-    val_22=ifelse(vars=="Rainfed_acre_Kharif" & val_22> 44 ,NA,val_22)
-  ) %>% 
+  # mutate(
+  #   val_22=ifelse(vars=="Y202122_acre" & val_22> 79 ,NA,val_22),
+  #   val_22=ifelse(vars=="Rabi_acre" & val_22> 46 ,NA,val_22),
+  #   val_22=ifelse(vars=="Kharif_acre" & val_22> 56 ,NA,val_22), 
+  #   val_22=ifelse(vars=="WaterIntensive_acre" & val_22> 26 ,NA,val_22), # 15
+  #   val_22=ifelse(vars=="Rainfed_acre" & val_22 > 50, NA,val_22), 
+  #   val_22=ifelse(vars=="WaterIntensive_acre_Rabi" & val_22> 10 ,NA,val_22),
+  #   val_22=ifelse(vars=="Rainfed_acre_Rabi" & val_22> 47 ,NA,val_22),
+  #   val_22=ifelse(vars=="WaterIntensive_acre_Kharif" & val_22> 15 ,NA,val_22),
+  #   val_22=ifelse(vars=="Rainfed_acre_Kharif" & val_22> 44 ,NA,val_22)
+  # ) %>% 
   mutate(  
-    val_bl=ifelse(vars=="Y202122_acre" & val_bl> 65, NA,val_bl),  # 18.1
-    
+    val_bl=ifelse(vars=="Y202122_acre" & val_bl> 50, 0,val_bl),  # 18.1
     val_bl=ifelse(vars=="WaterIntensive_acre" & val_bl> 18, 0,val_bl),  # 26
-    val_bl=ifelse(vars=="Rainfed_acre" & val_bl > 40, 0,val_bl),
-    val_bl=ifelse(vars=="Rainfed_acre_Rabi" & val_bl > 35, 0,val_bl), # >=40
+    val_bl=ifelse(vars=="Rainfed_acre" & val_bl > 35, 0,val_bl),
+    val_bl=ifelse(vars=="Rainfed_acre_Rabi" & val_bl > 34, 0,val_bl), # >=40
     val_bl=ifelse(vars=="WaterIntensive_acre_Rabi" & val_bl> 10,0,val_bl), # 22
     val_bl=ifelse(vars=="WaterIntensive_acre_Kharif" & val_bl> 15,0,val_bl)
   ) 
 #
 df_tableA %>% count(vars)
-
+#
 df_reg_22 <- df_tableA %>% left_join(rmtl_cntrl_vars)
-
-df_reg_22  %>% count(vars)
 #
 #_______ DF assets _______ [df_assets]  ----
 
@@ -480,7 +524,7 @@ df_inputs %>% count(vars)
 #  labor_days  ............................   ----
 labor_days <- 
   family_labor_22 %>% left_join(labor_days_BL) %>% 
-  mutate( val_bl=ifelse(vars=="labor_days_total" & val_bl > 2780 ,NA,val_bl))
+  mutate( val_bl=ifelse(vars=="labor_days_total" & val_bl >= 2780 ,NA,val_bl)) 
 
 labor_days %>% count(vars)
 
@@ -495,12 +539,13 @@ labor_days %>% count(vars)
 df_reg_22 <- 
   df_return_invest%>% rename(vars=economic_vars) %>% 
   rbind(df_income_NonCrop) %>% 
-  filter(vars != c("k_income_assistance","k_income_independent")) %>%
+  filter(vars != c("k_income_assistance_mhh","k_income_independent_mhh")) %>%
   rbind(df_inputs) %>% 
   rbind(labor_days) %>% 
   left_join(rmtl_cntrl_vars) 
 
 df_reg_22 %>% count(vars)
+
 #
 
 #  Social  table reg outcome  ...........   ----
@@ -588,7 +633,10 @@ formulas_south <- list(model_b2 = fml_b, model_c2 = fml_c)
 #
 df_reg_22 %>% count(vars)
 #
+# OUT PUT ............................................  ----
 
+
+#
 # [final_table_bl] _______________ ----
 
 Intercept_bl <- df_reg_22 %>% filter(in_project==0) %>% group_by(vars) %>% summarise(Mean = mean(val_bl,na.rm=T)) %>% pivot_wider (names_from = "vars", values_from = "Mean") %>% mutate(metric="(Intercept)", model_name="Model_BL") %>% select(model_name, metric,everything() ) 
@@ -667,7 +715,10 @@ Intercept_bl |>
   rbind(final_table) |> 
   rbind(control_mean_south) |> 
   rbind(final_table_south) |> 
-  select(model_name,metric,drip_use_2017:im_in_project, drip_acre, drip_pct,source_ramthal ,any_source  ) |> 
+  select(model_name,metric,
+         income	,revenue_per_acre	,
+         k_income_assistance_mhh	,k_income_independent_mhh ,
+         k_income_assistance,k_income_independent) |> 
   kbl() %>% kable_styling()
 
 
@@ -731,7 +782,7 @@ Intercept_bl |>
   rbind(final_table_south) |> 
   select(model_name,metric,
          Farming_income, revenue_per_acre,
-         k_income_assistance_mhh   ,k_income_independent_mhh,
+         k_income_assistance   ,k_income_independent,
          input_irrigation,	input_mechanization,	input_labor,	
          labor_days_total, labor_days_perAcre) |> 
   kbl() %>% kable_styling()
@@ -817,18 +868,12 @@ Intercept_bl |>
          WaterIntensive_acre_Rabi,Rainfed_acre_Rabi,
          WaterIntensive_acre_Kharif,Rainfed_acre_Kharif,
          WaterIntensive_adopted, Rainfed_adopted,
-         # Kharif_acre, Rabi_acre,Y202122_acre
+          Kharif_acre, Rabi_acre ,Y202122_acre
   ) |> 
-  kbl() %>% kable_styling()
+  kbl() %>% kable_classic()
  
   
 
-  ) |> 
-  kbl(caption = "model a1 & b1 = Entire sample / model b2 & c2 & cc2 = South sample") %>% kable_styling()%>%
-  row_spec(c(1,6,12,17), background = "gray90") %>% 
-  row_spec(c(3,8,14,19), bold = T) %>%
-  row_spec(c(11,22), background = "gray70") %>%
-  footnote(c(" "))
 
 
 

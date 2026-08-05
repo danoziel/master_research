@@ -34,7 +34,7 @@ land_holding_bl <- BL_plotAcre %>% group_by(hh_id) %>% summarise(hh_acre_bl=sum(
 
 
 
-# croping patter
+# croping patter ----
 #1
 DF020726 <- plots_crop_2022 %>%   
   group_by(hh_id, season, plotID) %>% mutate(n=n())%>% ungroup() %>% mutate(acre_crop=acres/n) %>% 
@@ -317,11 +317,13 @@ df_revenue_22 <-
   filter(season !="KHA22") %>% 
   group_by(hh_id) %>% summarise(revenue22=sum(plotRevenue,na.rm = T)/1000)
 
+
 df_income_f3_bl <- 
   rmtl_baseline2016  %>% 
-  select(hh_id, F3_year ) %>% rename(income_bl=F3_year) %>% 
-  mutate(income_bl=income_bl/1000)
-
+  select(hh_id,F3_source, F3_month ,F3_year ) |> 
+  mutate(F3_year=ifelse(F3_year==0,NA,F3_year),
+         income_bl=(F3_month + F3_year)/1000) |> 
+  select(hh_id,income_bl )
 
 ### DF
 bv_22bl_A <- 
@@ -356,10 +358,12 @@ bv_22bl_A %>% pivot_longer(-hh_id,names_to = "vars",values_to = "val") %>%
 bv_revenue_income_22bl <- 
   df_revenue_22 %>%
   left_join(df_income_f3_bl) %>% 
+  left_join(land_holding_bl) %>% 
+  
   left_join(rmtl_cntrl_vars %>% select(hh_id,total_acre16)) |> 
   mutate(
     reve_acre_22= revenue22/total_acre16,
-    reve_acre_bl=income_bl/total_acre16
+    reve_acre_bl=income_bl/hh_acre_bl
   )
 
 
@@ -378,11 +382,14 @@ df_return_invest <-
     val_22 = case_when(
       economic_vars == "income"           & val_22 >= 940   ~ NA_real_,
       economic_vars == "revenue_per_acre" & val_22 >= 175   ~ NA_real_,
-      TRUE ~ val_22 ),
-    val_bl = case_when(
-      economic_vars == "income"           & val_bl > 317   ~ NA_real_,
-      economic_vars == "revenue_per_acre" & val_bl > 44  ~ NA_real_,
-      TRUE ~ val_bl ) )
+      TRUE ~ val_22 )) # |> 
+  # mutate(
+  #   val_bl = case_when(
+  #     economic_vars == "income"           & val_bl > 317   ~ NA_real_,
+  #     economic_vars == "revenue_per_acre" & val_bl > 44  ~ NA_real_,
+  #     TRUE ~ val_bl )
+  # )
+    
 df_return_invest$economic_vars[df_return_invest$economic_vars=="income"] <- "Farming_income"
 
 df_return_invest %>% 
@@ -390,6 +397,13 @@ df_return_invest %>%
   left_join(irrigation_BL_to_22 %>% select(hh_id,drip_use_2021)) %>% # Xdrip_use_2021_22 Xdrip_use_2022
   filter(economic_vars != "hh_acre", !is.na(drip_use_2021),!is.na(val_22 )) %>% 
   summarise(Mean=mean(val_22)*1000, n=n(),.by = c(economic_vars,in_project)) %>% arrange(economic_vars)
+
+df_return_invest %>% 
+  left_join(rmtl_cntrl_vars %>% select(hh_id,in_project)) |> 
+  summarise(Mean=mean(val_bl,na.rm=T)*1000, n=n(),
+            .by = c(economic_vars,in_project))%>% arrange(economic_vars)
+
+
 
 df_return_invest %>% 
   left_join(rmtl_cntrl_vars %>% select(hh_id,in_project)) %>% 

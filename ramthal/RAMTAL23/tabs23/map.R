@@ -1,5 +1,817 @@
 library(dplyr)
 library(stringr)
+library(tidyr)
+library(tidyverse)
+
+
+library(readxl)
+Bhoomi_20160610 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_data/baseline_survey_2016/20160610_irrigation_Bhoomi_entire_sample_YR_5.xlsx", sheet = "sample_2")
+
+
+############  Clean Ramthal_East.shp       [Ramthal_shp_1]              ####
+library(sf)
+
+sf::sf_use_s2(FALSE)  # Disable S2 to avoid geometry engine issues
+
+# Adjust this path if your file is stored elsewhere
+Ramthal_East_shp <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/villages/Ramthal_East.shp")
+v_Hachanur_shp <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/villages/Hachanur.shp")
+
+dev.new()  # opens a new plotting window
+plot(st_geometry(Ramthal_East_shp))
+dev.new()  # opens a new plotting window
+
+st_crs(Ramthal_East_shp)
+# EPSG:4326 →  lat/lon
+# EPSG:32643 →  UTM (meters)
+# Ramthal_East_shp - mismach - EPSG:4326 AND  UTM (meters)
+# Ramthal_East_shp has mismach of Bounding box UTM  and Geodetic CRS:WGS 84
+
+st_crs(Ramthal_East_shp) <- 32643  # UTM zone 43N — coordinates are in meters
+st_crs(Ramthal_East_shp)
+
+# DF= 
+as.data.frame(Ramthal_East_shp) %>%select(-path) %>% filter(!is.na(fid)) |>  filter(str_detect(id, "^129") )
+# id, "^105" Chinnapur AND Chikkabadawadagi
+##    104 = Chikkabadawadagi  [] all HH inside project
+##    105 = Chinnapur []
+
+# id, "^129" Virapura AND Banihatti
+##    29 = Virapura  [Veerapur]
+##    31 = Banihatti [Bannihatti, bannihatti] all HH inside project
+
+
+133001 - 133097 Chatnihal 
+136001 - 136059 Hirehunakunti 
+
+133001 - 133059 Chatnihal 33
+133060 - 133097 Hirehunakunti 36  /Bhoomi=Hirehunkunti
+as_tibble(Ramthal_East_shp) %>%select(-path) %>% 
+  filter(!is.na(fid)) |>  filter(str_detect(id, "^133") )    # 97 id
+
+as_tibble(Ramthal_East_shp) %>%select(-path) %>% 
+  filter(!is.na(fid)) |>  filter(str_detect(id, "^136") )    # 59 id
+
+Bhoomi_20160610 |> filter(village =="Chatnihal" ) |> count(survey)    # 61 survey
+Bhoomi_20160610 |> filter(village =="Hirehunkunti" ) |> count(survey) # 60 survey
+
+
+
+
+
+library(stringr)
+
+Ramthal_shp_1 <- Ramthal_East_shp %>%
+  mutate(id = case_when(
+    str_starts(as.character(id), "129") & layer == "Banihatti" ~ {
+      paste0("131", substr(as.character(id), 4, 6))
+    },
+    str_starts(as.character(id), "105") & layer == "Chikkabadawadagi" ~ {
+      paste0("104", substr(as.character(id), 4, 6))
+    },
+    T ~ as.character(id))) %>% mutate(id = as.integer(id)) |> 
+  mutate(
+    layer = case_when(
+      id >= 133064 & id <= 133097 ~ "NEW_NAME_HERE", # Replace with your target name
+      TRUE ~ layer )
+  ) |> select(-path) %>% filter(!is.na(fid) )
+
+
+
+# BDIKA
+Ramthal_shp_1 %>% filter(id >= 131000 & id <= 131999 ) %>%select(id, layer) %>%head(10)
+
+# Quick verification check
+Ramthal_shp_1 |> filter(id >= 133064 & id <= 133097) |> select(id, layer)
+
+as.data.frame(Ramthal_shp_1) |>  filter(str_detect(id, "^129") )
+
+as.data.frame(Ramthal_shp_1) %>% select(geometry) %>% distinct() %>% count()
+as.data.frame(Ramthal_shp_1) %>% select(id) %>% distinct() %>% count()
+# 24 id/shp_code have 2 POLYGONs each
+
+# list_shape_code |> mutate(n=n(),.by = shp_code ) |> arrange(desc(n))
+
+
+# Bhoomi_entire_sample ........................................................----
+
+library(readxl)
+Bhoomi_20160610 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_data/baseline_survey_2016/20160610_irrigation_Bhoomi_entire_sample_YR_5.xlsx", sheet = "sample_2")
+View(Bhoomi_20160610)
+
+Bhoomi = 
+  Bhoomi_20160610 |> select(Id, village, village_code,survey ,in1_out0,plot_match,south1_north0 )|>
+  mutate(village = stringr::str_to_title(village) )|>  
+  extract(  # Extract survey and hissa safely (including negative codes)
+    col = survey, into = c("survey", "hissa"),
+    regex = "^(-?[0-9]+)(.*)$", remove = T
+  ) |> 
+  filter(!is.na(survey))|>
+  mutate( survey=as.numeric(survey),
+          id = sprintf("1%02d%03d", as.numeric(village_code), survey),
+          id=as.numeric(id)) |> 
+  mutate(Village = paste0(village, " (#", village_code, ")"))
+  
+id = POLYGON
+Id = hh_id
+unique(Bhoomi$Village)
+# Sampling Frame
+n_distinct(Bhoomi$Id) # [] 11375
+
+# Sampling Frame: polygons IDs
+n_distinct(Bhoomi$id) # [] 2654
+
+# Map polygons
+length(unique(Ramthal_shp_1$id))# [] 3613
+
+# OVERLAP S 
+# what the overlap of | n_distinct(Bhoomi$id)
+#                     | length(unique(Ramthal_shp_1$id))
+df_overlap <- data.frame(id = intersect(Bhoomi$id, Ramthal_shp_1$id))
+nrow(df_overlap)
+
+# out of OVERLAP 
+df_bhoomi_only <- data.frame(id = setdiff(Bhoomi$id, Ramthal_shp_1$id))
+df_shp_only    <- data.frame(id = setdiff(Ramthal_shp_1$id, Bhoomi$id))
+nrow(df_bhoomi_only)
+nrow(df_shp_only)
+
+# length(unique(na.omit(Ramthal_shp_1$geometry)))# [] 3637
+
+Bhoomi |> select(Id,id,plot_match)|> 
+  filter(!is.na(plot_match)) |> count(id)|> count(n)
+# n    nn
+# <int> <int>
+# 1  1521
+# 2   122
+# 3    11
+# 4     3
+
+  
+pre_sample <- Bhoomi |> 
+  select(id, in1_out0, Id, Village, plot_match) |> 
+  rename(hh_id = Id) |> 
+  mutate(plot_match = +(!is.na(plot_match))) |> 
+  group_by(id) |> 
+  arrange(desc(plot_match), .by_group = TRUE) |> 
+  slice(1) |> 
+  ungroup() |> # filter(is.na(in1_out0))
+  mutate(
+    in1_out0 = case_when(
+      hh_id == 100360 ~0, # id115039 fid3425 layerherur 
+      hh_id == 103520 ~1, hh_id == 105686 ~ 0, .default = in1_out0
+      ) )|> 
+  mutate(category = case_when(
+    in1_out0 == 1 & plot_match == 1 ~ "In - Matched",
+    in1_out0 == 1 & plot_match == 0 ~ "In - Unmatched",
+    in1_out0 == 0 & plot_match == 1 ~ "Out - Matched",
+    in1_out0 == 0 & plot_match == 0 ~ "Out - Unmatched"
+  ))
+
+pre_sample |> filter(is.na(category))
+pre_sample |> count(plot_match)
+pre_sample |> count(category)
+
+library(sf)
+library(ggplot2)
+
+# 
+map_sf <- Ramthal_shp_1 |> left_join(pre_sample, by = "id") |> 
+  filter(Village == "Herur (#15)") 
+#
+ggplot(map_sf) +
+  geom_sf(aes(fill = category), color = "gray60", size = 0.1) +
+  # geom_sf_text(aes(label = id), size = 2.5, check_overlap = TRUE) +
+  scale_fill_manual(
+    values = c(
+      "In - Matched"    = "#2BAED6", #084594
+      "In - Unmatched"  = "#6BAED6",
+      "Out - Matched"   = "gray70", #525252
+      "Out - Unmatched" = "#CCCCCC" 
+    ),
+    na.value = "transparent"
+  ) +
+  theme_minimal()
+1-2-14-121-122-123
+library(ggplot2)
+library(RColorBrewer)
+
+# 1. פונקציה לייצור מפה לפי רשימת כפרים
+plot_village_group <- function(data, selected_villages) {
+  # ספירת כמות הכפרים בקבוצה (10 או 12)
+  n_villages <- length(selected_villages)
+  
+  # יצירת הוקטור הצבעוני: n צבעים מובחנים + אפור לכל השאר
+  map_colors <- c(brewer.pal(n_villages, "Paired"), "lightgray")
+  names(map_colors) <- c(selected_villages, "Other")
+  
+  # הפקת המפה
+  ggplot(data) +
+    geom_sf(aes(fill = ifelse(layer %in% selected_villages, layer, "Other")), color = "white") +
+    scale_fill_manual(values = map_colors, name = "Villages") +
+    theme_minimal()
+}
+
+# 2. חילוץ רשימת כל 42 הכפרים הייחודיים מהדאטה שלך (לפי סדר הופעתם)
+all_villages <- unique(map_sf$layer)
+
+# 3. חלוקת הכפרים ל-4 קבוצות (3 קבוצות של 10, וקבוצה אחרונה של 12)
+group1 <- all_villages[1:10]
+group2 <- all_villages[11:20]
+group3 <- all_villages[21:30]
+group4 <- all_villages[31:42] # מכיל את 12 הכפרים האחרונים
+
+# מפה 1 (כפרים 1-10)
+plot_village_group(map_sf, group1)
+plot_village_group(map_sf, group2)
+plot_village_group(map_sf, group3)
+plot_village_group(map_sf, group4)
+
+
+############  Clean Ramthal_East.shp       [Ramthal_shp_1]              ####
+library(sf)
+
+sf::sf_use_s2(FALSE)  # Disable S2 to avoid geometry engine issues
+
+# Adjust this path if your file is stored elsewhere
+Ramthal_East_shp <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/villages/Ramthal_East.shp")
+v_Hachanur_shp <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/villages/Hachanur.shp")
+
+dev.new()  # opens a new plotting window
+plot(st_geometry(Ramthal_East_shp))
+dev.new()  # opens a new plotting window
+
+st_crs(Ramthal_East_shp)
+# EPSG:4326 →  lat/lon
+# EPSG:32643 →  UTM (meters)
+# Ramthal_East_shp - mismach - EPSG:4326 AND  UTM (meters)
+# Ramthal_East_shp has mismach of Bounding box UTM  and Geodetic CRS:WGS 84
+
+st_crs(Ramthal_East_shp) <- 32643  # UTM zone 43N — coordinates are in meters
+st_crs(Ramthal_East_shp)
+
+# DF= 
+  as.data.frame(Ramthal_East_shp) %>%select(-path) %>% filter(!is.na(fid)) |>  filter(str_detect(id, "^129") )
+# id, "^105" Chinnapur AND Chikkabadawadagi
+##    104 = Chikkabadawadagi  [] all HH inside project
+##    105 = Chinnapur []
+
+# id, "^129" Virapura AND Banihatti
+##    29 = Virapura  [Veerapur]
+##    31 = Banihatti [Bannihatti, bannihatti] all HH inside project
+
+  
+  133001 - 133097 Chatnihal 
+  136001 - 136059 Hirehunakunti 
+  
+  133001 - 133059 Chatnihal 33
+  133060 - 133097 Hirehunakunti 36
+  
+  
+library(stringr)
+
+Ramthal_shp_1 <- Ramthal_East_shp %>%
+  mutate(id = case_when(
+    str_starts(as.character(id), "129") & layer == "Banihatti" ~ {
+      paste0("131", substr(as.character(id), 4, 6))
+    },
+    str_starts(as.character(id), "105") & layer == "Chikkabadawadagi" ~ {
+      paste0("104", substr(as.character(id), 4, 6))
+    },
+    T ~ as.character(id))) %>% mutate(id = as.integer(id)) |> 
+  mutate(
+    layer = case_when(
+      id >= 133064 & id <= 133097 ~ "NEW_NAME_HERE", # Replace with your target name
+      TRUE ~ layer )
+  ) |> select(-path) %>% filter(!is.na(fid) )
+
+
+
+# BDIKA
+Ramthal_shp_1 %>% filter(id >= 131000 & id <= 131999 ) %>%select(id, layer) %>%head(10)
+
+# Update the layer name strictly for IDs in the 133064-133097 range
+Ramthal_shp_1 <- Ramthal_shp_1 |> 
+  mutate(
+    layer = case_when(
+      id >= 133064 & id <= 133097 ~ "NEW_NAME_HERE", # Replace with your target name
+      TRUE ~ layer
+    )
+  )
+
+# Quick verification check
+Ramthal_shp_1 |> 
+  filter(id >= 133064 & id <= 133097) |> 
+  select(id, layer)
+
+
+as.data.frame(Ramthal_shp_1) %>% select(geometry) %>% distinct() %>% count()
+as.data.frame(Ramthal_shp_1) %>% select(id) %>% distinct() %>% count()
+
+
+as_tibble(Ramthal_shp_1) %>% select(id) %>% count(id) |> arrange(desc(n))
+as_tibble(Ramthal_shp_1) %>% select( geometry) %>% distinct()
+# 24 id/shp_code have 2 POLYGONs each
+
+list_shape_code |> mutate(n=n(),.by = shp_code ) |> arrange(desc(n))
+
+# DFs ------------------------------------------------------------------
+shpfile_3613_shp_code <- as_tibble(Ramthal_shp_1) |>  select(id) |> 
+  distinct() |> rename(shp_code=id)
+
+bl_1811_hh_id <- rmtl_baseline2016 |> select(hh_id)
+
+df_1702_shp_code <-  list_shape_code |> rename(hh_id=id)
+
+# DF להתאמות של 1:1
+df_match_ids_I <- # A tibble: 1,317 [df_one_ids]
+  df_1702_shp_code |> filter(!is.na(survey)) |> 
+  mutate(n=n(),.by = shp_code ) |> filter(n==1) |> select(-n)|> 
+  inner_join(shpfile_3613_shp_code) # Save polyID only if there is a match in the shapefile
+
+
+# בחירת תצפית ראשונה מפוליגונים שיש בהם 2-3 משקי בית
+df_match_ids_II <- # A tibble: 105
+  df_1702_shp_code  |> # [df_multi_ids]
+  filter(!is.na(survey)) |> 
+  mutate(n = n(), .by = shp_code) |> filter(n > 1) |> select(-n)|> 
+  inner_join(shpfile_3613_shp_code) |>  # Save polyID only if there is a match in the shapefile
+  slice_head(n = 1, by = shp_code)
+
+
+### 1317 + 105
+
+#### DFs [df_remaining_hh_I] [df_used_shpcode_I]
+
+# #  שאר התצפיות 
+df_remaining_hh_I <- rmtl_baseline2016 |> # [df_remaining_hhids_bl]
+  select(hh_id) |> anti_join( df_match_ids_I)|> anti_join( df_match_ids_II)
+
+df_used_shpcode_I <- rbind(df_match_ids_I,df_match_ids_II) |> select(shp_code)
+
+
+# CREAT SHP_CODE FOR df_remaining_hh_I
+library(dplyr)
+library(tidyr)
+
+#### DF [df_remaining_hh]
+df_remaining_hh <- # 389HH MASTER  df_creat_shp_code_I
+  df_remaining_hh_I |> left_join(rmtl_baseline2016) |> 
+  select(hh_id,  A10, # A9, 
+         num_range("D4_", 1:17), num_range("D5_", 1:17)) |> 
+  mutate(across(c(starts_with("D4_"), starts_with("D5_")), as.character)) |> 
+  pivot_longer(
+    cols = c(starts_with("D4_"), starts_with("D5_")),
+    names_to = c(".value", "plot_number"),
+    names_pattern = "(D4|D5)_(.*)" ) |> 
+  rename(survey = D4, plot_village_raw = D5) |> 
+  extract(  # Extract survey and hissa safely (including negative codes)
+    col = survey, into = c("survey", "hissa"),
+    regex = "^(-?[0-9]+)(.*)$", remove = T
+  )
+
+df_remaining_hh |> count(hh_id)  
+
+#### DF [index_code_village_II]
+index_code_village_I <- df_remaining_hh |> filter(!is.na(survey )) |> mutate( plot_village_raw = stringr::str_to_title(plot_village_raw)) |>  rename(HH_village=A10) |>  left_join(vill_cod |> rename(plot_village_raw=A9)) |> arrange(plot_village_raw)
+# library(writexl)
+# write_xlsx(index_code_village_I, "C:/Users/Dan/OneDrive/index_code_village_I.xlsx")
+# עדכון ידני לקוד של הכפרים
+# library(readxl)
+# index_code_village_II <- read_excel("C:/Users/Dan/OneDrive/index_code_village_I.xlsx")
+
+index_code_village_II[,1] |> distinct() # A tibble: 389
+
+#### DF [df_389] 
+# תצפיות נותרות אחרי סינון פוליגונים תפוסים וכלל חוות חסרות סורביינאמבר
+df_389 <- 
+  index_code_village_II |> select(hh_id,HH_village,survey,A10) |>  
+  mutate( survey=as.numeric(survey),
+          shp_code = sprintf("1%02d%03d", as.numeric(A10), survey)
+          ) |>  
+  left_join( # add used polygon
+    rbind(df_match_ids_I,df_match_ids_II) |> 
+      select(shp_code) |> mutate(shp_code=as.character(shp_code),polygon_used = 1) ) |> 
+  # chack avilable polygon from shapfil
+  left_join(
+    shpfile_3613_shp_code |>  mutate(shp_code=as.character(shp_code)) |> mutate(polygon_exists=1)
+    ) 
+
+df_389[,1] |> distinct() 
+# df_191|> filter(hh_id == 103687) 106975 |> filter(shp_code == 123014)
+
+#### DF []
+df_191 <-
+  df_389 |>  filter(survey!= -999,is.na(polygon_used), polygon_exists==1  ) |> 
+  select(hh_id,shp_code) |> distinct() |> 
+  mutate(n_hh_id=n(),.by = hh_id ) |> 
+  mutate(n_shp_code=n(),.by = shp_code ) 
+  
+DF126=df_191 |> filter(n_hh_id==1, n_shp_code==1) |> distinct() |> select(hh_id,shp_code)
+
+DF54=df_191 |> anti_join(DF126)|> 
+  distinct(hh_id, .keep_all = TRUE) |> 
+  distinct(shp_code, .keep_all = TRUE)
+
+DF02 <- df_191 |> anti_join(DF126)|> anti_join(DF54 |> select(hh_id) ) |> 
+  anti_join(DF54 |> select(shp_code)) |> 
+  slice_max(as.numeric(shp_code), n = 1, by = hh_id)
+  
+df_match_ids_III <- bind_rows(DF126,DF54,DF02) |> select(hh_id, shp_code)
+
+df_match_ids_III[,1] |> distinct()
+df_match_ids_III[,2] |> distinct()
+
+### [1317 + 105] + 182
+  
+bind_rows(df_match_ids_I,df_match_ids_II) |> 
+  bind_rows(df_match_ids_III |> mutate(shp_code=as.numeric(shp_code)) )
+
+
+df_389 |> arrange(hh_id) |> 
+  left_join( df_match_ids_III |> select(hh_id ) |> mutate(matchedHH=1)) |> 
+  left_join( df_match_ids_III |> select(shp_code  ) |> mutate(polygon_usedIII=1)  ) |> 
+  mutate(polygon_1 = if_else(polygon_used == 1 | polygon_usedIII == 1, 1, NA_real_)) |> 
+  select(-polygon_used, -polygon_usedIII) # |> filter(is.na(polygon_1),is.na(matchedHH))
+
+
+### אילתור פוליגונים ל 207 הנותרים
+# נוהל שכן
+df_179 <- df_389 |> arrange(hh_id) |> 
+    anti_join( df_match_ids_III |> select(hh_id)) |> 
+  filter(survey != -999) |> 
+  select(hh_id, shp_code) |>  mutate(shp_code=as.numeric(shp_code))
+  
+df_28 <- df_389 |> arrange(hh_id) |> 
+  anti_join( df_match_ids_III |> select(hh_id)) |> 
+  anti_join( df_179 |> select(hh_id)) |>  
+  select(hh_id, survey, A10,shp_code ) |> distinct()
+
+
+
+# נוהל שכן
+df_179
+  
+df_UNused_shpcode <- 
+  shpfile_3613_shp_code |> 
+  anti_join( df_match_ids_I)|> 
+  anti_join( df_match_ids_II)|> 
+  anti_join(df_match_ids_III |> mutate(shp_code=as.numeric(shp_code)) )
+
+
+
+library(dplyr)
+
+# 1. הכנת הדאטה
+hh_targets <- df_179 |> mutate(shp_code_num = as.numeric(shp_code))
+available_codes <- as.numeric(df_UNused_shpcode$shp_code)
+
+# 2. הקצאה ייחודית ללא חזרות
+results <- vector("numeric", length = nrow(hh_targets))
+
+for (i in seq_len(nrow(hh_targets))) {
+  current_code <- hh_targets$shp_code_num[i]
+  
+  # מציאת האינדקס של הקוד הפנוי הקרוב ביותר מתוך היתרה
+  best_idx <- which.min(abs(available_codes - current_code))
+  
+  # שמירת הקוד שנבחר
+  results[i] <- available_codes[best_idx]
+  
+  # הוסרת הקוד שנבחר ממלאי הפנויים!
+  available_codes <- available_codes[-best_idx]
+}
+
+# 3. חיבור התוצאה לטבלה הסופית
+df_179_unique <- hh_targets |> 
+  mutate(new_shp_code = results) |> 
+  select(hh_id, old_shp_code = shp_code, new_shp_code)
+
+
+# בדיקה 1: האם מספר ה-shp_code הראשיים שווה למספר השורות? (חייב להחזיר TRUE)
+n_distinct(df_179_unique$new_shp_code) == nrow(df_179_unique)
+
+# בדיקה 2: האם קיבלנו בדיוק 179 משקי בית ייחודיים?
+n_distinct(df_179_unique$hh_id)
+
+
+
+
+df_179_best <- df_179_unique |> 
+  # 1. חישוב המרחק המוחלט בין הקוד הישן לחדש
+  mutate(dist = abs(old_shp_code - new_shp_code)) |> 
+  # 2. בחירת השורה עם המרחק הקטן ביותר לכל hh_id
+  slice_min(dist, n = 1, by = hh_id, with_ties = FALSE) |> 
+  # 3. ניקוי עמודת המרחק הזמנית
+  select(-dist)
+
+# בדיקה 1: כמה משקי בית ייחודיים נשארו בטבלה הסופית?
+nrow(df_179_best)
+
+# בדיקה 2: לוודא שאין אף hh_id שמופיע פעמיים (חייב להחזיר TRUE)
+n_distinct(df_179_best$hh_id) == nrow(df_179_best)
+
+df_match_ids_VI <- df_179_best |> select(hh_id, new_shp_code) |> rename(shp_code=new_shp_code)
+
+
+### DF [df_28]
+
+
+df_UNused_shpcode_I <- 
+  shpfile_3613_shp_code |> 
+  anti_join( df_match_ids_I)|> 
+  anti_join( df_match_ids_II)|> 
+  anti_join(df_match_ids_III |> mutate(shp_code=as.numeric(shp_code)) ) |> 
+  anti_join( df_match_ids_VI)
+  
+
+library(dplyr)
+library(stringr)
+
+# 1. הכנת הדאטה
+hh_targets <- df_28 |> 
+  # חילוץ קוד הכפר (הספרות שמופיעות לפני המקף, למשל 115)
+  mutate(village_prefix = str_extract(shp_code, "^[0-9]+"))
+
+# מלאי פוליגונים פנויים כמחרוזות
+available_codes <- as.character(df_UNused_shpcode_I$shp_code)
+
+# 2. הקצאה אקראית ייחודית בתוך הכפר
+set.seed(42) # מבטיח תוצאות אקראיות אך שחיזירות (Reproducible)
+results <- character(nrow(hh_targets))
+
+for (i in seq_len(nrow(hh_targets))) {
+  prefix <- hh_targets$village_prefix[i]
+  
+  # מציאת כל הפוליגונים הפנויים שמתחילים בקוד הכפר הזה
+  matching_indices <- which(str_starts(available_codes, prefix))
+  
+  if (length(matching_indices) > 0) {
+    # הכללה: אם יש פוליגונים תואמים בכפר - בוחרים אחד באקראי
+    chosen_idx <- sample(matching_indices, 1)
+  } else {
+    # גיבוי: אם נגמרו הפוליגונים בכפר הספציפי הזה - בוחרים פוליגון אקראי מכלל המלאי
+    chosen_idx <- sample(seq_along(available_codes), 1)
+  }
+  
+  # שמירת הקוד שנבחר
+  results[i] <- available_codes[chosen_idx]
+  
+  # הסרת הקוד שנבחר ממלאי הפנויים כדי למנוע כפילויות!
+  available_codes <- available_codes[-chosen_idx]
+}
+
+# 3. חיבור התוצאה לטבלה
+df_28_matched <- hh_targets |> 
+  mutate(new_shp_code = as.numeric(results)) |> 
+  select(hh_id, old_shp_code = shp_code, new_shp_code)
+
+# 4. במידה ויש משקי בית שהיו להם כמה שורות ב-df_28, בוחרים שורה אחת לכל hh_id
+df_match_ids_V <- df_28_matched |> 
+  slice_head(n = 1, by = hh_id) |> 
+  select(hh_id, new_shp_code) |> rename(shp_code=new_shp_code)
+  
+
+
+# בדיקה 1: האם קיבלנו בדיוק 28 משקי בית ייחודיים?
+n_distinct(df_match_ids_V$hh_id)
+
+# בדיקה 2: האם כל הפוליגונים שהוקצו הם ייחודיים (ללא כפילויות)? (חייב להיות TRUE)
+n_distinct(df_match_ids_V$shp_code) == nrow(df_match_ids_V)
+
+
+list_match_shp_hh <- 
+  bind_rows( df_match_ids_I,
+           df_match_ids_II)|> 
+  bind_rows(df_match_ids_III |> mutate(shp_code=as.numeric(shp_code)) ) |> 
+  bind_rows( df_match_ids_VI,df_match_ids_V)|> select(hh_id, shp_code) |> 
+  left_join(rmtl_16_18_22_sample |> select(hh_id,sample) )
+
+
+n_distinct(list_match_shp_hh$hh_id)
+n_distinct(list_match_shp_hh$shp_code)
+list_match_shp_hh |> select(hh_id, shp_code) |> distinct()
+
+
+# MAP Ramthal_shp_1 -----------------------------------------
+#..........................................................----
+library(sf)
+library(ggplot2)
+
+# 1. מיזוג הנתונים אל תוך השייפפייל (id מול shp_code)
+map_data <- Ramthal_shp_1 |> 
+  left_join(list_match_shp_hh, by = c("id" = "shp_code")) |> 
+  # המרה לפקטור כדי שהצבעים יהיו קטגוריאליים
+  mutate(sample_factor = factor(sample, levels = c(1, 0), labels = c("Treatment", "Control")))
+
+map_data <- Ramthal_shp_1 |> 
+  left_join(pre_sample , by = c("id" )) |> 
+  mutate(in1_out0  = factor(in1_out0, levels = c(1, 0), labels = c("In", "Out")))
+
+
+# 2. יצירת המפה עם ggplot2
+ggplot(map_data) +
+  geom_sf(aes(fill = in1_out0), color = "gray80") +
+  scale_fill_manual(
+    values = c(
+      "In" = "royalblue",
+      "Out"     = "gray50"
+    ),
+    na.value = "white", 
+    name = "Sample Group"
+  ) +
+  theme_minimal() +
+  labs(title = "")
+dev.off()
+
+
+ggplot(data = map_data) +
+  geom_sf(aes(fill = layer), color = "gray80", size = 0.1) +
+  scale_fill_manual(
+    values = c(
+      "Hirehunakunti" = "royalblue",
+      "Chatnihal"     = "gray50"
+    ),
+    na.value = "gray92", # צובע את כל שאר הכפרים שלא צוינו למעלה
+    name = "Sample Group"
+  ) +
+  theme_minimal() +
+  labs(title = "")
+
+
+
+
+
+
+
+
+# ___________________________________________________________________________________
+# ___________________________________________________________________________________
+# ___________________________________________________________________________________
+
+
+
+df_creat_shp_code_I <- df_remaining_hh |> 
+  filter(survey > 0 )  |> 
+  mutate(   # Clean village names and standardize village codes to remove leading zeros
+    plot_village_raw = stringr::str_to_title(plot_village_raw), 
+    # A9 = stringr::str_to_title(A9), 
+    A10 = as.character(as.numeric(A10))
+    ) |> 
+  extract(  # Extract survey and hissa safely (including negative codes)
+    col = survey, into = c("survey", "hissa"),
+    regex = "^(-?[0-9]+)(.*)$", remove = T
+  ) |> 
+  mutate( survey=as.numeric(survey),
+           shp_code = sprintf("1%02d%03d", as.numeric(A10), survey),
+           shp_code = as.numeric(shp_code)) |> 
+  select(hh_id,shp_code) |> 
+  anti_join(df_match_ids_I |> select(shp_code)) |> 
+  anti_join(df_match_ids_II |> select(shp_code)) |> 
+  distinct() |> 
+  mutate(n=n(),.by = hh_id ) 
+  
+  
+
+df_creat_shp_code_III <- 
+  df_creat_shp_code_I |> select(hh_id, A10 ,survey)|> distinct() |> 
+  anti_join(df_creat_shp_code_II[,1] |> distinct()) |> mutate(survey="000") |> 
+  bind_rows(
+    df_creat_shp_code_II
+  )
+df_creat_shp_code_III |> count(hh_id)  
+
+
+
+
+
+
+vill_cod <- rmtl_baseline2016 |> select( A9, A10) |> 
+  mutate( A9 = stringr::str_to_title(A9), 
+          A10 = as.character(as.numeric(A10))) |> distinct()
+  
+index_code_village_I <-  # 361
+  df_creat_shp_code_III |> rename(HH_village=A10) |>  
+  left_join(vill_cod |> rename(plot_village_raw=A9)) |> 
+  arrange(plot_village_raw)
+
+# library(writexl)
+# write_xlsx(index_code_village_I, "C:/Users/Dan/OneDrive/index_code_village_I.xlsx")
+# עדכון ידני לקוד של הכפרים
+# library(readxl)
+# index_code_village_II <- read_excel("C:/Users/Dan/OneDrive/index_code_village_I.xlsx")
+
+df_creat_shp_code_III <- index_code_village_II |>
+  mutate( survey=as.numeric(survey),
+          shp_code = sprintf("1%02d%03d", as.numeric(A10), survey),
+          shp_code = as.numeric(shp_code)) |> 
+  select(hh_id,shp_code) |> distinct() |> 
+  left_join(
+    df_used_shpcode_I |> mutate(used=1)) |> # mark used polygons
+    mutate(n=n(),.by = hh_id ) # count hh_id
+
+df_match_ids_III <- 
+  df_creat_shp_code_III |> 
+  filter(is.na(used),n==1 )|> 
+  distinct(hh_id, .keep_all = TRUE) |> 
+  distinct(shp_code, .keep_all = TRUE)
+
+df_used_shpcode_II <- 
+  df_match_ids_I |> 
+  bind_rows (df_match_ids_II) |> 
+  bind_rows(df_match_ids_III) |> 
+  select(shp_code) |> distinct()
+
+df_553 <- 
+  df_creat_shp_code_III |> select(hh_id,shp_code) |> 
+  anti_join(df_match_ids_III |> select(hh_id)) |> distinct() |> 
+  left_join(
+    df_used_shpcode_II |> mutate(used=1)) # mark used polygons
+  
+
+# 1. הוספת דירוג עדיפות לכל שורה ב-df_553
+df_ranked <- df_553 |> 
+  mutate(
+    score = case_when(
+      used == 1             ~ 3,  # תפוס - מוצא אחרון/פסול
+      shp_code %% 1000 == 0 ~ 2,  # פנוי אך מסתיים ב-000 - עדיפות שנייה
+      TRUE                  ~ 1   # פנוי ורגיל - עדיפות ראשונה
+    )
+  )
+
+# 2. מיון ובחירת האפשרות הטובה ביותר לכל חקלאי
+df_best_per_hh <- df_ranked |> 
+  arrange(hh_id, score) |> 
+  slice_head(n = 1, by = hh_id)
+
+# 3. מניעת כפילויות בפוליגונים (התאמה ייחודית 1 ל-1)
+df_final_matched <- df_best_per_hh |> 
+  arrange(score) |> 
+  slice_head(n = 1, by = shp_code)
+
+df_best_per_hh |> filter(score==1)
+
+
+
+
+
+#
+
+# נבדוק התאמה ל פוליגונים הפנויים
+
+df_remain_match_177_shp <-  #177 matches
+  df_remaining_hhids_shp |> 
+  select(hh_id,shp_code) |> 
+  left_join(
+    df_UNused_shp |> mutate(shp_code=id) 
+  ) |> filter(!is.na(id)) |> select(-id) |> 
+  distinct(hh_id, .keep_all = TRUE) |> 
+  distinct(shp_code, .keep_all = TRUE)
+
+
+# לבדוק שום כמה נשאר
+
+# UNused shp ids
+df_UNused_shp_II <- 
+  as_tibble(Ramthal_shp_1) %>% select(id) %>% distinct() |> 
+  anti_join(df_used_shp_1422) |> 
+  anti_join(df_remain_match_177_shp |> rename(id=shp_code) )
+  
+####
+df_remain_match_2_shp <- df_remaining_hhids_shp |> 
+  anti_join(df_remain_match_177_shp |> select(hh_id ) ) |> 
+  left_join(
+    df_UNused_shp_II |> mutate(shp_code=id) 
+  )|> filter(!is.na(id)) |> select(-id) |> 
+  slice_head(n = 1, by = hh_id) |> 
+  select(hh_id , shp_code)
+  
+
+# combin matched hh_id shp_code
+df_shp_1601  <- 
+  bind_rows(
+  df_match_ids_I, df_first_ids) |> 
+  select(id, shp_code) |> rename(hh_id=id) |> 
+  bind_rows(df_remain_match_177_shp) |> 
+  bind_rows(df_remain_match_2_shp)
+
+# UNused shp ids
+df_UNused_shp_III <- 
+  as_tibble(Ramthal_shp_1) %>% select(id) %>% distinct() |> 
+  anti_join(df_shp_1601 |> rename(id= shp_code) ) 
+  
+
+
+rmtl_baseline2016 |> select( hh_id) |> 
+  anti_join(df_shp_1601 ) 
+
+
+
+
+
+
+
+
 
 # DF use in this script
 rmtl_InOut
@@ -25,57 +837,15 @@ rmtl_cntrl_vars %>% select(village, dist_Km_boundary) %>%
 
 
 
-############  Clean Ramthal_East.shp       [Ramthal_clean]              ####
-library(sf)
 
-sf::sf_use_s2(FALSE)  # Disable S2 to avoid geometry engine issues
 
-# Adjust this path if your file is stored elsewhere
-Ramthal_East_shp <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/villages/Ramthal_East.shp")
-v_Chikkabadawadagi_shp <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/villages/Chikkabadawadagi.shp")
 
-dev.new()  # opens a new plotting window
-plot(st_geometry(Ramthal_East_shp))
-dev.new()  # opens a new plotting window
 
-st_crs(Ramthal_East_shp)
-# EPSG:4326 →  lat/lon
-# EPSG:32643 →  UTM (meters)
-# Ramthal_East_shp - mismach - EPSG:4326 AND  UTM (meters)
-# Ramthal_East_shp has mismach of Bounding box UTM  and Geodetic CRS:WGS 84
 
-st_crs(Ramthal_East_shp) <- 32643  # UTM zone 43N — coordinates are in meters
-st_crs(Ramthal_East_shp)
-
-rc= as.data.frame(Ramthal_East_shp) %>%select(-path) %>%   filter(str_detect(id, "^129") )
-# id, "^105" Chinnapur AND Chikkabadawadagi
-##    104 = Chikkabadawadagi  [] all HH inside project
-##    105 = Chinnapur []
-
-# id, "^129" Virapura AND Banihatti
-##    29 = Virapura  [Veerapur]
-##    31 = Banihatti [Bannihatti, bannihatti] all HH inside project
-
-library(stringr)
-
-Ramthal_shp_1 <- Ramthal_East_shp %>%
-  mutate(id = case_when(
-    str_starts(as.character(id), "129") & layer == "Banihatti" ~ {
-      paste0("131", substr(as.character(id), 4, 6))
-    },
-    str_starts(as.character(id), "105") & layer == "Chikkabadawadagi" ~ {
-      paste0("104", substr(as.character(id), 4, 6))
-    },
-    T ~ as.character(id))) %>% mutate(id = as.integer(id))
-
-# BDIKA
-Ramthal_shp_1 %>% filter(id >= 131000 & id <= 131999 ) %>%select(id, layer) %>%head(10)
-
-as.data.frame(Ramthal_shp_1) %>% select(geometry) %>% distinct() %>% count()
-as.data.frame(Ramthal_shp_1) %>% select(id) %>% distinct() %>% count()
-Ramthal_shp_2 <- Ramthal_shp_1 %>% select(-path) %>% filter(!is.na(layer))
 
 # Create centroids for each polygon (in meters)
+Ramthal_shp_2 <- Ramthal_shp_1
+
 Ramthal_centroids_utm <- 
   Ramthal_shp_2 %>% mutate(geometry = st_centroid(geometry))
 # class(Ramthal_centroids_utm) # sf , tbl_df , tbl , data.frame
@@ -1012,6 +1782,10 @@ shapfile_rmtl_2022 <- Ramthal_East_shp %>% left_join(shp_index22)
        -----------------------------
 
 # polygons ----
+
+shapfile_rmtl_2022 <- Ramthal_shp_1 |> select(-path) |> 
+  arrange( fid) |> filter(!is.na(fid) ) |> 
+  left_join(list_shape_code |> rename(hh_id=id, id = shp_code)) |> left_join(hh_2022)
 ggplot(shapfile_rmtl_2022) +geom_sf()
 
 
@@ -1048,9 +1822,9 @@ list_shape_code
 # project/ non project ----
 
 shapfile_rmtl_2022 %>% mutate(farmers_hh=ifelse(is.na(farmers_hh),"not_sampled",farmers_hh)) %>% 
-  ggplot()+ geom_sf(aes(fill = farmers_hh), color="gray55")+
+  ggplot()+ geom_sf(aes(fill = farmers_hh), color="gray25")+
   scale_fill_manual(
-    values = c("inside_ramthal" = "dodgerblue4", "outside_ramthal" = "orange3", "not_sampled" = "white"))+
+    values = c("inside_ramthal" = "dodgerblue4", "outside_ramthal" = "gray65", "not_sampled" = "white"))+
   theme_minimal() +theme(legend.position = "none")
 
 # share hh irrigation ----
