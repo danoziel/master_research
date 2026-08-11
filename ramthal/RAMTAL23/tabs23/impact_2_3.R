@@ -36,9 +36,7 @@ my_colors <- brewer.pal(8, "Dark2") # Paired, Set1
 
 
 
-#________________________ TABLE: agri-economy  ____________ ----
-
-#__________  df_inputs     -----
+# __________________________  df_inputs   ________________________________  -----
 # L70		irrigation equipment
 # L71		Mechanization
 # L72		Fuel
@@ -53,7 +51,7 @@ land_cult_2022 <-  # same as in impact.1.R script
   group_by(hh_id) %>% summarise(cult_acre_22=sum(acres,na.rm = T),.groups = "drop")
 
 
-df_inputs_22 <- 
+# df_inputs_22 <- 
   rmtl_srvy22 %>% 
   select(hh_id, contains ("l70"),contains ("l71"),# contains ("l72"),
          contains ("l73")) %>% 
@@ -101,7 +99,7 @@ cult_acre_bl <- bl_crop_plot_3s %>%
   left_join(BL_plotAcre) %>%
   summarise(acre = sum(plot_acre,na.rm = T),.by = hh_id )
 
-df_inputs_bl <- 
+# df_inputs_bl <- 
   rmtl_baseline2016 %>% 
   select(hh_id,D49_2015:D60_2014) %>% select(hh_id , contains("2015")) %>% 
   pivot_longer(-hh_id,names_to = "inputs", values_to = "inputs_Rs" ) %>% 
@@ -143,19 +141,21 @@ df_inputs_type_bl <-
   rename(vars=inputs ) %>% 
   select(hh_id, vars, val_bl)
 
+df_inputs <- df_inputs_type_22 %>% left_join(df_inputs_type_bl)
+
+# (//)   selectively removing observations.
+#  inputs 
+df_inputs |> mutate( val_bl=ifelse(vars =="input_mechanization" & val_bl > 3.9, NA,val_bl) )
 
 
 
-df_inputs %>% right_join(hh_2022) %>%
-  group_by(vars) %>%  t_test(val_bl ~ farmers_hh,detailed = T) 
-
-df_inputs %>% group_by(vars) %>%
-  summarise(p99 = quantile(val_22, probs = 0.99, na.rm = TRUE))
 
 
 
 
-# _________ labor Mandays ----
+
+
+# __________________________  df_labor_days  _____________________________  ----
 
 land_cult_2022 <- 
   plots_crop_2022 %>% 
@@ -238,13 +238,19 @@ d24_bl  %>%
   t_test(val_bl ~ farmers_hh, var.equal = F, detailed = T)
 
 # DF for REG
-labor_days <- 
-  family_labor_22 %>% left_join(labor_days_BL) %>% 
-  mutate( val_bl=ifelse(vars=="labor_days_total" & val_bl > 2780 ,NA,val_bl))
+df_labor_days <- 
+  family_labor_22 %>% left_join(labor_days_BL) |> 
+  filter(vars !="labor_days_perAcre")
+
+
+# (//)   selectively removing observations.
+#  labor_days
+df_labor_days |> 
+  mutate( val_bl=ifelse(vars=="labor_days_total" & val_bl >= 2780 ,NA,val_bl)) 
 
 
 
-#__________________________  df_income_NonCrop __ ----
+# __________________________  df_income_NonCrop  _________________________  ----
 
 # F1	Income sent by seasonal migrating household members
 # F2	Remittances (from permanent migrants)
@@ -316,27 +322,31 @@ d_I2b <- df_income_NonCrop_bl %>% select(-income_NonCrop) %>%
   summarise(y22_99 = quantile(val_22, probs = 0.99, na.rm = T),
             bl_99 = quantile(val_bl, probs = 0.99, na.rm = T))
 
-  df_income_NonCrop <- 
-    d_I1 %>% left_join(d_I1b) %>% 
-    rbind( d_I2 %>% left_join(d_I2b) ) %>% 
-    rename(vars=income_type) %>% 
-    # mutate(val_22 = case_when(
-    #   vars == "k_income_assistance" & val_22 > 306 ~ NA_real_,
-    #   vars == "k_income_assistance_mhh" & val_22 > 57 ~ NA_real_,
-    #   
-    #   vars == "k_income_independent" & val_22 > 505 ~ NA_real_,
-    #   vars == "k_income_independent_mhh" & val_22 > 114 ~ NA_real_,
-    #   TRUE ~ val_22 ))%>% 
-    # mutate(val_bl = case_when(
-    #   vars == "k_income_assistance" & val_bl > 288 ~ NA_real_,
-    #   vars == "k_income_assistance_mhh" & val_bl > 37 ~ NA_real_,
-    #   
-    #   vars == "k_income_independent" & val_bl > 404 ~ NA_real_,
-    #   vars == "k_income_independent_mhh" & val_bl > 83 ~ NA_real_,
-    #   TRUE ~ val_bl ))
+df_income_NonCrop <- 
+    d_I1 %>% left_join(d_I1b) %>%  # rbind( d_I2 %>% left_join(d_I2b) ) %>% 
+    rename(vars=income_type) 
 
 
-#__________________________  df_assets  ________  ----
+# (//)   selectively removing observations.
+df_income_NonCrop |> 
+    mutate(val_22 = case_when(
+      vars == "k_income_assistance" & val_22 > 306 ~ NA_real_,
+      vars == "k_income_assistance_mhh" & val_22 > 57 ~ NA_real_,
+
+      vars == "k_income_independent" & val_22 > 505 ~ NA_real_,
+      vars == "k_income_independent_mhh" & val_22 > 114 ~ NA_real_,
+      TRUE ~ val_22 ))%>%
+    mutate(val_bl = case_when(
+      vars == "k_income_assistance" & val_bl > 288 ~ NA_real_,
+      vars == "k_income_assistance_mhh" & val_bl > 37 ~ NA_real_,
+
+      vars == "k_income_independent" & val_bl > 404 ~ NA_real_,
+      vars == "k_income_independent_mhh" & val_bl > 83 ~ NA_real_,
+      TRUE ~ val_bl ))
+
+#
+
+# __________________________  df_assets __________________________________  ----
 
 # How many of this item does the household currently own? (0 if none)
 
@@ -411,25 +421,23 @@ df_assets15 <- df_tabE16 %>%
 df_assets15 %>% count(vars)
 
 # assets 22 15 ........................................................
-df_assets <- df_assets22 %>% inner_join(df_assets15)
-#......................................................................
 
-# Analysis ----
-
-df_economic <- 
-  df_income_NonCrop %>% 
-  rbind(df_return_invest %>% rename(ecomony_vars=economic_vars)) %>% filter(ecomony_vars != "hh_acre") %>%
-  # rbind(df_inputs) %>%
-  rbind(df_assets) %>%
-  left_join(rmtl_cntrl_vars) %>%   # select(in_project, dist_Km_boundary) %>% 
-  mutate(
-    dist_squared = dist_Km_boundary^2, # 1. המרחק בריבוע (עצמאי)
-    interaction_linear = in_project * dist_Km_boundary, # 2. אינטראקציה ליניארית
-    interaction_quadratic = in_project * dist_squared ,    # 3. אינטראקציה ריבועית
-    elev = ifelse(in_project==0, elevation_m*-1,elevation_m) 
-    )
+df_land_holding <- 
+  a_plots_size %>% 
+  filter(!plotStatus %in% c("1","6")) %>% 
+  group_by(hh_id) %>% 
+  summarise(val_22=sum(acres,na.rm = T)) %>% 
+  mutate(vars= "land_holding" ) %>% 
+  select(hh_id, vars, val_22) %>% 
+  left_join(rmtl_cntrl_vars) %>% rename(val_bl=total_acre16 ) %>% 
+  select(hh_id, vars, val_22, val_bl) 
 
 
+
+
+df_assets <- 
+  df_assets22 %>% inner_join(df_assets15) |> 
+  rbind(df_land_holding)
 
 
 
@@ -438,9 +446,15 @@ df_economic <-
 
 
 
-# PLOT                  ----
-library(jtools)
-library(ggplot2)
+
+
+
+
+
+
+
+
+# PLOT  #custom theme to format                ----
 
 #custom theme to format
 mp_theme=theme_bw()+
@@ -721,9 +735,9 @@ rc1 <-
 df_work_gender_22 <- 
   rc1 %>% mutate(val= ifelse(ans %in% c(9:12) & val==1,1,0 )) %>% 
   select(hh_id,hhm,val) %>% distinct() %>% 
-  group_by(hh_id,hhm) %>% summarise(val = sum(val)) %>% 
+  summarise(val = sum(val),.by = c(hh_id,hhm)) %>% 
   left_join( df_gender_roster) %>% 
-  group_by(hh_id,gender) %>% summarise(val = sum(val),n=n()) %>% 
+  summarise(val = sum(val),n=n(),.by = c(hh_id,gender)) %>% 
   group_by( hh_id) %>% mutate(n=sum(n)) %>% ungroup() %>% 
   filter(gender ==2) %>% 
   mutate(

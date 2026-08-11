@@ -4,10 +4,28 @@ library(tidyr)
 library(tidyverse)
 library(readxl)
 
-df_bv <- df_return_invest %>% left_join(rmtl_cntrl_vars)
+df_bv <- df_return_invest |> 
+  group_by(economic_vars) %>%
+  mutate(
+    val_22 = ifelse(val_22 > quantile(val_22, 0.995, na.rm = TRUE), NA, val_22)
+  ) %>% ungroup() |> 
+  left_join(rmtl_cntrl_vars)
 #
-m1 <- lm(val_22 ~ in_project, df_bv |> filter(economic_vars != "Farming_income" ) )
+m1 <- lm(val_22 ~ in_project, df_bv |> filter(economic_vars == "revenue_per_acre" ) )
+m2 <- lm(val_22 ~ in_project, df_bv |> filter(economic_vars == "Farming_income" ) )
+library(broom)
+# 1. Tidy both models with 95% CIs
+m1_tidy <- tidy(m1, conf.int = TRUE, conf.level = 0.95)
+m2_tidy <- tidy(m2, conf.int = TRUE, conf.level = 0.95)
+m1_tidy$model <- "Net farming profit per acre"
+m2_tidy$model <- "Net farming profit per household"
 
+# 3. Combine them into one clear table
+rbind(m1_tidy, m2_tidy) |> select(model,everything()) |> 
+  kable() |> kable_classic()
+
+
+m1 <- lm(val_22 ~ in_project, df_bv |> filter(economic_vars == "revenue_per_acre" ) )
 m3 <-  lm(val_22  ~ in_project + dist_Km_boundary + in_project * dist_Km_boundary + val_bl +hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge,
           df_bv |> filter(economic_vars == "Farming_income" ) )
 sjPlot::tab_model(m3 ,  show.se = T,digits = 5, show.stat  = F  ,show.ci = F)
@@ -377,12 +395,12 @@ df_return_invest <-
     cols = -hh_id,
     names_to = c("economic_vars", ".value"),
     names_sep = "_(?=[^_]+$)"
-  ) %>% rename(val_22 = `22`, val_bl = bl) %>% 
-  mutate(
-    val_22 = case_when(
-      economic_vars == "income"           & val_22 >= 940   ~ NA_real_,
-      economic_vars == "revenue_per_acre" & val_22 >= 175   ~ NA_real_,
-      TRUE ~ val_22 )) # |> 
+  ) %>% rename(val_22 = `22`, val_bl = bl)
+  # mutate(
+  #   val_22 = case_when(
+  #     economic_vars == "income"           & val_22 >= 940   ~ NA_real_,
+  #     economic_vars == "revenue_per_acre" & val_22 >= 175   ~ NA_real_,
+  #     TRUE ~ val_22 )) # |> 
   # mutate(
   #   val_bl = case_when(
   #     economic_vars == "income"           & val_bl > 317   ~ NA_real_,
@@ -405,7 +423,11 @@ df_return_invest %>%
 
 
 
-df_return_invest %>% 
+df_return_invest %>%
+  group_by(economic_vars) %>%
+  mutate(
+    val_22 = ifelse(val_22 > quantile(val_22, 0.995, na.rm = TRUE), NA, val_22)
+  ) %>% ungroup() |> 
   left_join(rmtl_cntrl_vars %>% select(hh_id,in_project)) %>% 
   left_join(irrigation_BL_to_22 %>% select(hh_id,drip_use_2021)) %>% 
   filter(economic_vars != "hh_acre", in_project==1,
@@ -415,7 +437,7 @@ df_return_invest %>%
             n=n(),.by = c(economic_vars, drip_use_2021)) %>% 
   arrange(economic_vars) %>% 
   mutate(N=sum(n),.by = economic_vars, n/N) %>% 
-  kable() %>% kable_paper()
+  kable() %>% kable_classic()
 
 #
 #

@@ -220,8 +220,11 @@ df_crop_treemap22 |>
     strip.text = element_text(color = "gray40", size = 12),
     panel.spacing = unit(.5, "lines")
   )
-  
-# +++++++++ df_tableBbl +++ {2016} ++++++++++++++++++++++++++++++++++++++++++  ----
+
+
+
+#    Cultivated land - DFs ................................................ ----
+##  +++++++++ df_tableBbl  {2016} ++++++++++++++++++++++++++++++++++++  ----
 
 crop_BL |> select(season ,hh_id,crop_common) |> distinct() |> count(season ,crop_common) |> arrange(desc(n))|> kable() |> kable_paper()
 # Bengal_gram rabi
@@ -266,7 +269,7 @@ df_tableBbl <- df_tableBbl_1 |>
   select(hh_id, vars, val_bl) %>% 
   complete(hh_id, vars, fill = list(val_bl = 0))
 
-# +++++++++ df_tableB   +++ {2022} +++++++++++++++++++++++++++++++++++++++++++  ----
+##  +++++++++ df_tableB    {2022} ++++++++++++++++++++++++++++++++++++  ----
 
 plots_crop_2022 |> select(season ,hh_id,crop_common) |> distinct() |> count(season ,crop_common) |> arrange(desc(n)) |> kable() |> kable_paper()
 # Bengal_gram rabi
@@ -307,7 +310,7 @@ df_tableB <- df_tableB_1 |>
   left_join(df_tableBbl)
 
 
-#_______ DF crop year ____ [df_tableC_]  ----
+##  +++++++++ df_tableC_   DF crop year ++++++++++++++++++++++++++++++  ----
 
 df_tableC <- 
   df_tableB |> mutate(vars = str_remove(vars, "_Kharif|_Rabi")) |> 
@@ -316,7 +319,7 @@ df_tableC <-
   ) |> arrange(hh_id)
 
 #
-# +++++++++ df_tableE   ++++++++++++++++++++++++++++++++++++++++++++++ ----
+##  +++++++++ df_tableE    +++++++++++++++++++++++++++++++++++++++++++  ----
 df_tableE2 <- df_tableB |>
   separate_wider_delim(
     cols = vars, delim = "_", 
@@ -340,7 +343,7 @@ df_tableE1 <- df_tableE2 |> mutate(vars="Y202122_acre") |>
 
 
 #
-# +++++++++ df_tableD   ++++++++++bcrop adopt ++++++++++++++++++++++++++++++++++++ ----
+##  +++++++++ df_tableD    +++++++++++++++++++++++++++++++++++++++++++  ----
 
 
 df_tableD <- df_tableC %>%
@@ -358,7 +361,7 @@ df_tableD |>left_join(hh_2022) |>  summarise(mean(val_22,na.rm=T),.by = c(vars,i
 
 
 #
-#_______ DF per crop _____  ----
+##  +++++++++ DF per crop  +++++++++++++++++++++++++++++++++++++++++++  ----
 df_crop_22=plots_crop_2022 %>%   # in DF.22.R 
   group_by(hh_id, season, plotID) %>% mutate(n=n())%>% ungroup() %>% mutate(acre_crop=acres/n) %>% 
   group_by(season,hh_id,crop_common) %>% 
@@ -382,70 +385,57 @@ df_Bengal_gram_bl <- df_per_crop_acre_bl %>% filter(vars %in% c("Bengal_gram_rab
 df_Toor_bl <- df_per_crop_acre_bl %>% filter(vars %in% c("Toor_kharif_2015","Toor_rabi_2014_15","Toor_rabi_2015_16" ) )
 
 
-# _____________ANALYSIS  cultivated land__________ ----
-
-df_tableD %>% count(vars)
-df_tableB %>% count(vars)
-df_tableC  %>% count(vars)
-df_tableE2  %>% count(vars)
-df_tableE1  %>% count(vars)
+#    Cultivated land - Sensitivity testing ____________ ----
 
 
-df_220626 <- df_tableE1  %>% filter(vars=="Y202122_acre") %>% left_join(rmtl_cntrl_vars) |> 
+# (100)  raw data  :::::::::::::::::::::::::::::::::::::::::::::::::::::::
+df_tableA_raw <- 
+  df_tableC |> rbind(df_tableB) |> rbind(df_tableD)
+# df_reg_22 <- df_tableA_raw |> left_join(rmtl_cntrl_vars) 
+
+
+## test only df_tableC  & df_tableB
+## df_tableD # is Binary
+
+# (1%)   removing the top    :::::::::::::::::::::::::::::::::::::::::::::
+df_tableA_99 <- df_tableC %>% rbind(df_tableB) %>%
+  group_by(vars) %>%
   mutate(
-    val_22=ifelse(vars=="Y202122_acre" & val_22 > 33, NA,val_22))
-    
-df_220626_1 <- df_tableE1  %>% filter(vars=="Y202122_acre") %>% left_join(rmtl_cntrl_vars) %>% 
-  mutate(dist_Km_boundary=ifelse(dist_to_boundary_m > 1600, NA,dist_Km_boundary)
-  )%>% filter(cardinal_direction =="south") |> 
+    val_bl = ifelse(val_bl > quantile(val_bl, 0.99, na.rm = TRUE), NA, val_bl),
+    val_22 = ifelse(val_22 > quantile(val_22, 0.99, na.rm = TRUE), NA, val_22)
+  ) %>% ungroup()
+# df_reg_22 <- df_tableA_99 |> left_join(rmtl_cntrl_vars) 
+
+
+# (0.5%) removing the top half percentile    :::::::::::::::::::::::::::::
+df_tableA_995 <- df_tableC %>% rbind(df_tableB) %>%
+  group_by(vars) %>%
   mutate(
-    val_22=ifelse(vars=="Y202122_acre" & val_22 > 33, NA,val_22))
-
-mA <-  lm(val_22  ~ in_project, df_220626 )
-mB <-  lm(val_22  ~ in_project +hh_haed_age+val_bl + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge,df_220626 )
-
-m2 <-  lm(val_22  ~ in_project +hh_haed_age+val_bl + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge,df_220626_1 )
-m3 <-  lm(val_22  ~ in_project + dist_Km_boundary+in_project*dist_Km_boundary +val_bl+hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge,df_220626_1)
-
-summary(mA)$coefficients["in_project", c("Estimate", "Pr(>|t|)")]
-summary(mB)$coefficients["in_project", c("Estimate", "Pr(>|t|)")]
-
-summary(m2)$coefficients["in_project", c("Estimate", "Pr(>|t|)")]
-summary(m3)$coefficients["in_project", c("Estimate", "Pr(>|t|)")]
-
-sjPlot::tab_model(mA,mB, m2,m3, terms = c("in_project","dist_Km_boundary"), show.se = F,digits = 3, show.stat  = F  ,show.ci = F)
-
-# library(rstatix)
-df_220626 %>% t_test(val_22 ~ in_project, detailed = T) %>% select(estimate1, estimate2,.y. ,p,n1,n2)
-df_220626 %>% t_test(val_bl ~ in_project, detailed = T) %>% select(estimate1, estimate2,.y. ,p,n1,n2)
+    val_bl = ifelse(val_bl > quantile(val_bl, 0.995, na.rm = TRUE), NA, val_bl),
+    val_22 = ifelse(val_22 > quantile(val_22, 0.995, na.rm = TRUE), NA, val_22)
+  ) %>% ungroup()
 
 
-df_tableD %>% count(vars)
-df_tableB %>% count(vars)
-df_tableC  %>% count(vars)
-df_tableE2  %>% count(vars)
-df_tableE1  %>% count(vars)
 
-df_tableA  %>% count(vars)
-# _____________{df_tableA[]  cultivated land__________ ----
-
-df_tableA <- 
+# (//)   selectively removing observations    ::::::::::::::::::::::::::::
+df_tableA_selectiv <- 
   df_tableC %>% 
   rbind(df_tableB) %>% 
   rbind(df_tableD) %>% 
-  # rbind(df_tableE2) %>% 
-  # rbind(df_tableE1 ) |> 
-  # mutate(
-  #   val_22=ifelse(vars=="Y202122_acre" & val_22> 79 ,NA,val_22),
-  #   val_22=ifelse(vars=="Rabi_acre" & val_22> 46 ,NA,val_22),
-  #   val_22=ifelse(vars=="Kharif_acre" & val_22> 56 ,NA,val_22), 
-  #   val_22=ifelse(vars=="WaterIntensive_acre" & val_22> 26 ,NA,val_22), # 15
-  #   val_22=ifelse(vars=="Rainfed_acre" & val_22 > 50, NA,val_22), 
-  #   val_22=ifelse(vars=="WaterIntensive_acre_Rabi" & val_22> 10 ,NA,val_22),
-  #   val_22=ifelse(vars=="Rainfed_acre_Rabi" & val_22> 47 ,NA,val_22),
-  #   val_22=ifelse(vars=="WaterIntensive_acre_Kharif" & val_22> 15 ,NA,val_22),
-  #   val_22=ifelse(vars=="Rainfed_acre_Kharif" & val_22> 44 ,NA,val_22)
-  # ) %>% 
+  rbind(df_tableE2) %>%
+  rbind(df_tableE1 ) %>%
+  mutate(
+    val_22=ifelse(vars=="Y202122_acre" & val_22> 79 ,NA,val_22),
+    val_22=ifelse(vars=="Rabi_acre" & val_22> 46 ,NA,val_22),
+    val_22=ifelse(vars=="Kharif_acre" & val_22> 56 ,NA,val_22),
+    val_22=ifelse(vars=="WaterIntensive_acre" & val_22> 26 ,NA,val_22), # 15
+    val_22=ifelse(vars=="Rainfed_acre" & val_22 > 50, NA,val_22),
+    val_22=ifelse(vars=="WaterIntensive_acre_Rabi" & val_22> 10 ,NA,val_22),
+    val_22=ifelse(vars=="Rainfed_acre_Rabi" & val_22> 47 ,NA,val_22),
+    val_22=ifelse(vars=="WaterIntensive_acre_Kharif" & val_22> 15 ,NA,val_22),
+    val_22=ifelse(vars=="Rainfed_acre_Kharif" & val_22> 44 ,NA,val_22),
+    val_22=ifelse(vars=="Y202122_acre" & val_22 > 33, NA,val_22)
+  ) %>%
   mutate(  
     val_bl=ifelse(vars=="Y202122_acre" & val_bl> 50, 0,val_bl),  # 18.1
     val_bl=ifelse(vars=="WaterIntensive_acre" & val_bl> 18, 0,val_bl),  # 26
@@ -455,32 +445,52 @@ df_tableA <-
     val_bl=ifelse(vars=="WaterIntensive_acre_Kharif" & val_bl> 15,0,val_bl)
   ) 
 #
-df_tableA %>% count(vars)
+
+
+df_raw_actual <- df_1pct_actual <- df_0.5pct_actual <- 
+  # 1. שנה כאן לשמות המשתנים האמיתיים של שלושת הפלטים 
+df_raw_actual <-    impact_table_agriculture     # הטבלה הגולמית
+df_1pct_actual <-   impact_table_agriculture    # טבלת ה-1%
+df_0.5pct_actual <- impact_table_agriculture  # טבלת ה-0.5%
+
+# 2. הקוד הפשוט והנקי לסידור העמודות זה לצד זה (באנגלית בלבד)
+vars <- setdiff(names(df_raw_actual), c("model_name", "metric"))
+
+clean_cols <- lapply(vars, function(v) {
+  df <- data.frame(df_raw_actual[[v]], df_1pct_actual[[v]], df_0.5pct_actual[[v]])
+  names(df) <- paste0(v, c("_raw", "_1pct", "_0.5pct"))
+  return(df)
+})
+
+final_table <- 
+  cbind(df_raw_actual[, c("model_name", "metric")], 
+        do.call(cbind, clean_cols)) |> 
+  kbl() %>% kable_styling()
+
+
+#  Cultivated land   table reg outcome  ____________________  ----
+
+Impact_Agriculture_995 <- readxl::read_excel("C:/Users/Dan/OneDrive/Documents/ramthal_database/Impact_Agriculture_995.xlsx")
+
+Impact_Agriculture_raw <- df_tableC |> rbind(df_tableB) |> rbind(df_tableD)
+Impact_Agriculture_995 <- df_tableA_995 |> rbind(df_tableD)
+  
+# writexl::write_xlsx(Impact_Agriculture_raw, "C:/Users/Dan/OneDrive/Documents/ramthal_database/Impact_Agriculture_raw.xlsx")
+# writexl::write_xlsx(Impact_Agriculture_995, "C:/Users/Dan/OneDrive/Documents/ramthal_database/Impact_Agriculture_995.xlsx")
+
+df_reg_22 <-  Impact_Agriculture_995 |> left_join(rmtl_cntrl_vars) 
+
+
 #
-df_reg_22 <- df_tableA %>% left_join(rmtl_cntrl_vars)
-#
-#_______ DF assets _______ [df_assets]  ----
+#  Assets    table reg outcome _____________________  ----
 
-
-df_land_holding <- 
-  a_plots_size %>% 
-  filter(!plotStatus %in% c("1","6")) %>% 
-  group_by(hh_id) %>% 
-  summarise(val_22=sum(acres,na.rm = T)) %>% 
-  mutate(vars= "land_holding" ) %>% 
-  select(hh_id, vars, val_22) %>% 
-  left_join(rmtl_cntrl_vars) %>% rename(val_bl=total_acre16 ) %>% 
-  select(hh_id, vars, val_22, val_bl) 
-
-unique(df_assets$vars)
 
 df_reg_22 <- 
   df_assets |> 
-  rbind(df_land_holding) |> 
   mutate(val_22=ifelse(vars=="land_holding" & val_22 > 39 ,NA,val_22)
          ) |> left_join(rmtl_cntrl_vars)
 
-#
+#  Correlation test for tractor equipment
 library(dplyr)
 library(tidyr)
 library(DT)
@@ -513,49 +523,108 @@ DF |> count(vars, farmers_hh,val) |> mutate(N=sum(n),.by = c(vars,farmers_hh),n/
 
 
 
-#  inputs .................................   ----
-df_inputs <- 
-  df_inputs_type_22 %>% left_join(df_inputs_type_bl) %>% 
+
+
+#  Economic  Sensitivity testing  ____________________  ----
+
+Impact_Economic_NOclean <- readxl::read_excel("C:/Users/Dan/OneDrive/Documents/ramthal_database/Impact_Economic_NOclean.xlsx")
+
+Impact_Economic_NOclean <- 
+  df_return_invest%>% rename(vars=economic_vars) %>% 
+  rbind(df_income_NonCrop) %>% 
+  rbind(df_inputs) %>% 
+  rbind(df_labor_days) |> 
+Impact_Economic_NOclean %>% count(vars)
+# writexl::write_xlsx(Impact_Economic_NOclean, "C:/Users/Dan/OneDrive/Documents/ramthal_database/Impact_Economic_NOclean.xlsx")
+
+#........................................................
+# Sensitivity testing 
+#........................................................
+# # Sensitivity testing by running the Reg models on: 
+# (1%)   removing the top percentile
+# (0.5%) removing the top half percentile
+# (100)  raw data
+# (//)   selectively removing observations
+#........................................................
+
+
+# (100)  raw data
+df_reg_22 <- Impact_Economic_NOclean |> left_join(rmtl_cntrl_vars) 
+
+
+# (1%)   removing the top percentile:
+Impact_Economic_clean_99 <- Impact_Economic_NOclean %>%
+  group_by(vars) %>%
   mutate(
-    val_bl=ifelse(vars =="input_mechanization" & val_bl > 3.9, NA,val_bl)
-  )
-df_inputs %>% count(vars)
-
-#  labor_days  ............................   ----
-labor_days <- 
-  family_labor_22 %>% left_join(labor_days_BL) %>% 
-  mutate( val_bl=ifelse(vars=="labor_days_total" & val_bl >= 2780 ,NA,val_bl)) 
-
-labor_days %>% count(vars)
+    val_bl = ifelse(val_bl > quantile(val_bl, 0.99, na.rm = TRUE), NA, val_bl),
+    val_22 = ifelse(val_22 > quantile(val_22, 0.99, na.rm = TRUE), NA, val_22)
+  ) %>% ungroup()
+df_reg_22 <- Impact_Economic_clean_99 |> left_join(rmtl_cntrl_vars) 
 
 
-#  Economic  table reg outcome  ...........   ----
+# (0.5%) removing the top half percentile,
+Impact_Economic_clean_995 <- Impact_Economic_NOclean %>%
+  group_by(vars) %>%
+  mutate(
+    val_bl = ifelse(val_bl > quantile(val_bl, 0.995, na.rm = TRUE), NA, val_bl),
+    val_22 = ifelse(val_22 > quantile(val_22, 0.995, na.rm = TRUE), NA, val_22)
+  ) %>% ungroup()
+df_reg_22 <- Impact_Economic_clean_995 |> left_join(rmtl_cntrl_vars) 
+
+
+
+df_raw_actual <- df_1pct_actual <- df_0.5pct_actual <- 
+  # 1. שנה כאן לשמות המשתנים האמיתיים של שלושת הפלטים 
+df_raw_actual <- impact_table_Economic     # הטבלה הגולמית
+df_1pct_actual <- impact_table_Economic    # טבלת ה-1%
+df_0.5pct_actual <- impact_table_Economic  # טבלת ה-0.5%
+
+# 2. הקוד הפשוט והנקי לסידור העמודות זה לצד זה (באנגלית בלבד)
+vars <- setdiff(names(df_raw_actual), c("model_name", "metric"))
+
+clean_cols <- lapply(vars, function(v) {
+  df <- data.frame(df_raw_actual[[v]], df_1pct_actual[[v]], df_0.5pct_actual[[v]])
+  names(df) <- paste0(v, c("_raw", "_1pct", "_0.5pct"))
+  return(df)
+})
+
+final_table <- 
+  cbind(df_raw_actual[, c("model_name", "metric")],  do.call(cbind, clean_cols)) |> 
+  kbl() %>% kable_styling()
+
+
+#  Economic  table reg outcome  ____________________  ----
 
 df_return_invest %>% count(economic_vars)
 df_income_NonCrop%>% count(vars)
 df_inputs %>% count(vars)
-labor_days %>% count(vars)
+df_labor_days %>% count(vars)
 
 df_reg_22 <- 
-  df_return_invest%>% rename(vars=economic_vars) %>% 
-  rbind(df_income_NonCrop) %>% 
-  filter(vars != c("k_income_assistance_mhh","k_income_independent_mhh")) %>%
-  rbind(df_inputs) %>% 
-  rbind(labor_days) %>% 
-  left_join(rmtl_cntrl_vars) 
+  Impact_Economic_clean_995 |> filter(vars != "labor_days_total") |> 
+  rbind(
+    Impact_Economic_clean_99 |> filter(vars == "labor_days_total")
+    ) |> left_join(rmtl_cntrl_vars) 
 
-df_reg_22 %>% count(vars)
-
+df_reg_22 |> count(vars)
 #
 
 #  Social  table reg outcome  ...........   ----
 
+# No need for sensitivity tests here - all variables are binary or indexed
+
 df_social_22 %>% count(social_vars)
 df_social_bl %>% count(social_vars)
 
-df_reg_22 <- 
-  df_social_22 %>% 
-  left_join(df_social_bl) %>% rename(vars=social_vars) |> 
+Impact_Social_raw <- readxl::read_excel("C:/Users/Dan/OneDrive/Documents/ramthal_database/Impact_Social_raw.xlsx")
+
+Impact_Social_raw <- 
+  df_social_22 %>% left_join(df_social_bl) %>% rename(vars=social_vars) 
+
+# writexl::write_xlsx(Impact_Social_raw, "C:/Users/Dan/OneDrive/Documents/ramthal_database/Impact_Social_raw.xlsx")
+
+
+df_reg_22 <- Impact_Social_raw |> 
   filter(!vars %in% c("woman_offFarmwork_freq", "offFarm_work_freq")) %>% 
   left_join(rmtl_cntrl_vars
   )
@@ -615,7 +684,7 @@ df_reg_22 <-
 df_reg_22 %>% count(vars)
 
 
-# 1. reg model     ----
+#  reg models     ----
 
 library(dplyr)
 library(purrr)
@@ -633,11 +702,11 @@ formulas_south <- list(model_b2 = fml_b, model_c2 = fml_c)
 #
 df_reg_22 %>% count(vars)
 #
-# OUT PUT ............................................  ----
+#  OUT PUT ............................................  ----
 
 
 #
-# [final_table_bl] _______________ ----
+# [final_table_bl] ____________________________________________ ----
 
 Intercept_bl <- df_reg_22 %>% filter(in_project==0) %>% group_by(vars) %>% summarise(Mean = mean(val_bl,na.rm=T)) %>% pivot_wider (names_from = "vars", values_from = "Mean") %>% mutate(metric="(Intercept)", model_name="Model_BL") %>% select(model_name, metric,everything() ) 
 
@@ -659,7 +728,7 @@ final_table_bl <-map_dfr(formula_BL, function(fml) {
 
 df_reg_22  %>% count(vars)
 
-# [final_table] ________ Entire Sample __ [df_reg_22] ______________________ ----
+# [final_table] ________ Entire Sample __ [df_reg_22] _________ ----
 
 control_mean <- df_reg_22 %>% filter(in_project==0) %>% group_by(vars) %>% summarise(Mean = mean(val_22,na.rm=T)) %>% pivot_wider (names_from = "vars", values_from = "Mean") %>% mutate(model_name="Model_A1",metric="control_mean") %>% select(model_name, metric,everything() ) 
 
@@ -680,7 +749,7 @@ final_table <- map_dfr(formulas_all, function(fml) {
 
 df_reg_22  %>% count(vars)
 
-# [final_table_south] __ South Sample ___ [df_reg_22_south] ________________ ----
+# [final_table_south] __ South Sample ___ [df_reg_22_south] ___ ----
 
 df_reg_22_south <- df_reg_22 %>% 
   mutate(dist_Km_boundary=ifelse(dist_to_boundary_m > 1600, NA,dist_Km_boundary)
@@ -705,20 +774,13 @@ final_table_south <- map_dfr(formulas_south, function(fml) {
 
 df_reg_22  %>% count(vars)
 #
-# [___] _______________________________________________________________  -----
-# Print  _______________________________________________________________  -----
+# [___] _______________________________________________________ -----
+# Print -----
 library(kableExtra)
 
-Intercept_bl |> 
-  rbind(final_table_bl) |> 
-  rbind(control_mean) |> 
-  rbind(final_table) |> 
-  rbind(control_mean_south) |> 
-  rbind(final_table_south) |> 
-  select(model_name,metric,
-         income	,revenue_per_acre	,
-         k_income_assistance_mhh	,k_income_independent_mhh ,
-         k_income_assistance,k_income_independent) |> 
+Intercept_bl |> rbind(final_table_bl) |> 
+  rbind(control_mean) |> rbind(final_table) |> 
+  rbind(control_mean_south) |> rbind(final_table_south) |> 
   kbl() %>% kable_styling()
 
 
@@ -770,42 +832,26 @@ final_table_south %>%
 
 
 
-# Print Farming economic ________________________________________________  -----
+# Print [impact_table_Economic] ________________________________________________  -----
 
 library(kableExtra)
 
-Intercept_bl |> 
-  rbind(final_table_bl) |> 
-  rbind(control_mean) |> 
-  rbind(final_table) |> 
-  rbind(control_mean_south) |> 
-  rbind(final_table_south) |> 
+df_raw_actual <- df_1pct_actual <- df_0.5pct_actual <- 
+
+impact_table_Economic  <- 
+  Intercept_bl |> rbind(final_table_bl) |> 
+  rbind(control_mean) |> rbind(final_table) |> 
+  rbind(control_mean_south) |> rbind(final_table_south)
+
+impact_table_Economic |> 
   select(model_name,metric,
          Farming_income, revenue_per_acre,
          k_income_assistance   ,k_income_independent,
          input_irrigation,	input_mechanization,	input_labor,	
-         labor_days_total, labor_days_perAcre) |> 
+         labor_days_total 
+         ) |> 
   kbl() %>% kable_styling()
 
-
-
-final_table %>% 
-  rbind(control_mean %>% mutate(model_name="Model_A1",metric="control_mean") %>% select(model_name, metric,everything() ) 
-  ) %>% 
-  rbind( final_table_south ) %>% 
-  rbind(  
-    control_mean_south %>% mutate(model_name="Model_A2",metric="control_mean") %>% select(model_name, metric,everything() )
-  ) %>%select(model_name,metric,
-              Farming_income, revenue_per_acre,
-              k_income_assistance_mhh   ,k_income_independent_mhh,
-              input_irrigation,	input_mechanization,	input_labor,	
-              labor_days_total, labor_days_perAcre
-  ) %>% 
-  kbl(caption = "model a1 & b1 = Entire sample / model b2 & c2 & cc2 = South sample") %>% kable_styling()%>%
-  row_spec(c(1,6,12,17), background = "gray90") %>% 
-  row_spec(c(3,8,14,19), bold = T) %>%
-  row_spec(c(11,22), background = "gray70") %>%
-  footnote(c(" "))
 
 
 
@@ -853,22 +899,27 @@ final_table %>%
 											
 
 
-# Print table [cultivated land]_____________________________________________________________  -----
+# Print [impact_table_Agriculture]    -----
 
 library(kableExtra)
 
-Intercept_bl |> 
+# df_raw_actual <- df_1pct_actual <- df_0.5pct_actual <- 
+
+impact_table_Agriculture <- 
+  Intercept_bl |> 
   rbind(final_table_bl) |> 
   rbind(control_mean) |> 
   rbind(final_table) |> 
   rbind(control_mean_south) |> 
-  rbind(final_table_south) |> 
+  rbind(final_table_south)
+
+impact_table_Agriculture |> 
   select(model_name,metric,
          WaterIntensive_acre,Rainfed_acre,
          WaterIntensive_acre_Rabi,Rainfed_acre_Rabi,
          WaterIntensive_acre_Kharif,Rainfed_acre_Kharif,
          WaterIntensive_adopted, Rainfed_adopted,
-          Kharif_acre, Rabi_acre ,Y202122_acre
+          # Kharif_acre, Rabi_acre ,Y202122_acre
   ) |> 
   kbl() %>% kable_classic()
  

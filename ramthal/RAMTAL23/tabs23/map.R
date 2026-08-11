@@ -3,6 +3,7 @@ library(stringr)
 library(tidyr)
 library(tidyverse)
 
+dev.off()
 
 library(readxl)
 Bhoomi_20160610 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_data/baseline_survey_2016/20160610_irrigation_Bhoomi_entire_sample_YR_5.xlsx", sheet = "sample_2")
@@ -60,6 +61,8 @@ Bhoomi_20160610 |> filter(village =="Hirehunkunti" ) |> count(survey) # 60 surve
 
 
 library(stringr)
+Ramthal_shp_1 <- st_read("C:/Users/Dan/OneDrive/Documents/ramthal_database/Ramthal_shp_1.shp")
+st_crs(Ramthal_shp_1)
 
 Ramthal_shp_1 <- Ramthal_East_shp %>%
   mutate(id = case_when(
@@ -70,11 +73,13 @@ Ramthal_shp_1 <- Ramthal_East_shp %>%
       paste0("104", substr(as.character(id), 4, 6))
     },
     T ~ as.character(id))) %>% mutate(id = as.integer(id)) |> 
-  mutate(
-    layer = case_when(
-      id >= 133064 & id <= 133097 ~ "NEW_NAME_HERE", # Replace with your target name
-      TRUE ~ layer )
-  ) |> select(-path) %>% filter(!is.na(fid) )
+  # mutate(
+  #   layer = case_when(
+  #     id >= 133064 & id <= 133097 ~ "NEW_NAME_HERE", # Replace with your target name
+  #     TRUE ~ layer )) |> 
+  select(-path) %>% filter(!is.na(fid) )
+
+# sf::st_write(Ramthal_shp_1, "C:/Users/Dan/OneDrive/Documents/ramthal_database/Ramthal_shp_1.shp")
 
 
 
@@ -96,8 +101,11 @@ as.data.frame(Ramthal_shp_1) %>% select(id) %>% distinct() %>% count()
 # Bhoomi_entire_sample ........................................................----
 
 library(readxl)
-Bhoomi_20160610 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_data/baseline_survey_2016/20160610_irrigation_Bhoomi_entire_sample_YR_5.xlsx", sheet = "sample_2")
+Bhoomi_20160610 <- readxl::read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_data/baseline_survey_2016/20160610_irrigation_Bhoomi_entire_sample_YR_5.xlsx", sheet = "sample_2")
 View(Bhoomi_20160610)
+
+
+Bhoomi <- readxl::read_excel("C:/Users/Dan/OneDrive/Documents/ramthal_database/Bhoomi.xlsx")
 
 Bhoomi = 
   Bhoomi_20160610 |> select(Id, village, village_code,survey ,in1_out0,plot_match,south1_north0 )|>
@@ -109,12 +117,18 @@ Bhoomi =
   filter(!is.na(survey))|>
   mutate( survey=as.numeric(survey),
           id = sprintf("1%02d%03d", as.numeric(village_code), survey),
-          id=as.numeric(id)) |> 
-  mutate(Village = paste0(village, " (#", village_code, ")"))
-  
+          id=as.numeric(id))  |> 
+  mutate(site_area = case_when(
+    south1_north0 == 1  ~ "South",
+    south1_north0 == 0  ~ "North", .default = "Center"
+  )) |> select(-south1_north0)
+# writexl::write_xlsx(Bhoomi, "C:/Users/Dan/OneDrive/Documents/ramthal_database/Bhoomi.xlsx")
+
 id = POLYGON
 Id = hh_id
-unique(Bhoomi$Village)
+
+unique(Bhoomi$village)
+
 # Sampling Frame
 n_distinct(Bhoomi$Id) # [] 11375
 
@@ -147,9 +161,10 @@ Bhoomi |> select(Id,id,plot_match)|>
 # 3    11
 # 4     3
 
-  
-pre_sample <- Bhoomi |> 
-  select(id, in1_out0, Id, Village, plot_match) |> 
+pre_sample <- readxl::read_excel("C:/Users/Dan/OneDrive/Documents/ramthal_database/pre_sample.xlsx")
+pre_sample <- 
+  Bhoomi |> 
+  select(id, in1_out0, Id, plot_match,site_area) |> 
   rename(hh_id = Id) |> 
   mutate(plot_match = +(!is.na(plot_match))) |> 
   group_by(id) |> 
@@ -162,11 +177,21 @@ pre_sample <- Bhoomi |>
       hh_id == 103520 ~1, hh_id == 105686 ~ 0, .default = in1_out0
       ) )|> 
   mutate(category = case_when(
-    in1_out0 == 1 & plot_match == 1 ~ "In - Matched",
-    in1_out0 == 1 & plot_match == 0 ~ "In - Unmatched",
-    in1_out0 == 0 & plot_match == 1 ~ "Out - Matched",
-    in1_out0 == 0 & plot_match == 0 ~ "Out - Unmatched"
-  ))
+    in1_out0 == 1 & plot_match == 1 ~ "In-Sampled",
+    in1_out0 == 1 & plot_match == 0 ~ "In",
+    in1_out0 == 0 & plot_match == 1 ~ "Out-Sampled",
+    in1_out0 == 0 & plot_match == 0 ~ "Out"
+  )) |> 
+  mutate(site_area_sample = case_when(
+    site_area == "South" & plot_match == 1 ~ "South-Sampled",
+    site_area == "North" & plot_match == 1 ~ "North-Sampled",
+    site_area == "Center" & plot_match == 1 ~ "Center-Sampled", 
+    .default = site_area
+  )) 
+
+
+
+writexl::write_xlsx(pre_sample, "C:/Users/Dan/OneDrive/Documents/ramthal_database/pre_sample.xlsx")
 
 pre_sample |> filter(is.na(category))
 pre_sample |> count(plot_match)
@@ -176,23 +201,114 @@ library(sf)
 library(ggplot2)
 
 # 
-map_sf <- Ramthal_shp_1 |> left_join(pre_sample, by = "id") |> 
-  filter(Village == "Herur (#15)") 
+map_sf <- Ramthal_shp_1 |> 
+  left_join(pre_sample, by = "id") |> 
+  mutate(village_code = as.numeric(substr(id, start = 2, stop = 3))) |> 
+  mutate(Village = paste0(layer, " (#", village_code, ")"))
+# filter(Village == "Herur (#15)") 
 #
 ggplot(map_sf) +
-  geom_sf(aes(fill = category), color = "gray60", size = 0.1) +
+  geom_sf(aes(fill = category), color = "gray90", size = 0.1) +
   # geom_sf_text(aes(label = id), size = 2.5, check_overlap = TRUE) +
   scale_fill_manual(
     values = c(
-      "In - Matched"    = "#2BAED6", #084594
-      "In - Unmatched"  = "#6BAED6",
-      "Out - Matched"   = "gray70", #525252
-      "Out - Unmatched" = "#CCCCCC" 
+      "In-Sampled"= "dodgerblue4", # steelblue
+      "In"  =       "dodgerblue",
+      "Out-Sampled" = "gray70", #525252
+      "Out" =         "gray85"
     ),
     na.value = "transparent"
   ) +
   theme_minimal()
-1-2-14-121-122-123
+#
+
+ggplot() +
+  # שכבה 1: רק הפוליגונים שהם NA (צבע קונטור שונה, ללא צבע מילוי)
+  geom_sf(data = filter(map_sf, is.na(site_area_sample)), 
+          fill = "transparent", color = "gray70", size = 0.2) +
+  
+  # שכבה 2: רק הפוליגונים עם הערכים (קונטור gray85 רגיל)
+  geom_sf(data = filter(map_sf, !is.na(site_area_sample)), 
+          aes(fill = site_area_sample), color = "gray45", size = 0.1) +
+  
+  scale_fill_manual(
+    values = c(
+      "Center"  = "bisque2", "Center-Sampled"  = "bisque4",
+      "North"  = "#8ECDB7",  "North-Sampled"  = "#52A58A",
+      "South" = "#EBABCE", "South-Sampled" = "#C66597"
+    )
+  ) +
+  theme_minimal()
+
+
+library(sf)
+library(dplyr)
+
+# 1. ניצור תיבה חוסמת (Bounding Box) מסביב לכל המפה שלך
+bbox_polygon <- st_as_sfc(st_bbox(map_sf))
+
+library(sf)
+library(dplyr)
+library(ggplot2)
+
+# --- שלב 1: תיקון הגיאומטריות הבעייתיות ב-Shapefile ---
+map_sf_fixed <- map_sf %>%
+  st_make_valid() %>%         # מתקן פוליגונים שחוצים את עצמם
+  st_buffer(dist = 0)        # מנקה בעיות קצה וטופולוגיה עדינה
+
+# --- שלב 2: יצירת הנגטיב (החלל הריק) ---
+
+# 1. יצירת תיבה חוסמת (Bounding Box) מסביב לכל המפה שלך
+bbox_polygon <- st_as_sfc(st_bbox(map_sf_fixed))
+
+# 2. חיבור כל הפוליגונים הקיימים לגוף אחד רציף (כעת יעבוד ללא השגיאה)
+combined_map <- st_union(map_sf_fixed)
+
+# 3. פעולת הנגטיב: החסרת המפה מהקופסה הגדולה (משאיר רק את ה"קרחות" והרקע)
+negative_space <- st_difference(bbox_polygon, combined_map)
+
+# --- שלב 3: ציור המפה עם הגוון הניטרלי שבחרת ---
+ggplot() +
+  # צביעת ה"אין" (הרקע/חורים) בגוון הניטרלי-חם שבחרת (חול-אפרפר)
+  geom_sf(data = negative_space, fill = "#C2B8B2", color = NA) + 
+  
+  # ציור קווי המתאר של הפוליגונים המקוריים בלבד (כדי שיראו את המבנה שלהם בתוך הריק)
+  geom_sf(data = map_sf_fixed, fill = "transparent", color = "gray85", size = 0.1) +
+  
+  theme_minimal()
+
+ggplot() +
+  geom_sf(data = negative_space, fill = "#C2B8B2", color = NA) + 
+    geom_sf(data = map_sf_fixed, fill = "transparent", color = NA) + 
+  theme_minimal() + theme(panel.grid.major = element_blank())
+
+library(ggplot2)
+
+# 1. נשמור את המפה לתוך משתנה (למשל בשם p)
+p <- ggplot() +
+  geom_sf(data = negative_space, fill = "#C2B8B2", color = NA) + 
+  geom_sf(data = map_sf_fixed, fill = "transparent", color = NA) + 
+  theme_minimal() +
+  # הסרת הרקע הלבן והקווים הלבנים של ה-Theme כדי להבטיח שקיפות מוחלטת
+  theme(
+    panel.background = element_blank(),
+    plot.background = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+# 2. שמירת הקובץ במחשב כ-PNG שקוף
+ggsave(
+  filename = "C:/Users/Dan/Desktop/my_transparent_map.png",
+  plot = p,                             # המשתנה של המפה שיצרנו
+  bg = "transparent",                   # הגדרת הרקע כשקוף
+  width = 10,                           # רוחב התמונה באינצ'ים
+  height = 8,                           # גובה התמונה באינצ'ים
+  dpi = 300                             # איכות תמונה גבוהה להדפסה או תצוגה
+)
+
+
+
 library(ggplot2)
 library(RColorBrewer)
 
@@ -207,25 +323,64 @@ plot_village_group <- function(data, selected_villages) {
   
   # הפקת המפה
   ggplot(data) +
-    geom_sf(aes(fill = ifelse(layer %in% selected_villages, layer, "Other")), color = "white") +
-    scale_fill_manual(values = map_colors, name = "Villages") +
+    geom_sf(aes(fill = ifelse(Village %in% selected_villages, Village, "Other")), color = "white") +
+    scale_fill_manual(
+      values = map_colors, breaks = selected_villages,
+      name = "Villages_________________") +
     theme_minimal()
 }
 
+
+
+
 # 2. חילוץ רשימת כל 42 הכפרים הייחודיים מהדאטה שלך (לפי סדר הופעתם)
-all_villages <- unique(map_sf$layer)
+all_villages <- unique(map_sf$Village)
 
 # 3. חלוקת הכפרים ל-4 קבוצות (3 קבוצות של 10, וקבוצה אחרונה של 12)
 group1 <- all_villages[1:10]
 group2 <- all_villages[11:20]
 group3 <- all_villages[21:30]
-group4 <- all_villages[31:42] # מכיל את 12 הכפרים האחרונים
+group4 <- all_villages[31:41]
 
 # מפה 1 (כפרים 1-10)
 plot_village_group(map_sf, group1)
 plot_village_group(map_sf, group2)
 plot_village_group(map_sf, group3)
 plot_village_group(map_sf, group4)
+
+
+
+
+
+library(ggplot2)
+library(sf)
+
+# 1. יצירת האובייקט (אם לא הרצת עדיין - יש להריץ פעם אחת)
+lines_list <- list(
+  st_linestring(coords_south1),
+  st_linestring(coords_north2),
+  st_linestring(coords_innerA),
+  st_linestring(coords_innerB),
+  st_linestring(coords_innerC)
+)
+
+ramthal_edge_sf <- st_sf(
+  geometry = st_sfc(lines_list, crs = st_crs(south1_edge_sf)),
+  type = c("South", "Other", "Other", "Other", "Other"))
+
+# 2. הפקת המפה המשולבת עם קווי אורך ורוחב
+ggplot() +
+  geom_sf(data = map_sf, aes(fill = category), color = "gray90", size = 0.1) +
+  geom_sf(data = ramthal_edge_sf_2, aes(color = type, size = type)) +
+  scale_color_manual(values = c("South" = "gray20", "Other" = "gray20"), guide = "none") +
+  scale_size_manual(values = c("South" = 0.5, "Other" = 0.5), guide = "none") +
+  scale_fill_manual(
+    values = c(
+      "In-Sampled"= "dodgerblue4","In"= "dodgerblue",
+      "Out-Sampled" = "gray70","Out"= "gray85"
+    ),na.value = "transparent") +
+  theme_minimal()
+#
 
 
 ############  Clean Ramthal_East.shp       [Ramthal_shp_1]              ####
@@ -593,50 +748,7 @@ n_distinct(list_match_shp_hh$shp_code)
 list_match_shp_hh |> select(hh_id, shp_code) |> distinct()
 
 
-# MAP Ramthal_shp_1 -----------------------------------------
-#..........................................................----
-library(sf)
-library(ggplot2)
 
-# 1. מיזוג הנתונים אל תוך השייפפייל (id מול shp_code)
-map_data <- Ramthal_shp_1 |> 
-  left_join(list_match_shp_hh, by = c("id" = "shp_code")) |> 
-  # המרה לפקטור כדי שהצבעים יהיו קטגוריאליים
-  mutate(sample_factor = factor(sample, levels = c(1, 0), labels = c("Treatment", "Control")))
-
-map_data <- Ramthal_shp_1 |> 
-  left_join(pre_sample , by = c("id" )) |> 
-  mutate(in1_out0  = factor(in1_out0, levels = c(1, 0), labels = c("In", "Out")))
-
-
-# 2. יצירת המפה עם ggplot2
-ggplot(map_data) +
-  geom_sf(aes(fill = in1_out0), color = "gray80") +
-  scale_fill_manual(
-    values = c(
-      "In" = "royalblue",
-      "Out"     = "gray50"
-    ),
-    na.value = "white", 
-    name = "Sample Group"
-  ) +
-  theme_minimal() +
-  labs(title = "")
-dev.off()
-
-
-ggplot(data = map_data) +
-  geom_sf(aes(fill = layer), color = "gray80", size = 0.1) +
-  scale_fill_manual(
-    values = c(
-      "Hirehunakunti" = "royalblue",
-      "Chatnihal"     = "gray50"
-    ),
-    na.value = "gray92", # צובע את כל שאר הכפרים שלא צוינו למעלה
-    name = "Sample Group"
-  ) +
-  theme_minimal() +
-  labs(title = "")
 
 
 
@@ -998,7 +1110,7 @@ miss_point_A <- miss_xy_B %>% select(hh_id, village_code, plotSrvy_clean,plotID)
   select(hh_id,id_new,X,Y)
 
 
-# combin [Ramthal_points]  ----
+# combin [Ramthal_points]                                  ----
 
 rr=hh_2022 %>% select(hh_id) %>% 
   left_join(
@@ -1064,7 +1176,7 @@ Ramthal_points <- Ramthal_pointsA %>%
 
 
 
-############  df to Ramthal boundary       [ramthal_border_utm]         ----
+# df to Ramthal boundary       [ramthal_border_utm]         ----
 #|==============================================================================
 library(sf)
 ramthal_border <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/ramthal_border.shp")
@@ -1086,7 +1198,7 @@ south1_in <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/
 north2_in <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/2 north-in.shp")
 # south3_out <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/3 south-out.shp")
 # north4_out <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/4 north-out.shp")
-# inner4_in <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/5 innner.shp")
+inner4_in <- st_read("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/New folder/5 innner.shp")
 
 st_crs(south1_in)
 dev.new()
@@ -1094,10 +1206,12 @@ plot(st_geometry(south1_in))
 
 south1_utm <- st_transform(south1_in, crs = 32643)
 north2_utm <- st_transform(north2_in, crs = 32643)
+inner4_utm <- st_transform(inner4_in, crs = 32643)
 
 # Step 1: Extract boundary coordinates from polygon
 boundary_coords1 <- st_coordinates(south1_utm)
 boundary_coords2 <- st_coordinates(north2_utm)
+boundary_coords4 <- st_coordinates(inner4_utm)
 
 # Step 2: Visualize coordinates to identify problematic points
 dev.new()  
@@ -1105,17 +1219,33 @@ plot(boundary_coords[, "X"], boundary_coords[, "Y"],type = "l", col = "gray", ma
 points(boundary_coords[, "X"], boundary_coords[, "Y"], col = "yellow", pch = 19)
 text(boundary_coords[, "X"], boundary_coords[, "Y"],labels = seq_len(nrow(boundary_coords)), cex = 0.5, pos = 3)
 
+boundary_coords_clean <- boundary_coords1 [75:nrow(boundary_coords1), ]
+edge_line  <- st_linestring(as.matrix(boundary_coords_clean[, c("X", "Y")]))
+edge_sf      <- st_sfc(edge_line, crs = st_crs(south1_utm))
+plot(st_geometry(edge_sf), col = "blue", lwd = 2,)
+
+
 # Step 3: Remove bad points
 boundary_coords_clean1 <- boundary_coords1 [75:nrow(boundary_coords1), ]
 boundary_coords_clean2 <- boundary_coords2 [94:189, ]
+boundary_coords_clean4a <- boundary_coords4 [126:141, ]
+boundary_coords_clean4b <- boundary_coords4 [142:164, ]
+boundary_coords_clean4c <- boundary_coords4 [181:nrow(boundary_coords4), ]
+
 
 # Step 4: Create a LINESTRING from cleaned coordinates
 south1_edge_line  <- st_linestring(as.matrix(boundary_coords_clean1[, c("X", "Y")]))
 north2_edge_line  <- st_linestring(as.matrix(boundary_coords_clean2[, c("X", "Y")]))
+innerA_edge_line  <- st_linestring(as.matrix(boundary_coords_clean4a[, c("X", "Y")]))
+innerB_edge_line  <- st_linestring(as.matrix(boundary_coords_clean4b[, c("X", "Y")]))
+innerC_edge_line  <- st_linestring(as.matrix(boundary_coords_clean4c[, c("X", "Y")]))
 
 # Step 5: Wrap into an sf object using the original CRS (UTM zone 43N)
-south1_edge_sf      <- st_sfc(south1_edge_line, crs = st_crs(south1_utm))
-north2_edge_sf      <- st_sfc(north2_edge_line, crs = st_crs(north2_utm))
+south1_edge_sf <- st_sfc(south1_edge_line, crs = st_crs(south1_utm))
+north2_edge_sf <- st_sfc(north2_edge_line, crs = st_crs(north2_utm))
+innerA_edge_sf <- st_sfc(innerA_edge_line, crs = st_crs(inner4_utm))
+innerB_edge_sf <- st_sfc(innerB_edge_line, crs = st_crs(inner4_utm))
+innerC_edge_sf <- st_sfc(innerC_edge_line, crs = st_crs(inner4_utm))
 
 dev.new()
 plot(st_geometry(south1_edge_sf), col = "blue", lwd = 2,)
@@ -1127,21 +1257,59 @@ plot(st_geometry(north2_edge_sf), col = "blue", lwd = 2,)
 # Step 1: Extract coordinates as separate matrices
 coords_south1 <- st_coordinates(south1_edge_sf)[, c("X", "Y")]
 coords_north2 <- st_coordinates(north2_edge_sf)[, c("X", "Y")]
+coords_innerA <- st_coordinates(innerA_edge_sf)[, c("X", "Y")]
+coords_innerB <- st_coordinates(innerB_edge_sf)[, c("X", "Y")]
+coords_innerC <- st_coordinates(innerC_edge_sf)[, c("X", "Y")]
+
 
 # Step 2: Wrap both in a list
-edge_segments <- list(coords_south1, coords_north2)
+edge_segments <- list(coords_south1, coords_north2,
+                      coords_innerA,coords_innerB,coords_innerC)
 
 # Step 3: Create MULTILINESTRING
 ramthal_multiline <- st_multilinestring(edge_segments)
 
 # Step 4: Convert to sf object with same CRS
 ramthal_edge_sf <- st_sfc(ramthal_multiline, crs = st_crs(south1_edge_sf))
-# south_edge_sf <- 
 
-# Plot result
-plot(ramthal_edge_sf, col = "red3", lwd = 2, main = "Combined Project Edge (Unconnected)")
+# Step 4B: יצירת אובייקט sf עם עמודת קטגוריה לצביעה
+ramthal_edge_sf_2 <- st_sf(
+  geometry = st_sfc(lines_list, crs = st_crs(south1_edge_sf)),
+  type = c("South", "Other", "Other", "Other", "Other") )
 
 
+sf::st_write(ramthal_edge_sf, "C:/Users/Dan/OneDrive/Documents/ramthal_database/ramthal_edge_sf.shp")
+sf::st_write(ramthal_edge_sf_2, "C:/Users/Dan/OneDrive/Documents/ramthal_database/ramthal_edge_sf_2.shp")
+
+library(sf)
+ramthal_edge_sf   <- sf::st_read("C:/Users/Dan/OneDrive/Documents/ramthal_database/ramthal_edge_sf.shp")
+ramthal_edge_sf_2 <- sf::st_read("C:/Users/Dan/OneDrive/Documents/ramthal_database/ramthal_edge_sf_2.shp")
+
+
+ggplot(ramthal_edge_sf) + geom_sf(color = "gray20", size = 0.5) + theme_void()
+ggplot(ramthal_edge_sf) + geom_sf(color = "gray20", size = 0.5) + theme_minimal()
+
+
+
+
+# 1.
+p <- ggplot(ramthal_edge_sf) + geom_sf(color = "gray20", size = 1) + theme_void()
+
+getwd()
+setwd("C:/Users/Dan/OneDrive/Documents/ramthal_database")
+# 2.
+ggsave("ramthal_edge.png", plot = p, bg = "transparent", width = 8, height = 8)
+
+
+
+
+# 3. הפקת המפה ב-ggplot2 עם צבעים מותאמים
+ggplot(data = ramthal_edge_sf_2) +
+  geom_sf(aes(color = type), size = 0.5) +
+  scale_color_manual(values = c("South" = "purple", "Other" = "gray20")) +
+  theme_void() +
+  theme(legend.position = "none")
+#
 
 # # Calculate shortest distance to the boundary  ----
 
