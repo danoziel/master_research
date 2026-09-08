@@ -435,11 +435,12 @@ df_land_holding <-
 
 
 
-df_assets <- 
+df_assets_raw <- 
   df_assets22 %>% inner_join(df_assets15) |> 
   rbind(df_land_holding)
 
 
+# writexl::write_xlsx(df_assets_raw, "C:/Users/Dan/OneDrive/Documents/ramthal_database/df_assets_raw.xlsx")
 
 
 

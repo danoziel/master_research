@@ -8,6 +8,132 @@ dev.off()
 library(readxl)
 Bhoomi_20160610 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_data/baseline_survey_2016/20160610_irrigation_Bhoomi_entire_sample_YR_5.xlsx", sheet = "sample_2")
 
+Bhoomi <- readxl::read_excel("C:/Users/Dan/OneDrive/Documents/ramthal_database/Bhoomi.xlsx")
+
+df_smpl <- Bhoomi |> 
+  filter(!is.na(in1_out0)) |> 
+  mutate(plot_match=ifelse(plot_match >= 0,1,0))|> 
+  mutate(site_area = case_when(
+    south1_north0 == 1  ~ "South",
+    south1_north0 == 0  ~ "North", .default = "Center"
+  )) |> filter(village != "Kamaladinni") |> 
+  mutate(site_area=ifelse( site_area == "Center" & in1_out0==0,"North",site_area ) )
+
+hh_baseline <- df_smpl |> 
+  filter(!is.na(plot_match)) |> 
+  select(Id,village,in1_out0) |> rename(hh_id=Id)
+
+
+bhoomi_village_In <- 
+  df_smpl |> filter(in1_out0 ==1 )|>
+  select(village,survey,site_area) |>  distinct() |> 
+  count(village,site_area)  |> arrange(village) |> 
+  rename(n_surveys_bhoomi=n)
+
+bhoomi_frame_sample <- 
+  df_smpl |> 
+  select(village,survey,in1_out0,site_area)|> distinct() |> 
+  count(village,in1_out0,site_area)  |> arrange(village) |> 
+  mutate(village_in_out_bhoomi=mean(in1_out0),.by = village,
+         village_in_out_bhoomi=ifelse(village_in_out_bhoomi==1,"all_in",ifelse(village_in_out_bhoomi==0,"all_out","in_out"))
+  ) 
+
+polygons_n_village <- as_tibble(Ramthal_shp_11) |> count(layer_update) |> rename(village=layer_update, n_polygons=n)
+
+bhoomi_frame_sample |> 
+  summarise(n_bhoomi=sum(n),
+            .by=c(village, village_in_out_bhoomi) )|> 
+  left_join(polygons_n_village) |> 
+  mutate(pct = n_bhoomi/n_polygons) |> 
+  arrange(village_in_out_bhoomi) |> 
+  as.data.frame()
+
+
+bhoomi_frame_sample |> 
+  summarise(n_bhoomi=sum(n),
+            .by=c(village,in1_out0, village_in_out_bhoomi) )|> 
+  left_join(polygons_n_village) |> 
+  mutate(pct = n_bhoomi/n_polygons) |> 
+  arrange(village_in_out_bhoomi) |> 
+  as.data.frame()
+
+
+
+
+bhoomi_village_in_out <- 
+  df_smpl |> select(village,survey,in1_out0) |> 
+  filter(!is.na(in1_out0 ))|> distinct() |> 
+  count(village,in1_out0)  |> arrange(village) |> 
+  mutate(village_in_out_bhoomi=mean(in1_out0),.by = village,
+         village_in_out_bhoomi=ifelse(village_in_out_bhoomi==1,"all_in",ifelse(village_in_out_bhoomi==0,"all_out","in_out"))
+  ) 
+
+list_1 = bhoomi_village_in_out|> 
+  filter(village_in_out_bhoomi !="all_out" ) |> 
+  select(village) |> distinct() 
+  
+# village_in_out_bhoomi     n
+# <chr>                 <int>
+# 1 all_in                  9
+# 2 all_out                 9
+# 3 in_out                 23
+
+
+Jain_crop_17_22 <- readr::read_csv("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_data/Jain_data/Jain_crop_17_22.csv")
+Jain_crop_17_22 |> select(survey_number ) |> count(survey_number )
+
+library(stringr)
+
+# Create a vector of only the standard names from the list
+clean_villages <- list_1$village
+
+Jain_crop_clean <- 
+  Jain_crop_17_22 |> 
+  mutate(
+    # Step 1: Basic cleaning of spaces and lowercase letters to improve accuracy
+    village_clean = trimws(tolower(village)),
+    
+    # Step 2: Find the index of the closest name from the standard list
+    closest_match_idx = amatch(village_clean, tolower(clean_villages), maxDist = 4, method = "jw"),
+    
+    # Step 3: Replace the original name with the official name from your list
+    village = ifelse(!is.na(closest_match_idx), clean_villages[closest_match_idx], village)
+  )|> 
+  select("farmer_name","zone","block","village","survey_number", "area_ha","crop","season" 
+         ) |> 
+  mutate(
+    survey_number = str_extract(survey_number, "^\\d+"),
+    survey_number = as.numeric(survey_number) ) 
+
+  
+Jain_crop_1 =  Jain_crop_clean |> 
+  drop_na() |> 
+  filter(survey_number < 1000, village !="Blank") |>   
+  select(village , survey_number) |> distinct() |> 
+  group_by(village) |> 
+  summarise(n_surveys_Jain = n() )
+
+
+bhoomi_village_In  |> 
+  left_join(Jain_crop_1) |> 
+  mutate(pct = n_surveys_bhoomi/n_surveys_Jain)
+
+bhoomi_Sampling_frame_IN <- 
+  bhoomi_village_In  |> 
+  mutate(site_area= ifelse(site_area=="Center","Inner","boundery")) |> 
+  summarise(n_surveys_bhoomi=sum(n_surveys_bhoomi),.by = c(village,site_area)) |> 
+  left_join(Jain_crop_1) |> 
+  mutate(pct = n_surveys_bhoomi/n_surveys_Jain) |> 
+  
+  mutate(village_in_out_bhoomi=n(),.by = village,
+       village_in_out_bhoomi=
+         ifelse(village_in_out_bhoomi==1,"all_in","in_out"))
+
+bhoomi_Sampling_frame_IN |> 
+  summarise(survy_num_covered = sum(pct),.by = village) |> 
+  mutate(survy_num_NOcovered= 1-survy_num_covered) |> 
+  arrange(survy_num_NOcovered)
+
 
 ############  Clean Ramthal_East.shp       [Ramthal_shp_1]              ####
 library(sf)
@@ -61,6 +187,8 @@ Bhoomi_20160610 |> filter(village =="Hirehunkunti" ) |> count(survey) # 60 surve
 
 
 library(stringr)
+library(sf)
+
 Ramthal_shp_1 <- st_read("C:/Users/Dan/OneDrive/Documents/ramthal_database/Ramthal_shp_1.shp")
 st_crs(Ramthal_shp_1)
 
@@ -81,7 +209,29 @@ Ramthal_shp_1 <- Ramthal_East_shp %>%
 
 # sf::st_write(Ramthal_shp_1, "C:/Users/Dan/OneDrive/Documents/ramthal_database/Ramthal_shp_1.shp")
 
+library(dplyr)
 
+Ramthal_shp_11 <- Ramthal_shp_1 |>
+  mutate(layer_update = case_match(
+    layer,
+    "Banihatti"        ~ "Bannihatti",
+    "Binjawadgi"       ~ "Binjawadagi",
+    "Chaitawadagi"     ~ "Chittavadagi",
+    "Gattiganur"       ~ "Ghattiganur",
+    "Hemavadgi"        ~ "Hemavadagi",
+    "Hirehunakunti"    ~ "Hirehunkunti",
+    "Jalakamaladinni"  ~ "Jalakamaladini",
+    "Jambladinni"      ~ "Jambaladinni",
+    "Kesarbhavi"       ~ "Kesarabhavi",
+    "Malligihal"       ~ "Malagihal",
+    "Nindasanur"       ~ "Nidasanur",
+    "Ramawadgi"        ~ "Ramawadagi",
+    "Virapura"         ~ "Virapur",
+    "herur"            ~ "Herur",
+    .default = layer
+  ))
+
+setdiff(polygons_n_village$village, bhoomi_frame_sample$village)
 
 # BDIKA
 Ramthal_shp_1 %>% filter(id >= 131000 & id <= 131999 ) %>%select(id, layer) %>%head(10)
@@ -100,12 +250,6 @@ as.data.frame(Ramthal_shp_1) %>% select(id) %>% distinct() %>% count()
 
 # Bhoomi_entire_sample ........................................................----
 
-library(readxl)
-Bhoomi_20160610 <- readxl::read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_data/baseline_survey_2016/20160610_irrigation_Bhoomi_entire_sample_YR_5.xlsx", sheet = "sample_2")
-View(Bhoomi_20160610)
-
-
-Bhoomi <- readxl::read_excel("C:/Users/Dan/OneDrive/Documents/ramthal_database/Bhoomi.xlsx")
 
 Bhoomi = 
   Bhoomi_20160610 |> select(Id, village, village_code,survey ,in1_out0,plot_match,south1_north0 )|>
@@ -164,7 +308,11 @@ Bhoomi |> select(Id,id,plot_match)|>
 pre_sample <- readxl::read_excel("C:/Users/Dan/OneDrive/Documents/ramthal_database/pre_sample.xlsx")
 pre_sample <- 
   Bhoomi |> 
-  select(id, in1_out0, Id, plot_match,site_area) |> 
+  select(id, in1_out0, Id, plot_match,south1_north0) |> 
+  mutate(site_area = case_when(
+    south1_north0 == 1  ~ "South",
+    south1_north0 == 0  ~ "North", .default = "Center"
+  )) |> select(-south1_north0) |> 
   rename(hh_id = Id) |> 
   mutate(plot_match = +(!is.na(plot_match))) |> 
   group_by(id) |> 
@@ -189,8 +337,6 @@ pre_sample <-
     .default = site_area
   )) 
 
-
-
 writexl::write_xlsx(pre_sample, "C:/Users/Dan/OneDrive/Documents/ramthal_database/pre_sample.xlsx")
 
 pre_sample |> filter(is.na(category))
@@ -202,26 +348,11 @@ library(ggplot2)
 
 # 
 map_sf <- Ramthal_shp_1 |> 
-  left_join(pre_sample, by = "id") |> 
-  mutate(village_code = as.numeric(substr(id, start = 2, stop = 3))) |> 
-  mutate(Village = paste0(layer, " (#", village_code, ")"))
-# filter(Village == "Herur (#15)") 
+  left_join(pre_sample, by = "id") #|>
+  # mutate(village_code = as.numeric(substr(id, start = 2, stop = 3))) |> 
+  # mutate(Village = paste0(layer, " (#", village_code, ")")) 
+  
 #
-ggplot(map_sf) +
-  geom_sf(aes(fill = category), color = "gray90", size = 0.1) +
-  # geom_sf_text(aes(label = id), size = 2.5, check_overlap = TRUE) +
-  scale_fill_manual(
-    values = c(
-      "In-Sampled"= "dodgerblue4", # steelblue
-      "In"  =       "dodgerblue",
-      "Out-Sampled" = "gray70", #525252
-      "Out" =         "gray85"
-    ),
-    na.value = "transparent"
-  ) +
-  theme_minimal()
-#
-
 ggplot() +
   # שכבה 1: רק הפוליגונים שהם NA (צבע קונטור שונה, ללא צבע מילוי)
   geom_sf(data = filter(map_sf, is.na(site_area_sample)), 
@@ -237,9 +368,25 @@ ggplot() +
       "North"  = "#8ECDB7",  "North-Sampled"  = "#52A58A",
       "South" = "#EBABCE", "South-Sampled" = "#C66597"
     )
-  ) +
+  ) + 
   theme_minimal()
 
+#
+
+ggplot(map_sf) +
+  geom_sf(aes(fill = category), color = "gray90", size = 0.1) +
+  geom_sf_text(aes(label = id), size = 2.5, check_overlap = TRUE) +
+  scale_fill_manual(
+    values = c(
+      "In-Sampled"= "dodgerblue4", # steelblue
+      "In"  =       "dodgerblue",
+      "Out-Sampled" = "gray70", #525252
+      "Out" =         "gray85"
+    ),
+    na.value = "transparent"
+  ) +
+  theme_minimal()
+#
 
 library(sf)
 library(dplyr)

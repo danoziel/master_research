@@ -1,8 +1,102 @@
+# SUMMARY 2016
+Kharif - Greengram   Toor Sunflower   
+Rabi  Chickpeas Sorghum
+
+cult_bl <- df_tableBbl_1 |> 
+  mutate(season = case_when(crop_common == "Toor" ~ "Kharif" ,T~ season )) %>%  
+  mutate(season = case_when(crop_common == "Sunflower" ~ "Kharif" ,T~ season )) %>%  
+  mutate(season = case_when(crop_common == "Maize" ~ "Kharif" ,T~ season )) %>%  
+  mutate(season = case_when(crop_common == "Millet" ~ "Kharif" ,T~ season )) %>%  
+  mutate(season = case_when(crop_common == "Pulses" ~ "Kharif" ,T~ season )) %>%  
+  mutate(season = case_when(crop_common == "Greengram" ~ "Kharif" ,T~ season )
+  )
+
+index_crop_season <- crop_BL |> select(crop_common   ) |> distinct() |> 
+  mutate(
+    season = case_when(
+      crop_common %in% c(
+         "Oilseeds", "Sugarcane", "Horticulture", "Vegetables"
+      ) ~ "Kharif,Rabi",
+      crop_common %in% c("Sunflower","Sorghum_jowar","Bengal_gram", "Wheat", "Onions") ~ "Rabi",
+      crop_common %in% c("Greengram", "Toor", "Millet", "Maize", "Groundnut", "Chillies","Pulses") ~ "Kharif", T ~ "Unknown"
+      )) |> 
+  separate_longer_delim(season, delim = ",")
+
+
+
+library(dplyr)
+library(tidyr)
+
+cult_bl |> 
+  summarise(Sum = sum(acre_crop), .by = crop_common) |> 
+    left_join(index_crop_season, by = "crop_common") |>
+    separate_longer_delim(season, delim = ",") |> 
+    left_join(cult_bl_season |> select(season, Total_acre), by = "season") |> 
+
+  summarise(
+    Sum = first(Sum), 
+    Total_acre = sum(Total_acre, na.rm = TRUE),
+    season = if_else(n() > 1, "GCA", first(season)),
+    .by = crop_common ) |>  
+  mutate(pct=Sum/Total_acre) |> arrange(desc(pct))
+
+
+
+Impact_Economic_clean |> select(-val_22) |> filter(vars %in% c("Farming_income","k_income_independent","k_income_assistance"), val_bl >0
+                                                   ) |>  
+  pivot_wider(
+  names_from = vars, 
+  values_from = val_bl,
+  # הפיכת כל ערך קיים (גדול מ-0) ל-1
+  values_fn = function(x) 1,
+  # מילוי ערכים ריקים/חסרים ב-0
+  values_fill = 0
+) |> mutate(both=k_income_independent+ k_income_assistance) |> mutate(K_=ifelse(both==2,"Both",ifelse(k_income_independent==1,"indi",ifelse(k_income_assistance ==1,"assi","non" )))) |> count(K_) |> mutate(N=sum(n),n/N)
+
+
+
+df_assets_raw |> select(-val_22)|> summarise(mean(val_bl, na.rm=T),.by=vars)
+
+
+Livestock_bl <- rmtl_baseline2016 %>% select(hh_id,E6_1, E7_1, E8_1, E9_1) |> rename_with(~ c(
+  "Cows","Bullock","Buffaloes","Goats_sheep"), 
+  .cols = 2:5) |> 
+  pivot_longer(-hh_id,names_to = "name", values_to = "vl") |> 
+  filter(!is.na(vl))
+
+
+livestock_wide <- Livestock_bl %>%
+  pivot_wider(names_from = name, values_from = vl, values_fill = 0)
+
+# 2. STATISTICAL ANALYSIS
+
+activity_percentages <- livestock_wide %>%
+  summarise(
+    total_households_in_sample = n(),
+    pct_with_any_livestock = (sum(Cows > 0 | Bullock > 0 | Buffaloes > 0 | Goats_sheep > 0) / n()),
+    pct_doing_dairy = (sum(Cows > 0 | Buffaloes > 0 | (Goats_sheep >= 1 & Goats_sheep <= 7)) / n()) ,
+    pct_doing_tillage = (sum(Bullock > 0) / n()) ,
+    pct_is_shepherd = (sum(Goats_sheep >= 7) / n()) 
+  )
+
+shepherd_avg_units <- livestock_wide %>%
+  filter(Goats_sheep >= 7) %>%
+  summarise(average_goats_sheep_units = mean(Goats_sheep))
+
+
+
+
+
+
+
+
 
 library(dplyr)
 library(tidyr)
 library(tidyverse)
 library(readxl)
+
+df_return_invest = df_reg_22_boundaries  |> filter(vars %in% c("Farming_income","revenue_per_acre"))
 
 df_bv <- df_return_invest |> 
   group_by(economic_vars) %>%
@@ -547,3 +641,135 @@ df_tableA <-  # is [df_croping] from impact1.R
   filter(vars=="land_holding", cardinal_direction == "south")  %>% 
   mutate(dist_Km_boundary=ifelse(dist_to_boundary_m > 1500, NA,dist_Km_boundary)
   )
+
+
+
+
+# map
+
+pre_sample_full_color <- 
+  Bhoomi |> 
+  select(id, in1_out0, Id, plot_match,south1_north0) |> 
+  mutate(site_area = case_when(
+    south1_north0 == 1  ~ "South",
+    south1_north0 == 0  ~ "North", .default = "Center"
+  )) |> select(-south1_north0) |> 
+  rename(hh_id = Id) |> 
+  mutate(plot_match = +(!is.na(plot_match))) |> 
+  group_by(id) |> 
+  arrange(desc(plot_match), .by_group = TRUE) |> 
+  slice(1) |> 
+  ungroup() |> # filter(is.na(in1_out0))
+  mutate(
+    in1_out0 = case_when(
+      hh_id == 100360 ~0, # id115039 fid3425 layerherur 
+      hh_id == 103520 ~1, hh_id == 105686 ~ 0, .default = in1_out0
+    ) )
+
+as.data.frame(Ramthal_shp_1) |>  filter(str_detect(id, "^129") )
+as.data.frame(Ramthal_shp_1) |>  count(layer_update)
+
+as.data.frame(Ramthal_shp_1) |>  left_join(pre_sample_full_color, by = "id") |>
+  select(-3,-4) |> 
+  filter(layer_update == "Marol") |> filter(is.na(hh_id))
+
+map_sf |> 
+  filter(layer_update == "Chatnihal") |> 
+  # filter(id >= 117310 & id <= 117340 ) |> 
+  ggplot() +
+  geom_sf(aes(fill = category), color = "gray90", size = 0.1) +
+  geom_sf_text(aes(label = id), size = 2.5, check_overlap = TRUE) 
+
+
+map_sf_2 <- Ramthal_shp_1 |> 
+  left_join(pre_sample_full_color, by = "id") |>
+  # filter(layer_update == "Marol") |> 
+  mutate(site_area= if_else(layer_update == "Turamari" &  is.na(site_area),"North",site_area )) |> 
+  mutate(site_area= if_else(layer_update == "Turamari" &  site_area == "Center","North",site_area )) |> 
+  mutate(site_area= if_else(layer_update == "Budihal" &  site_area == "South","North",site_area )) |> 
+  mutate(site_area= if_else(layer_update == "Chittavadagi" &  is.na(site_area),"South",site_area )) |> 
+  mutate(site_area= if_else(layer_update == "Binjawadagi" &  is.na(site_area),"Center",site_area )) |> 
+  mutate(site_area= if_else(layer_update == "Marol" &  is.na(site_area),"North",site_area )) |> 
+
+  mutate( # 106 Chintakamaladinni  # 117 Hungund 
+    site_area= if_else(id %in% c(106036, 117459, 117443),NA,site_area )) |> 
+  mutate( # Hungund
+    site_area= if_else(id %in% c(117327, 117329:117333, 117338:117339),"Center",site_area )) |> 
+  mutate( # Bekamaladinni
+    site_area= if_else(id %in% c(102025, 102033 ,102032, 102030 ,102026),"Center",site_area )) |> 
+  mutate( # Amaravathi
+    site_area= if_else(id %in% c(101051:101055, 101017:101028 ,101177 ,101182),"Center",site_area )) |> 
+  mutate( # Kesarabhavi
+    site_area= if_else(id %in% c(122087:122090 ,122095:122096, 122070,122039 ),"South",site_area )) |> 
+  mutate( site_area= if_else(id %in% c(122107:122108, 122102 ),"Center",site_area )) |> 
+  mutate( # Ramawadagi
+    site_area= if_else(id %in% c(126193:126197,126199:126201,126203:126205, 126207:126211),"Center",site_area )) |> 
+  mutate(                         # Ramawadagi___126_____   # Marol__124___
+    plot_match =  if_else(id %in% c(126197, 126201,126207,   124158, 124154 ),1,plot_match )) |>
+  mutate(in1_out0=if_else(id %in% c(126197, 126201,126207,   124158, 124154 ),1,in1_out0 )) |>
+
+  mutate( # 126 Ramawadagi 
+    site_area= if_else(id %in% c(126115:126129, 126179:126189, 126241:126244, 126252:126269),"Unsampled polygons",site_area )) |> 
+  mutate(site_area= if_else(layer_update == "Kesarabhavi" &  is.na(site_area),"Unsampled polygons",site_area )) |> 
+  mutate(site_area= if_else(layer_update == "Chatnihal" &  is.na(site_area),"Unsampled polygons",site_area )) |> 
+  mutate(site_area= if_else(layer_update == "Hungund" &  is.na(site_area),"Unsampled polygons",site_area )) |> 
+  
+    mutate(category = case_when(
+    in1_out0 == 1 & plot_match == 1 ~ "In-Sampled",
+    in1_out0 == 1 & plot_match == 0 ~ "In",
+    in1_out0 == 0 & plot_match == 1 ~ "Out-Sampled",
+    in1_out0 == 0 & plot_match == 0 ~ "Out"
+  )) |> 
+  mutate(site_area_sample = case_when(
+    site_area == "South" & plot_match == 1 ~ "South-Sampled",
+    site_area == "North" & plot_match == 1 ~ "North-Sampled",
+    site_area == "Center" & plot_match == 1 ~ "Center-Sampled", 
+    .default = site_area
+  )) |> 
+  left_join(irrigation_BL_to_22  |>  select(hh_id, ends_with("6y")) ) |> 
+  mutate(drip_use_6y=as.factor(drip_use_6y))
+  
+  
+ggplot() +
+  geom_sf(data = filter(map_sf_2, is.na(site_area_sample)), 
+          fill = "transparent", color = "transparent", size = 0.2) + # gray70
+  geom_sf(data = filter(map_sf_2, !is.na(site_area_sample)), 
+          aes(fill = site_area_sample), color = "gray20", size = 0.1) + # gray45
+  scale_fill_manual(
+    values = c(
+      "Center"  = "bisque2", "Center-Sampled"  = "bisque4",
+      "North"  = "#8ECDB7",  "North-Sampled"  = "#52A58A",
+      "South" = "#EBABCE", "South-Sampled" = "#C66597",
+      "Unsampled polygons" = "gray90")
+  ) + theme_minimal()
+
+
+
+ggplot(map_sf_2) +
+  geom_sf(aes(fill = as.factor(drip_use_6y)), color = "gray90", size = 0.1) +
+  scale_fill_manual(
+    values = c("1" = "dodgerblue4", "0" = "gray70" ),
+    labels = c("1" = "Use drip",  "0" = "No drip"
+    ), na.value = "transparent"
+  ) +
+  labs(fill = "Use drip irrigation at least once 2016-2022") + 
+  theme_minimal()
+
+
+ggplot() +
+  geom_sf(data = filter(map_sf_2, is.na(drip_use_6y)), 
+          fill = "transparent", color = "gray70", size = 0.2) + # gray70
+  geom_sf(data = filter(map_sf_2, !is.na(drip_use_6y)), 
+          aes(fill = drip_use_6y), color = "gray20", size = 0.1) + # gray45
+  scale_fill_manual(
+    values = c("1" = "dodgerblue4", "0" = "gray70" ),
+    labels = c("1" = "Use drip",  "0" = "No drip"
+    ), na.value = "transparent"
+  ) +
+  labs(fill = "Use drip irrigation at least once 2016-2022") + 
+  theme_minimal()
+
+
+
+
+
