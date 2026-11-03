@@ -52,7 +52,7 @@ land_cult_2022 <-  # same as in impact.1.R script
 
 
 # df_inputs_22 <- 
-  rmtl_srvy22 %>% 
+rmtl_srvy22 %>% 
   select(hh_id, contains ("l70"),contains ("l71"),# contains ("l72"),
          contains ("l73")) %>% 
   pivot_longer(-hh_id,names_to = "observation",values_to = "inputs_Rs" ) %>% 
@@ -100,7 +100,7 @@ cult_acre_bl <- bl_crop_plot_3s %>%
   summarise(acre = sum(plot_acre,na.rm = T),.by = hh_id )
 
 # df_inputs_bl <- 
-  rmtl_baseline2016 %>% 
+rmtl_baseline2016 %>% 
   select(hh_id,D49_2015:D60_2014) %>% select(hh_id , contains("2015")) %>% 
   pivot_longer(-hh_id,names_to = "inputs", values_to = "inputs_Rs" ) %>% 
   separate(inputs, into = c("inputs", "year"), sep = "_") %>% 
@@ -129,7 +129,7 @@ df_inputs_type_bl <-
            case_match(inputs, "D58" ~ "input_irrigation",
                       "D59" ~ "input_mechanization",
                       "D60" ~ "input_labor",.default = inputs)
-         ) %>%
+  ) %>%
   group_by(hh_id,inputs) %>% 
   summarise(inputs_Rs=sum(inputs_Rs,na.rm = T),.groups = "drop") %>% 
   left_join( cult_acre_bl) %>% mutate(acre=ifelse(acre==0,NA,acre)) %>% 
@@ -300,16 +300,16 @@ df_income_NonCrop_bl <-
   select(hh_id, contains("year"),-F3_year, -F12_year)%>%
   pivot_longer(-hh_id ,
                names_to = "income_type_f",
-               values_to = "income22") %>% 
-  mutate(income_type=
-           ifelse(income_type_f %in% c("F1_year","F2_year","F9_year"),
-                  "k_income_assistance","k_income_independent" ))  %>% 
-  group_by(hh_id, income_type ) %>% 
-  summarise(income_NonCrop = sum(income22,na.rm = T)/1000,.groups = "drop") %>% 
-  left_join( rmtl_baseline2016 %>% select(hh_id, C1 )) %>% 
-  mutate(C1=ifelse(C1<2,2,C1), # Total household members
-         income_NonCrop_mhh=income_NonCrop/C1 # Normalized to number of household members
-  ) %>% select(-C1)
+                 values_to = "income22") %>% 
+    mutate(income_type=
+             ifelse(income_type_f %in% c("F1_year","F2_year","F9_year"),
+                    "k_income_assistance","k_income_independent" ))  %>% 
+    group_by(hh_id, income_type ) %>% 
+    summarise(income_NonCrop = sum(income22,na.rm = T)/1000,.groups = "drop")  # %>% 
+  # left_join( rmtl_baseline2016 %>% select(hh_id, C1 )) %>% 
+  # mutate(C1=ifelse(C1<2,2,C1), # Total household members
+  #        income_NonCrop_mhh=income_NonCrop/C1 # Normalized to number of household members
+  # ) %>% select(-C1)
 
 d_I1b <- df_income_NonCrop_bl %>% select(-income_NonCrop_mhh) %>% rename(val_bl=income_NonCrop)
 d_I2b <- df_income_NonCrop_bl %>% select(-income_NonCrop) %>% 
@@ -322,7 +322,7 @@ d_I2b <- df_income_NonCrop_bl %>% select(-income_NonCrop) %>%
   summarise(y22_99 = quantile(val_22, probs = 0.99, na.rm = T),
             bl_99 = quantile(val_bl, probs = 0.99, na.rm = T))
 
-df_income_NonCrop <- 
+  df_income_NonCrop <- 
     d_I1 %>% left_join(d_I1b) %>%  # rbind( d_I2 %>% left_join(d_I2b) ) %>% 
     rename(vars=income_type) 
 
@@ -794,7 +794,7 @@ c17 <-
   # literacy 22
   # r7	Are they literate?
   
-  literacy22= 
+  literacy22=  # r7	Are they literate?
     rmtl_srvy22 %>% select(hh_id,starts_with("r7" ) ) %>% 
     pivot_longer(!hh_id, names_to = "id_member", values_to = "literate") %>% 
     group_by(hh_id) %>% 
@@ -991,15 +991,15 @@ df_social_bl <-
               rename(woman_offFarmwork_pct=woman_offFarmwork_pct_bl ,woman_offFarmwork_freq=woman_offFarmwork_freq_bl)
             ) %>% 
   pivot_longer(-hh_id,names_to = "social_vars", values_to = "val_bl")
-  
+
 
 df_social <- 
   df_social_22 %>% 
   left_join(df_social_bl) %>% 
   filter(!social_vars %in% c("woman_offFarmwork_freq", "offFarm_work_freq")) %>% 
   left_join(rmtl_cntrl_vars
-            )  # %>%  filter(cardinal_direction == "south" )
-  
+  )  # %>%  filter(cardinal_direction == "south" )
+
 
 
 

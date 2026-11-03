@@ -3,6 +3,25 @@ library(stringr)
 library(tidyr)
 library(tidyverse)
 
+
+sample_fix = rmtl_16_18_22_sample |> 
+  filter(is.na(sample_2016), is.na(sample_2018), is.na(sample_2022)) |>
+  left_join(Bhoomi |> rename(hh_id=Id)) |> 
+  select(hh_id,in1_out0 )
+
+rmtl_16_18_22_sample |> left_join(sample_fix) |> count(sample )
+
+rmtl_16_18_22_sample <- rmtl_16_18_22_sample |> left_join(sample_fix) |> 
+  rename(sample_2016_boundary_plots =sample_2016) |> 
+  mutate(sample_2016= ifelse(!is.na(in1_out0),in1_out0,sample)) |> 
+  select(hh_id, sample_2016, sample_2018, sample_2022,sample_2016_boundary_plots)
+
+# writexl::write_xlsx(rmtl_16_18_22_sample, "C:/Users/Dan/OneDrive/Documents/ramthal_database/rmtl_16_18_22_sample.xlsx")
+
+rmtl_baseline2016 |> select(hh_id,south1_north0) |> 
+  left_join(rmtl_16_18_22_sample) |> count(south1_north0,sample_2016 )
+
+
 dev.off()
 
 library(readxl)
@@ -10,8 +29,11 @@ Bhoomi_20160610 <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Da
 
 Bhoomi <- readxl::read_excel("C:/Users/Dan/OneDrive/Documents/ramthal_database/Bhoomi.xlsx")
 
-df_smpl <- Bhoomi |> 
-  filter(!is.na(in1_out0)) |> 
+Bhoomi_polygons <- Bhoomi |> rename(UID = Id , polygon=id) |> 
+  mutate(plot_match = +(!is.na(plot_match)))
+# writexl::write_xlsx(Bhoomi_polygons, "C:/Users/Dan/OneDrive/Documents/ramthal_database/Bhoomi_polygons.xlsx")
+
+df_smpl Bhoomi <- Bhoomi |> 
   mutate(plot_match=ifelse(plot_match >= 0,1,0))|> 
   mutate(site_area = case_when(
     south1_north0 == 1  ~ "South",
@@ -21,7 +43,27 @@ df_smpl <- Bhoomi |>
 
 hh_baseline <- df_smpl |> 
   filter(!is.na(plot_match)) |> 
-  select(Id,village,in1_out0) |> rename(hh_id=Id)
+  select(Id,village,in1_out0, site_area) |> rename(hh_id=Id)
+
+101441 
+
+DF = Bhoomi  |> rename(hh_id=Id) |> full_join(df, by = "hh_id") |> mutate(n=n(),.by=c(village.x,survey.x)) |> 
+  mutate(study_sample = if_else(plot_match.y >= 0 ,1, NA )) |> 
+  mutate(south1_north0 = if_else(hh_id == 101441 ,1, south1_north0.x )) |> 
+  mutate(site_area = case_when(
+    south1_north0 == 1  ~ "South",
+    south1_north0 == 0  ~ "North", .default = "Center"
+  )) |> 
+  mutate(boundary = if_else(site_area=="Center","Inner_center","Around_boundary"))
+
+
+DF |> count(site_area,study_sample) |> mutate(prob=n/sum(n),.by = site_area )
+DF |> count(boundary,study_sample) |> 
+  mutate(sum(n), prob=n/sum(n),.by = boundary )
+
+DF |> select(study_sample,id, boundary,site_area) |> distinct() |> count(site_area,study_sample)
+DF |> select(study_sample,id, boundary,boundary) |> distinct() |> 
+  count(boundary,study_sample) |> mutate(sum(n), prob=n/sum(n),.by = boundary )
 
 
 bhoomi_village_In <- 
@@ -250,7 +292,29 @@ as.data.frame(Ramthal_shp_1) %>% select(id) %>% distinct() %>% count()
 
 # Bhoomi_entire_sample ........................................................----
 
+library(readxl)
+Bhoomi_TAB_IDs <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_data/baseline_survey_2016/20160610_irrigation_Bhoomi_entire_sample_YR_5.xlsx", 
+                                                             sheet = "IDs")
+names(Bhoomi_TAB_IDs)
 
+Bhoomi_TAB_village_codes <- read_excel("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/ramthal_data/baseline_survey_2016/20160610_irrigation_Bhoomi_entire_sample_YR_5.xlsx", 
+                             sheet = "village codes")
+Bhoomi_IDs = Bhoomi_TAB_IDs |> 
+  mutate(village = stringr::str_to_title(`Village Name`) )|>  
+  mutate(`Survey No` = str_remove(`Survey No`, "^[',`\\-\\/\\s]+")) |> 
+  extract(  # Extract survey and hissa safely (including negative codes)
+  col = `Survey No`, into = c("survey_nu", "hissa"),
+  regex = "^(-?[0-9]+)(.*)$", remove = F
+) |> left_join(Bhoomi_TAB_village_codes |> rename(village=`Village Name`,village_code =`Village Code`))|>
+  mutate( survey_nu=ifelse(is.na(survey_nu),"000",survey_nu),
+    survey=as.numeric(survey_nu),
+          id = sprintf("1%02d%03d", as.numeric(village_code), survey),
+          id=as.numeric(id)) 
+
+Bhoomi_IDs1 = Bhoomi_IDs |> select(id) |> distinct() |> 
+  mutate(sampleing_frame =1)
+  left_join(Bhoomi |> select(id) |> distinct() |> mutate(nl=1))
+  
 Bhoomi = 
   Bhoomi_20160610 |> select(Id, village, village_code,survey ,in1_out0,plot_match,south1_north0 )|>
   mutate(village = stringr::str_to_title(village) )|>  
@@ -265,7 +329,7 @@ Bhoomi =
   mutate(site_area = case_when(
     south1_north0 == 1  ~ "South",
     south1_north0 == 0  ~ "North", .default = "Center"
-  )) |> select(-south1_north0)
+  )) |>  mutate(plot_match_01 = +(!is.na(plot_match)))
 # writexl::write_xlsx(Bhoomi, "C:/Users/Dan/OneDrive/Documents/ramthal_database/Bhoomi.xlsx")
 
 id = POLYGON
@@ -304,6 +368,8 @@ Bhoomi |> select(Id,id,plot_match)|>
 # 2   122
 # 3    11
 # 4     3
+
+
 
 pre_sample <- readxl::read_excel("C:/Users/Dan/OneDrive/Documents/ramthal_database/pre_sample.xlsx")
 pre_sample <- 
@@ -375,7 +441,7 @@ ggplot() +
 
 ggplot(map_sf) +
   geom_sf(aes(fill = category), color = "gray90", size = 0.1) +
-  geom_sf_text(aes(label = id), size = 2.5, check_overlap = TRUE) +
+  # geom_sf_text(aes(label = id), size = 2.5, check_overlap = TRUE) +
   scale_fill_manual(
     values = c(
       "In-Sampled"= "dodgerblue4", # steelblue
@@ -387,6 +453,83 @@ ggplot(map_sf) +
   ) +
   theme_minimal()
 #
+drip_map <- Ramthal_shp_1 |> 
+  left_join(pre_sample, by = "id") |> 
+  left_join(irrigation_BL_to_22 |> select(hh_id, drip_use_2022, drip_use_2021, drip_use_2020, drip_use_2019, drip_use_2018,drip_use_2017, drip_use_6y  )
+            )
+
+
+
+library(ggplot2)
+
+ggplot(drip_map) + 
+  geom_sf(aes(fill = factor(drip_use_6y)), color = "gray90", size = 0.1) +
+  scale_fill_manual(
+    values = c("0" = "gray80", "1" = "dodgerblue4"), 
+    na.value = "transparent",
+    guide = "none"
+  ) +
+  theme_minimal()+
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank()
+  )
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Option 1: Grid Layout (All 7 maps in one single image)
+
+# 1. Reshape the data to long format
+drip_long <- drip_map %>%
+  pivot_longer(
+    cols = starts_with("drip_use_20"),
+    names_to = "Year",
+    values_to = "Status"
+  ) %>%
+  # Optional: Clean up the facet titles (e.g., "drip_use_2022" -> "2022")
+  mutate(Year = gsub("drip_use_", "", Year))
+
+# 2. Plot all 7 maps at once using facet_wrap
+ggplot(drip_long) + 
+  geom_sf(aes(fill = factor(Status)), color = "gray90", size = 0.1) +
+  scale_fill_manual(
+    values = c("0" = "gray80", "1" = "dodgerblue4"), 
+    na.value = "transparent",
+    guide = "none"
+  ) +
+  facet_wrap(~ Year, nrow = 2) + 
+  theme_minimal()+
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank()
+  ) # 700 X 470
+
+library(ggplot2)
+
+# Option 2: Loop Layout (7 separate full-size maps generated automatically)
+
+# Extract the names of your 7 specific columns
+drip_cols <- names(drip_map)[grep("^drip_use_", names(drip_map))]
+
+# Loop through each column and print/display the map
+for (col in drip_cols) {
+  p <- ggplot(drip_map) + 
+    geom_sf(aes(fill = factor(.data[[col]])), color = "gray90", size = 0.1) +
+    scale_fill_manual(
+      values = c("0" = "gray70", "1" = "dodgerblue4"), 
+      na.value = "transparent",
+      guide = "none"
+    ) +
+    labs(title = gsub("drip_use_", "", col)) + # Adds the year as a title
+    theme_minimal()
+  
+  print(p) # Displays the map in your Plots pane
+}
+
 
 library(sf)
 library(dplyr)
@@ -587,8 +730,8 @@ Ramthal_shp_1 <- Ramthal_East_shp %>%
       TRUE ~ layer )
   ) |> select(-path) %>% filter(!is.na(fid) )
 
-
-
+st_write(Ramthal_shp_1, "C:/Users/Dan/Documents/Ramthal_shp_fixed.shp")
+("C:/Users/Dan/Documents/master_research/DATAs/ramthal_data/project_map/villages/Ramthal_East.shp")
 # BDIKA
 Ramthal_shp_1 %>% filter(id >= 131000 & id <= 131999 ) %>%select(id, layer) %>%head(10)
 

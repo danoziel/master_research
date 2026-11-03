@@ -657,7 +657,8 @@ crop_BL <- BL_2015_16_crop_IRsource_IRmethod %>%
   ) %>%
   mutate(crop_common = ifelse(crop_common %in% c("Pearl.millet_bajra","Cereals"),"Millet", crop_common)) %>% 
   mutate(crop_common = ifelse(crop_common == "Other","Horticulture", crop_common)) %>% 
-  mutate(crop_common = ifelse(crop_common == "VegetablesANDFruits","Vegetables", crop_common)) 
+  mutate(crop_common = ifelse(crop_common == "VegetablesANDFruits","Vegetables", crop_common)) %>%  
+  mutate(irri_method = ifelse(is.na(irri_method),"Rain",irri_method))
 unique(crop_BL$crop_common)
 
 # crop Acre Annuly ......................................... ----

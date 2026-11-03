@@ -530,24 +530,38 @@ d12_16=bl_d12 %>% right_join (bl6_plotAcre)
 
 D13 <-  
   rmtl_baseline2016 %>% select(hh_id,starts_with("D13"),-c( D13_12,D13_0) )
+D13 |> filter(!is.na(D13_os_1) | !is.na(D13_os_2 ))
 D13$D13_1[D13$D13_os_1 == "BOREWELL"] <- 5
 D13$D13_2[D13$D13_os_2 == "BOREWELL"] <- 5
 D13 <-D13 %>% select(-c(D13_os_1,D13_os_2 ) )%>% 
   pivot_longer(-c(hh_id), names_to = "plot_num", values_to = "irri_source_5y")
 D13$plot_num <- str_replace(D13$plot_num, "D13_(\\d)$", "plot_0\\1")
 D13$plot_num[D13$plot_num == "D13_10"] <- "plot_10" 
+D13 |> count(irri_source_5y)
+D13$irri_source_5y[D13$irri_source_5y<0] <- NA
+D13$irri_source_5y[D13$irri_source_5y==4] <- 1
+# Farmers who reported "5" – either they have an additional water source, or they were marked as "non-irrigating" in the previous question.
+D13$irri_source_5y[D13$irri_source_5y==2] <- 3
 
-bl13 <- D13 
+# TO delete ## bl13 <- D13 
+# TO delete ## bl13$ir_source_bl[bl13$irri_source_5y %in% c(1,5)] <- "source_schema"
+# TO delete ## bl13$ir_source_bl[bl13$irri_source_5y %in% c(2,3,4)] <- "source_own"
 
-bl13$ir_source_bl[bl13$irri_source_5y %in% c(1,5)] <- "source_schema"
-bl13$ir_source_bl[bl13$irri_source_5y %in% c(2,3,4)] <- "source_own"
+D13$irri_source_5y[D13$irri_source_5y==1] <- "Canal"
+D13$irri_source_5y[D13$irri_source_5y==3] <- "Openwell"
+D13$irri_source_5y[D13$irri_source_5y==5] <- "Borewell"
+# bl13$irri_source_5y[bl13$irri_source_5y==4] <- "River_Pond_Lake"
 
-bl13$irri_source_5y[bl13$irri_source_5y==1] <- "Canal"
-bl13$irri_source_5y[bl13$irri_source_5y==2] <- "Tank"
-bl13$irri_source_5y[bl13$irri_source_5y==3] <- "Openwell"
-bl13$irri_source_5y[bl13$irri_source_5y==4] <- "Borewell"
-bl13$irri_source_5y[bl13$irri_source_5y==5] <- "River_Pond_Lake"
-bl13$irri_source_5y[bl13$irri_source_5y < 0] <- NA
+D13 <- D13 |>  select(hh_id,irri_source_5y) %>% 
+  filter(!is.na(irri_source_5y)) %>% distinct()  %>% mutate(b01=1) %>%
+  pivot_wider(names_from = irri_source_5y,
+              values_from ="b01" ) %>% 
+  right_join(rmtl_baseline2016 %>% select(hh_id))
+D13[is.na(D13)] <- 0
+
+BL_water_source <- D13 |> mutate(use_water_source= Openwell + Canal+ Borewell)
+
+
 
 bl13_source_irrigate=bl13
 

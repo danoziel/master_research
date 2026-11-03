@@ -1,57 +1,23 @@
-# SUMMARY 2016
-Kharif - Greengram   Toor Sunflower   
-Rabi  Chickpeas Sorghum
-
-cult_bl <- df_tableBbl_1 |> 
-  mutate(season = case_when(crop_common == "Toor" ~ "Kharif" ,T~ season )) %>%  
-  mutate(season = case_when(crop_common == "Sunflower" ~ "Kharif" ,T~ season )) %>%  
-  mutate(season = case_when(crop_common == "Maize" ~ "Kharif" ,T~ season )) %>%  
-  mutate(season = case_when(crop_common == "Millet" ~ "Kharif" ,T~ season )) %>%  
-  mutate(season = case_when(crop_common == "Pulses" ~ "Kharif" ,T~ season )) %>%  
-  mutate(season = case_when(crop_common == "Greengram" ~ "Kharif" ,T~ season )
-  )
-
-index_crop_season <- crop_BL |> select(crop_common   ) |> distinct() |> 
-  mutate(
-    season = case_when(
-      crop_common %in% c(
-         "Oilseeds", "Sugarcane", "Horticulture", "Vegetables"
-      ) ~ "Kharif,Rabi",
-      crop_common %in% c("Sunflower","Sorghum_jowar","Bengal_gram", "Wheat", "Onions") ~ "Rabi",
-      crop_common %in% c("Greengram", "Toor", "Millet", "Maize", "Groundnut", "Chillies","Pulses") ~ "Kharif", T ~ "Unknown"
-      )) |> 
-  separate_longer_delim(season, delim = ",")
+===========================
+Cost Benefit Analysis
+=========================
 
 
 
-library(dplyr)
-library(tidyr)
-
-cult_bl |> 
-  summarise(Sum = sum(acre_crop), .by = crop_common) |> 
-    left_join(index_crop_season, by = "crop_common") |>
-    separate_longer_delim(season, delim = ",") |> 
-    left_join(cult_bl_season |> select(season, Total_acre), by = "season") |> 
-
-  summarise(
-    Sum = first(Sum), 
-    Total_acre = sum(Total_acre, na.rm = TRUE),
-    season = if_else(n() > 1, "GCA", first(season)),
-    .by = crop_common ) |>  
-  mutate(pct=Sum/Total_acre) |> arrange(desc(pct))
 
 
 
-Impact_Economic_clean |> select(-val_22) |> filter(vars %in% c("Farming_income","k_income_independent","k_income_assistance"), val_bl >0
-                                                   ) |>  
+
+Impact_Economic_clean |> select(-val_22) |> 
+  filter(vars %in% c("Farming_income","k_income_independent","k_income_assistance"), val_bl >0
+) |>  
   pivot_wider(
-  names_from = vars, 
-  values_from = val_bl,
-  # הפיכת כל ערך קיים (גדול מ-0) ל-1
-  values_fn = function(x) 1,
-  # מילוי ערכים ריקים/חסרים ב-0
-  values_fill = 0
-) |> mutate(both=k_income_independent+ k_income_assistance) |> mutate(K_=ifelse(both==2,"Both",ifelse(k_income_independent==1,"indi",ifelse(k_income_assistance ==1,"assi","non" )))) |> count(K_) |> mutate(N=sum(n),n/N)
+    names_from = vars, 
+    values_from = val_bl,
+    values_fn = function(x) 1, # הפיכת כל ערך קיים (גדול מ-0) ל-1
+    values_fill = 0 # מילוי ערכים ריקים/חסרים ב-0
+  ) |> mutate(both=k_income_independent+ k_income_assistance) |> 
+  mutate(K_=ifelse(both==2,"Both",ifelse(k_income_independent==1,"Off-farm income",ifelse(k_income_assistance ==1,"External income sources","Farming only" )))) |> count(K_) |> mutate(N=sum(n),n/N)
 
 
 
@@ -98,25 +64,40 @@ library(readxl)
 
 df_return_invest = df_reg_22_boundaries  |> filter(vars %in% c("Farming_income","revenue_per_acre"))
 
+df_bv <- Impact_Economic_clean |> filter(vars == "revenue_per_acre" ) |>   
+  left_join(rmtl_cntrl_vars %>% select(hh_id,in_project)) |> 
+  left_join(irrigation_BL_to_22) |> 
+  mutate(drip_years= drip_use_2017+drip_use_2018+drip_use_2019+drip_use_2020+drip_use_2021+drip_use_2022 
+  ) |> 
+  filter(!(in_project == 1 & drip_years < 2))
+df_bv |> count(in_project)
+
+
+filter(!(in_project == 1 & drip_use_2021_22 == 0))
+
+m1 <- lm(val_22 ~ in_project, df_bv  )
+
+
 df_bv <- df_return_invest |> 
   group_by(economic_vars) %>%
   mutate(
     val_22 = ifelse(val_22 > quantile(val_22, 0.995, na.rm = TRUE), NA, val_22)
-  ) %>% ungroup() |> 
-  left_join(rmtl_cntrl_vars)
+  ) %>% ungroup() |> left_join(rmtl_cntrl_vars)
 #
 m1 <- lm(val_22 ~ in_project, df_bv |> filter(economic_vars == "revenue_per_acre" ) )
-m2 <- lm(val_22 ~ in_project, df_bv |> filter(economic_vars == "Farming_income" ) )
+# m2 <- lm(val_22 ~ in_project, df_bv |> filter(economic_vars == "Farming_income" ) )
 library(broom)
 # 1. Tidy both models with 95% CIs
 m1_tidy <- tidy(m1, conf.int = TRUE, conf.level = 0.95)
-m2_tidy <- tidy(m2, conf.int = TRUE, conf.level = 0.95)
+# m2_tidy <- tidy(m2, conf.int = TRUE, conf.level = 0.95)
 m1_tidy$model <- "Net farming profit per acre"
-m2_tidy$model <- "Net farming profit per household"
+# m2_tidy$model <- "Net farming profit per household"
 
 # 3. Combine them into one clear table
-rbind(m1_tidy, m2_tidy) |> select(model,everything()) |> 
-  kable() |> kable_classic()
+# rbind(m1_tidy, m2_tidy) |> select(model,everything())
+
+m1_tidy |> select(model,everything()) |> 
+  kableExtra::kable() |> kableExtra::kable_classic()
 
 
 m1 <- lm(val_22 ~ in_project, df_bv |> filter(economic_vars == "revenue_per_acre" ) )
@@ -157,7 +138,7 @@ DF020726 <- plots_crop_2022 %>%
   pivot_longer(cols = c(Kharif, Rabi), names_to = "season", values_to = "acre_crop"
   ) |> distinct() |> 
   summarise(acre_crop=mean(acre_crop,na.rm=T),.by=c(hh_id,crop_common)
-            ) 
+  ) 
 #2
 DF020726_B <- DF020726 |> 
   complete(hh_id, crop_common , fill = list(acre_crop = 0)) |> 
@@ -170,7 +151,7 @@ DF020726 |> complete(hh_id, crop_common , fill = list(acre_crop = 0)) |>
   left_join(DF020726_B |> filter(in1_out0==0) |> rename(out_project=acre_crop)|> select(-in1_out0) ) |> 
   arrange(desc(Overall_sample )) |> 
   kbl(caption = "Cultivated acre for major crop | endline 2021-2022") |> kable_minimal()
-  
+
 # DF020726 |> filter(acre_crop<=0)
 #4
 DF020726_C <- DF020726 |> count(hh_id, crop_common) |> 
@@ -207,13 +188,13 @@ DF020726_BL_B <- DF020726_BL |>
   complete(hh_id, crop_common , fill = list(acre_crop = 0)) |> 
   left_join(hh_2022) |> filter(!is.na(in1_out0)) |> 
   summarise(acre_crop=mean(acre_crop,na.rm=T),.by=c(in1_out0,crop_common)
-            ) 
+  ) 
 
 #3 
 DF020726_BL |> complete(hh_id, crop_common , fill = list(acre_crop = 0)) |> 
   left_join(hh_2022) |> filter(!is.na(in1_out0)) |>
   summarise(Overall_sample=mean(acre_crop,na.rm=T),.by=c(crop_common)
-            ) |> 
+  ) |> 
   left_join(DF020726_BL_B |> filter(in1_out0==1) |> rename(in_project=acre_crop) |> select(-in1_out0) ) |> 
   left_join(DF020726_BL_B |> filter(in1_out0==0) |> rename(out_project=acre_crop)|> select(-in1_out0) ) |> 
   arrange(desc(Overall_sample )) |> 
@@ -437,6 +418,13 @@ df_income_f3_bl <-
          income_bl=(F3_month + F3_year)/1000) |> 
   select(hh_id,income_bl )
 
+df_income_f12_bl <- 
+  rmtl_baseline2016  %>% select(hh_id,F12_month ,F12_year ) |> 
+  mutate(F12_year=ifelse(F12_year==0,NA,F12_year),
+         total_income_bl=(F12_month + F12_year)/1000) |> 
+  select(hh_id,total_income_bl )
+
+
 ### DF
 bv_22bl_A <- 
   df_income_agri_f3 %>%          # X income22
@@ -490,18 +478,20 @@ df_return_invest <-
     names_to = c("economic_vars", ".value"),
     names_sep = "_(?=[^_]+$)"
   ) %>% rename(val_22 = `22`, val_bl = bl)
-  # mutate(
-  #   val_22 = case_when(
-  #     economic_vars == "income"           & val_22 >= 940   ~ NA_real_,
-  #     economic_vars == "revenue_per_acre" & val_22 >= 175   ~ NA_real_,
-  #     TRUE ~ val_22 )) # |> 
-  # mutate(
-  #   val_bl = case_when(
-  #     economic_vars == "income"           & val_bl > 317   ~ NA_real_,
-  #     economic_vars == "revenue_per_acre" & val_bl > 44  ~ NA_real_,
-  #     TRUE ~ val_bl )
-  # )
-    
+# mutate(
+#   val_22 = case_when(
+#     economic_vars == "income"           & val_22 >= 940   ~ NA_real_,
+#     economic_vars == "revenue_per_acre" & val_22 >= 175   ~ NA_real_,
+#     TRUE ~ val_22 )) # |> 
+# mutate(
+#   val_bl = case_when(
+#     economic_vars == "income"           & val_bl > 317   ~ NA_real_,
+#     economic_vars == "revenue_per_acre" & val_bl > 44  ~ NA_real_,
+#     TRUE ~ val_bl )
+# )
+
+Impact_Economic_clean |> filter(vars == "revenue_per_acre" ) 
+
 df_return_invest$economic_vars[df_return_invest$economic_vars=="income"] <- "Farming_income"
 
 df_return_invest %>% 
@@ -690,7 +680,7 @@ map_sf_2 <- Ramthal_shp_1 |>
   mutate(site_area= if_else(layer_update == "Chittavadagi" &  is.na(site_area),"South",site_area )) |> 
   mutate(site_area= if_else(layer_update == "Binjawadagi" &  is.na(site_area),"Center",site_area )) |> 
   mutate(site_area= if_else(layer_update == "Marol" &  is.na(site_area),"North",site_area )) |> 
-
+  
   mutate( # 106 Chintakamaladinni  # 117 Hungund 
     site_area= if_else(id %in% c(106036, 117459, 117443),NA,site_area )) |> 
   mutate( # Hungund
@@ -707,14 +697,14 @@ map_sf_2 <- Ramthal_shp_1 |>
   mutate(                         # Ramawadagi___126_____   # Marol__124___
     plot_match =  if_else(id %in% c(126197, 126201,126207,   124158, 124154 ),1,plot_match )) |>
   mutate(in1_out0=if_else(id %in% c(126197, 126201,126207,   124158, 124154 ),1,in1_out0 )) |>
-
+  
   mutate( # 126 Ramawadagi 
     site_area= if_else(id %in% c(126115:126129, 126179:126189, 126241:126244, 126252:126269),"Unsampled polygons",site_area )) |> 
   mutate(site_area= if_else(layer_update == "Kesarabhavi" &  is.na(site_area),"Unsampled polygons",site_area )) |> 
   mutate(site_area= if_else(layer_update == "Chatnihal" &  is.na(site_area),"Unsampled polygons",site_area )) |> 
   mutate(site_area= if_else(layer_update == "Hungund" &  is.na(site_area),"Unsampled polygons",site_area )) |> 
   
-    mutate(category = case_when(
+  mutate(category = case_when(
     in1_out0 == 1 & plot_match == 1 ~ "In-Sampled",
     in1_out0 == 1 & plot_match == 0 ~ "In",
     in1_out0 == 0 & plot_match == 1 ~ "Out-Sampled",
@@ -728,8 +718,8 @@ map_sf_2 <- Ramthal_shp_1 |>
   )) |> 
   left_join(irrigation_BL_to_22  |>  select(hh_id, ends_with("6y")) ) |> 
   mutate(drip_use_6y=as.factor(drip_use_6y))
-  
-  
+
+
 ggplot() +
   geom_sf(data = filter(map_sf_2, is.na(site_area_sample)), 
           fill = "transparent", color = "transparent", size = 0.2) + # gray70

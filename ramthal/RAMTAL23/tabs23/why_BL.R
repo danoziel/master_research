@@ -11,6 +11,7 @@ library(kableExtra )
 library(tidyverse)
 
 
+
 ###### Cha.3 Determinants of Adoption  #### ####
 
 df1 <-
@@ -29,10 +30,10 @@ df2 <-
          source_schema_6y = ifelse(source_pond == 1| source_canal==1,1,0)) %>%
   select(hh_id,source_ramthal,source_own_6y,source_schema_6y) %>%
   left_join(
-    BL_source_ir %>% select(hh_id,ir_source_own_bl,ir_source_schema_bl)
+    BL_source_ir %>% select(hh_id,source_own_bl, source_schema_bl)
   ) %>% rename(
-    source_own_bl = ir_source_own_bl  ,
-    source_schema_bl = ir_source_schema_bl )
+    ir_source_own_bl = source_own_bl  ,
+    ir_source_schema_bl = source_schema_bl)  
 
 df3 <-
   rmtl_cntrl_vars %>%
@@ -67,7 +68,6 @@ df4 <-
   summarise(usage_freq = sum(use, na.rm = T) ,.groups = "drop"
   ) %>%   pivot_wider(names_from = "Type",values_from ="usage_freq" ) %>%
   rename_with(~ paste0("total.Ys_", .x),-hh_id)
-
 
 df5 <-
   rmtl_baseline2016 %>%
@@ -157,22 +157,14 @@ names(df_project)
 
 #  Model 1: Adoption (Ever used drip)
 model_DI_6y <-
-  lm(drip_use_6y ~ 
-       hh_haed_age + hh_haed_gendar + literate_hh_pct +
-       source_own_bl + source_schema_bl + 
-       attended_to_trainings + own_livestock_01+
-       income_NonCrop + ir_use_BL + total_acre16,
+  lm(drip_use_6y ~ hh_haed_age + hh_haed_gendar + literate_hh_pct + source_own_bl + source_schema_bl + attended_to_trainings + own_livestock_01+income_NonCrop + ir_use_BL + total_acre16,
      data = df_project )
-sjPlot::tab_model(model_DI ,show.se = T,digits = 4,show.stat  = F)
 
 model_F_6y <-
-  lm(flood_use_6y ~ 
-       hh_haed_age + hh_haed_gendar + literate_hh_pct +
-       source_own_bl + source_schema_bl + 
-       attended_to_trainings + own_livestock_01+
-       income_NonCrop + ir_use_BL + total_acre16,
+  lm(flood_use_6y ~ hh_haed_age + hh_haed_gendar + literate_hh_pct +source_own_bl + source_schema_bl + attended_to_trainings + own_livestock_01+income_NonCrop + ir_use_BL + total_acre16,
      data = df_project )
-sjPlot::tab_model(model_F ,show.se = T,digits = 4,show.stat  = F)
+
+sjPlot::tab_model(model_DI_6y, model_F_6y ,show.se = T,digits = 4,show.stat  = F)
 
 
 
