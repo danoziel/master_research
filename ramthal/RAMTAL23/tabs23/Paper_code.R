@@ -335,7 +335,8 @@ crop_acre_summary_22 <- df_22_cultivation %>%
     .by = c(season, vars)
   )|> group_by(vars) %>%
   slice_max(num_growers_all, n = 1, with_ties = FALSE) %>%
-  ungroup()  %>% select(-season, -num_growers_all)
+  ungroup()  %>% select(-season, -num_growers_all) |> 
+  arrange(desc(mean_area_all_22 ))
 
 # ACRE | CATEGORY
 # Aggregate mean household acreage by crop category (Traditional vs Target)
@@ -346,6 +347,7 @@ crop_type_acre_summary_22 <- df_tableC |>
     mean_area_OUT_22   = mean(val_22[sample == 0], na.rm = TRUE),
     .by = vars)|> 
   mutate(vars=ifelse(vars=="Rainfed_acre","Traditional crop","Target crop"))
+
 
 ### 3. Combine endline ACREAGE and ADOPTION summaries  ----
 
@@ -364,17 +366,39 @@ crop_summary_22 <-
 
 # Merge Endline and Baseline metrics into a single comparison table
 
-crop_summary_22BL <- left_join(crop_summary_22, crop_summary_BL)
+crop_summary_22BL <- 
+  crop_acre_summary_22 |> rbind(crop_type_acre_summary_22) |> 
+  left_join(crop_acre_summary_BL |> rbind(crop_type_acre_summary_BL)) |> 
+  left_join(crop_adopters_summary_22 |> rbind(crop_type_adopters_summary_22)) |> 
+  left_join(crop_adopters_summary_BL |> rbind(crop_type_adopters_summary_BL)) 
 
-print(crop_summary_22BL)
+crop_summary_22BL$vars[crop_summary_22BL$vars=="Bengal_gram" ] <- "Chichpeas"
+crop_summary_22BL$vars[crop_summary_22BL$vars=="Oilseeds" ] <- "Oil seeds"
+crop_summary_22BL$vars[crop_summary_22BL$vars=="Onions" ] <- "Onion"
+crop_summary_22BL$vars[crop_summary_22BL$vars=="Sorghum_jowar" ] <- "Sorghum (Jowar)"
+names(crop_summary_22BL)[names(crop_summary_22BL) == "vars"] <- "Crop"
 
-crop_summary_22BL |> kableExtra::kbl() |> kableExtra::kable_classic()
+new_row <- tibble(
+  Crop               = "Total N",
+  mean_area_all_22   = n_total_22,
+  mean_area_IN_22    = n_in_22,
+  mean_area_OUT_22   = n_out_22,
+  mean_area_all_BL   = n_total_BL,
+  mean_area_IN_BL    = n_in_BL,
+  mean_area_OUT_BL   = n_out_BL,
+  pct_growers_all_22 = n_total_22,
+  pct_growers_IN_22  = n_in_22,
+  pct_growers_OUT_22 = n_out_22,
+  pct_growers_all_BL = n_total_BL,
+  pct_growers_IN_BL  = n_in_BL,
+  pct_growers_OUT_BL = n_out_BL
+)
 
+crop_summary_Paper <- bind_rows(new_row, crop_summary_22BL)
 
+print(crop_summary_Paper)            
 
-
-
-
+crop_summary_Paper |> kableExtra::kbl() |> kableExtra::kable_classic()
 
 
 #===============================================================================
@@ -630,8 +654,8 @@ literacy15=
   rmtl_baseline2016 %>% select(hh_id,starts_with("c6" ) ) %>% 
   pivot_longer(!hh_id, names_to = "id_member", values_to = "literate") %>% 
   group_by(hh_id) %>% 
-  summarise(literacy_15=mean(literate,na.rm=T)) %>% 
-  mutate(literacy_15 = ifelse(literacy_15 <= 0,NA,literacy_15))
+  summarise(literacy_rates=mean(literate,na.rm=T)) %>% 
+  mutate(literacy_rates = ifelse(literacy_rates <= 0,NA,literacy_rates))
 
 
 
@@ -681,8 +705,8 @@ edu_level_2nd_gen_15 <-
   left_join (c7_15,C5_15) %>% 
   mutate(edu_gen_2nd=ifelse(relation_HH_head %in% c(3,9,11:13),edu_level,NA) ) %>% 
   group_by(hh_id) %>% 
-  summarise(edu_gen2_15=mean(edu_gen_2nd,na.rm=T)) %>% 
-  mutate(edu_gen2_15 = ifelse(edu_gen2_15<0,NA,edu_gen2_15)) # transfer NaN to NA
+  summarise(edu_gen2=mean(edu_gen_2nd,na.rm=T)) %>% 
+  mutate(edu_gen2 = ifelse(edu_gen2<0,NA,edu_gen2)) # transfer NaN to NA
 
 
 
@@ -854,7 +878,7 @@ df_work_gender_bl <-
   summarise(val = sum(val),n=n(),.by = c(hh_id,gender)) %>% 
   group_by( hh_id) %>% mutate(n=sum(n)) %>% ungroup() %>% 
   filter(gender ==2) %>% 
-  mutate(woman_offFarmwork_pct_bl=val/n) %>% 
+  mutate(woman_offFarmwork_pct=val/n) %>% 
   select(hh_id,woman_offFarmwork_pct )
 
 
@@ -879,7 +903,7 @@ df_social_bl <-
   left_join(migrants_work_bl) %>%
   left_join(df_work_offFarm_bl) %>%
   left_join(df_work_gender_bl) %>% 
-  pivot_longer(-hh_id, names_to = "vars", values_to = "val_22")
+  pivot_longer(-hh_id, names_to = "vars", values_to = "val_bl")
 
 # Combined panel of social indicators across both rounds
 Impact_Social <- df_social_22 %>% left_join(df_social_bl)
@@ -889,12 +913,16 @@ Impact_Social <- df_social_22 %>% left_join(df_social_bl)
 #  D |  Drip Irrigation Utilization  ----
 
 ## Drip adoption rate ----
-#  Drip adoption by year,baseline, 2017–2022 and plot in project
+#  Drip adoption by year and all 6 years (2017–2022)
 df_drip_use_Y_1to6 <- irrigation_BL_to_22 %>% select(hh_id, starts_with("drip"),-drip_use_BL) %>%pivot_longer(-hh_id, names_to = "vars", values_to = "val_22")
-df_im_in_project <- rmtl_cntrl_vars %>% select(hh_id,im_in_project) %>% pivot_longer(-hh_id, names_to = "vars", values_to = "val_22")
+
+#  In baseline
 df_drip_use_bl <- irrigation_BL_to_22 %>% select(hh_id, drip_use_BL) %>% rename(val_bl=drip_use_BL)
 
-# Merge databases
+#  Reported project participation
+df_im_in_project <- rmtl_cntrl_vars %>% select(hh_id,im_in_project) %>% pivot_longer(-hh_id, names_to = "vars", values_to = "val_22")
+
+## Merge databases
 df_drip_17_22 <- rbind(df_drip_use_Y_1to6,df_im_in_project) %>% left_join(df_drip_use_bl)
 
 
@@ -942,7 +970,7 @@ df_reg_22 <- bind_rows(
   Impact_Agriculture,
   Impact_Economic,
   df_assets,
-  Impact_Social_raw,
+  Impact_Social,
   df_drip_17_22,
   df_drip_land_and_water_source
   ) %>% 
@@ -1076,18 +1104,7 @@ table_social <- table_results %>%
     `Female off-farm work`      = woman_offFarmwork_pct
   )
 
-table_drip_17_22 <- table_results %>% 
-  select(model_name, metric, any_of(unique(df_drip_17_22$vars))) %>% 
-  rename(
-    `Year 1 2017`                     = drip_use_2017,
-    `Year 2 2018`                     = drip_use_2018,
-    `Year 3 2019`                     = drip_use_2019,
-    `Year 4 2020`                     = drip_use_2020,
-    `Year 5 2021`                     = drip_use_2021,
-    `Year 6 2022`                     = drip_use_2022,
-    `Use drip at least once 2017-22`  = drip_use_6y,
-    `Reported project participation`  = im_in_project
-  )
+table_drip_17_22 <- table_results %>% select(model_name, metric, any_of(unique(df_drip_17_22$vars)))
 
 table_drip_land_and_water_source <- table_results %>% 
   select(model_name, metric, any_of(unique(df_drip_land_and_water_source$vars))) %>% 
@@ -1098,8 +1115,179 @@ table_drip_land_and_water_source <- table_results %>%
     `Water source: Gov. System (Ramthal)`                = source_ramthal
   )
 
-# ==============================================================================
+#==============================================================================
+# Cost-Benefit Analysis (CBA)  ----
+#============================================================================== ----
+library(dplyr)
+library(purrr)
+library(broom)
+
+## --- Step 1: Core Parameters  ----
+
+discount_rate <- 0.05
+time_horizon  <- 20
+years         <- 1:time_horizon
+
+# Project capital expenditure per acre
+capex_total       <- 7861100000
+total_project_hh  <- 15000
+mean_land_holding <- 9.29
+capex_per_acre    <- capex_total / (total_project_hh * mean_land_holding)
+
+# Discount factors across time horizon (t = 1 to 20)
+discount_factors <- 1 / ((1 + discount_rate)^years)
+
+
+## --- Step 2: Extract Empirical Inputs from Survey Data & Regression Models ----
+
+# 2a. Regression estimation of overall project effect (INR/acre)
+df_profit_acre <- Impact_Economic |> filter(vars == "revenue_per_acre") |> 
+  left_join(rmtl_cntrl_vars |> select(hh_id, in_project))
+m1 <- lm(val_22 ~ in_project, data = df_profit_acre )
+m1_tidy <- tidy(m1, conf.int = TRUE, conf.level = 0.95)
+
+# Reference farming profit outside project area (control group mean)
+profit_out <- m1_tidy$estimate[m1_tidy$term == "(Intercept)"] * 1000
+
+# 2b. Regression estimation of Project's drip effect
+farm_project_activities <- Impact_Economic |>
+  left_join(rmtl_cntrl_vars |> select(hh_id, in_project)) |>
+  left_join(irrigation_BL_to_22 |> select(hh_id, drip_use_2022)) |> 
+  filter(vars == "revenue_per_acre", in_project == 1)
+m2 <- lm(val_22 ~ drip_use_2022, data = farm_project_activities )
+m2_tidy <- tidy(m2, conf.int = TRUE, conf.level = 0.95)
+
+# In-project mean profits (INR/acre)
+profit_drip_coef <- m2_tidy$estimate[m2_tidy$term == "drip_use_2022"] * 1000
+profit_in_no_drip <- m2_tidy$estimate[m2_tidy$term == "(Intercept)"] * 1000
+profit_in_drip <- profit_in_no_drip + profit_drip_coef
+
+## --- Step 3: CBA Helper Functions  ----
+
+# Annual incremental profit calculated from adoption rate
+calc_inc_profit <- function(adoption_rate) {
+  (adoption_rate * profit_in_drip + (1 - adoption_rate) * profit_in_no_drip) - profit_out
+}
+
+# Net Present Value across a cash flow vector (t = 0 to t = n)
+calc_npv <- function(cf, r) {
+  t <- 0:(length(cf) - 1)
+  sum(cf / ((1 + r)^t))
+}
+
+# Internal Rate of Return calculation
+calc_irr <- function(cf) {
+  if (all(cf <= 0)) return(NA_real_)
+  irr_obj <- function(r) calc_npv(cf, r)
+  res <- tryCatch(
+    uniroot(irr_obj, interval = c(-0.9999, 10), extendInt = "yes")$root,
+    error = function(e) NA_real_
+  )
+  return(res)
+}
+
+
+## --- Step 4: Metric Computations by Block ----
+
+# Block A: Actual net farming profit.
+# Empirical Regression Scenarios (Constant Annual Streams) ---
+block_a_scenarios <- list(
+  "Point Estimate"  = m1_tidy$estimate[m1_tidy$term == "in_project"] * 1000,
+  "Lower Bound 95%" = m1_tidy$conf.low[m1_tidy$term == "in_project"] * 1000,
+  "Upper Bound 95%" = m1_tidy$conf.high[m1_tidy$term == "in_project"] * 1000
+)
+
+# Computes 20-year CBA metrics (PVB, NPV, BCR, IRR) for each scenario:
+results_block_a <- map_dfr(names(block_a_scenarios), function(scen_name) {
+  annual_gain <- block_a_scenarios[[scen_name]]
+  pvb         <- sum(annual_gain * discount_factors)
+  npv         <- pvb - capex_per_acre
+  bcr         <- pvb / capex_per_acre
+  net_cf      <- c(-capex_per_acre, rep(annual_gain, time_horizon))
+  irr         <- calc_irr(net_cf)
+  
+  tibble(
+    Block    = "Block A: Regression Estimates",
+    Scenario = scen_name,
+    PVC      = round(capex_per_acre, 2),
+    PVB      = round(pvb, 2),
+    NPV      = round(npv, 2),
+    BCR      = round(bcr, 3),
+    IRR      = round(irr, 4))
+})
+
+Actual_net_farming_profit_metrics <- results_block_a
+print(Actual_net_farming_profit_metrics)
+
+# Block B: Dynamic Adoption Rate Simulations
+
+# 1. Extract observed adoption rates from the impact results table, Model_A1: Mean Comparison
+obs_years_cols <- c("drip_use_2017", "drip_use_2018", "drip_use_2019", "drip_use_2020", "drip_use_2021", "drip_use_2022")
+
+# Pull control mean
+ctrl_means <- table_drip_17_22 |>
+  filter(tolower(model_name) == "model_a1", metric == "control_mean") |>
+  select(all_of(obs_years_cols)) |> as.numeric()
+
+# Total adoption in treatment group (control_mean + estimate) across 2017-2022
+treat_effects <- table_drip_17_22 |>
+  filter(tolower(model_name) == "model_a1", metric == "estimate") |>
+  select(all_of(obs_years_cols)) |> as.numeric()
+
+observed_6y <- ctrl_means + treat_effects
+
+# Adoption rate trajectories across the 20-year horizon for Block B scenarios:
+# 1. Constant 100% adoption for all 20 years
+# 2. Years 1-6 pulled from regression table, years 7-20 fixed at 5%
+# 3. Linear growth of 7% per year, capped at 85%
+block_b_rates <- list(
+  "Full Adoption"           = rep(1.0, time_horizon),
+  "Observed Adoption Rates" = c(observed_6y, rep(0.05, time_horizon - length(observed_6y))),
+  "Sustained Growth"        = pmin(0.07 * years, 0.85)
+)
+
+# Computes 20-year CBA metrics (PVB, NPV, BCR, IRR) for each Block B adoption scenario
+results_block_b <- map_dfr(names(block_b_rates), function(scen_name) {
+  rates_seq   <- block_b_rates[[scen_name]]
+  annual_gain <- calc_inc_profit(rates_seq)
+  pvb         <- sum(annual_gain * discount_factors)
+  npv         <- pvb - capex_per_acre
+  bcr         <- pvb / capex_per_acre
+  net_cf      <- c(-capex_per_acre, annual_gain)
+  irr         <- calc_irr(net_cf)
+  
+  tibble(
+    Block    = "Block B: Adoption Simulations",
+    Scenario = scen_name,
+    PVC      = round(capex_per_acre, 2),
+    PVB      = round(pvb, 2),
+    NPV      = round(npv, 2),
+    BCR      = round(bcr, 3),
+    IRR      = round(irr, 4)
+  )
+})
+
+print(results_block_b)
+
+# --- Step 5: Unified Summary Table
+
+cba_unified_summary <- bind_rows(results_block_a, results_block_b)
+
+# Add `Profit` values
+cba_unified_summary$Profit <- c(
+  round(m1_tidy$estimate[m1_tidy$term == "in_project"] * 1000, 2),
+  round(m1_tidy$conf.low[m1_tidy$term == "in_project"] * 1000, 2),
+  round(m1_tidy$conf.high[m1_tidy$term == "in_project"] * 1000, 2),
+  round(profit_in_drip - profit_out, 2), "","")
+
+## Transposing columns to rows ----
+cba_transposed_summary <- as.data.frame(t(cba_unified_summary[, c("Profit", "PVC", "PVB", "NPV", "IRR", "BCR")]))
+colnames(cba_transposed_summary) <- cba_unified_summary$Scenario
+print(cba_transposed_summary)
+
+#==============================================================================
 # Predictors of Drip Adoption -----
+#==============================================================================
 
 df1 <-
   irrigation_BL_to_22 %>% 
@@ -1180,7 +1368,13 @@ sjPlot::tab_model(model_DI_6y, model_F_6y ,show.se = T,digits = 4,show.stat  = F
 models_list <- list("Drip   16-22" = model_DI_6y,"Flood 16-22" = model_F_6y)
 jtools::plot_summs(models_list, colors = c("#026bb9","#619847"), point.size = 4,line.size = 1.2, point.shape = 19) + theme(panel.grid.major.x = element_blank()) + geom_text(aes(label = round(estimate,2) ),size=4,position = position_dodge(1.5))
 
-# ==============================================================================
+#==============================================================================
 # Barriers to implementation ----
+#============================================================================== ----
+
+
+# END ----
+
+
 
 

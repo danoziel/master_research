@@ -271,12 +271,12 @@ a_plots_size = plots_size
 
 
 
-  
+
 # a_irri_rain_method [ irrigated|rainfed|method ] season-plot-crop ----
 
 # L48		How often was the crop irrigated manually? # 1=Always|2=Sometime|3=Never/Rain-fed 
 # L48a	What is the method of irrigation?
-  
+
 # Checking whether "other" contains values
 L48_other <- a_rmtl_srvy22 [,c(1,grep("l48",names(a_rmtl_srvy22)))] %>% select(contains("other"))
 flat_vector <- unlist(L48_other, use.names = FALSE)
@@ -333,8 +333,8 @@ a_irri_rain_method$season[a_irri_rain_method$season== "kha"] <- "kharif_2021"
 a_irri_rain_method$season[a_irri_rain_method$season== "rab"] <- "rabi_2021_22"
 a_irri_rain_method$season[a_irri_rain_method$season== "rabi"] <- "rabi_2021_22"
 
-                                        
-                    
+
+
 rm( L48,L1_48,L2_48,L3_48)
 
 # irrigation 2021 kha+rab                 ----     
@@ -366,14 +366,14 @@ irrigation_HH %>% rename(in_project = sample ) %>%
 irrigation_HH_k21_r2122_k22 <- 
   a_irri_rain_method %>%  select( hh_id ,irri_method) %>% distinct() %>% 
   group_by(hh_id
-           )  %>%
+  )  %>%
   mutate(hh_6methods = ####### DRIP prioritize 
            ifelse("drip" %in% irri_method , "drip", ifelse(any(irri_method  == "furrows"), "furrows",ifelse(any(irri_method  == "flood"), "flood",ifelse(any(irri_method  == "sprinkler"), "sprinkler",ifelse(any(irri_method  == "hose"), "hose","rain"))))) 
-         ) %>%
+  ) %>%
   mutate(hh_6methods_flood_prioritize = ####### FLOOD prioritize 
            ifelse("flood" %in% irri_method , "flood", ifelse(any(irri_method  == "furrows"), "furrows",ifelse(any(irri_method  == "hose"), "hose",ifelse(any(irri_method  == "drip"), "drip",ifelse(any(irri_method  == "sprinkler"), "sprinkler","rain"))))) 
-         ) %>% ungroup()
-  
+  ) %>% ungroup()
+
 ir_drip_HH_krk <- # DRIP prioritize  # krk =kha+rab+KHA22
   irrigation_HH_k21_r2122_k22 %>%  
   select(hh_id,hh_6methods) %>% distinct() %>% 
@@ -410,10 +410,10 @@ ir22_2018_2020 <-
   group_by(hh_id,year_ir) %>% 
   mutate(
     hh_6methods = ifelse(3 %in% irri_method , "drip", 
-                  ifelse(any(irri_method  == 2), "furrows",
-                  ifelse(any(irri_method  == 1), "flood",
-                  ifelse(any(irri_method  == 4), "sprinkler",
-                  ifelse(any(irri_method  == 6), "hose","rain"))))) ) %>%  #  filter(hh_id %in% c(103257,105832))
+                         ifelse(any(irri_method  == 2), "furrows",
+                                ifelse(any(irri_method  == 1), "flood",
+                                       ifelse(any(irri_method  == 4), "sprinkler",
+                                              ifelse(any(irri_method  == 6), "hose","rain"))))) ) %>%  #  filter(hh_id %in% c(103257,105832))
   select(farmers_hh,hh_id,hh_6methods,year_ir) %>% distinct() %>% ungroup() %>% 
   mutate(hh_irri=ifelse(hh_6methods=="rain",0,1),
          hh_drip=ifelse(hh_6methods=="drip",1,0)) %>% 
@@ -436,7 +436,7 @@ L49 <-
   rmtl_srvy22 %>% select(farmers_hh,hh_id,starts_with("l49_" )) %>% 
   
   #filter(hh_id %in% c("100001","100019") ) %>%  
- # select(where(~!all(is.na(.x)))) %>% 
+  # select(where(~!all(is.na(.x)))) %>% 
   
   pivot_longer(cols = -c(farmers_hh ,hh_id),names_to = c("observation"))
 L49A <- L49 %>% separate(observation, into = c("L" ,"pn","season", "unitbag", "plot", "crop"), sep = "_")
@@ -463,16 +463,16 @@ L49d <- L49c %>% pivot_wider(names_from = Unitbag, values_from = value)
 a_total_yield <- L49d %>% 
   mutate(kg_crop = 
            ifelse(unit == 3,total_yield*100,
-           ifelse(unit == 4,total_yield*1000,
-           ifelse(unit == 2,total_yield*bag, 
-                  total_yield))) 
-         ) %>% 
+                  ifelse(unit == 4,total_yield*1000,
+                         ifelse(unit == 2,total_yield*bag, 
+                                total_yield))) 
+  ) %>% 
   filter(!is.na(total_yield)) %>% 
   select(farmers_hh,hh_id,season,plotID,crop_number,kg_crop) 
 
 # most of the 0's are for annual crops
 a_total_yield$kg_crop[a_total_yield$kg_crop == 0] <- NA
-  
+
 
 write.csv(a_total_yield, file ="C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/a_total_yield.csv", row.names=FALSE)
 

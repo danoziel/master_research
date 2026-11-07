@@ -266,7 +266,7 @@ land_holding_In=
   summarise(total_num_plots=n(),total_acre=sum(acres,na.rm = T)) %>% 
   filter(total_acre<39) %>%  # 99% removed. see LAND HOLDING in "inmpact.R"
   right_join(rmtl_In)
-  
+
 land_holding_In %>% t_test(total_acre  ~ drip_use  , detailed = T) %>% select(2:3,9:13)
 
 
@@ -292,7 +292,7 @@ cultivated_land_In %>%
   filter(total_acre<29.8315)%>% 
   group_by(season) %>%  
   t_test(total_acre  ~ drip_use , detailed = T
-         )%>% 
+  )%>% 
   mutate_at(c(3:4,10:14) ,round,2) %>%
   mutate(CI = paste0("[", conf.low, ", ", conf.high, "]")) %>% 
   select(season ,estimate1, estimate2, statistic,p,df,CI) %>%  
@@ -440,7 +440,7 @@ rmtl_srvy22 %>%
   pivot_longer(-c(farmers_hh,hh_id), names_to = "ans",values_to = "yn") %>%
   filter(!is.na(yn) ,farmers_hh=="inside_ramthal") %>% 
   group_by(ans) %>% summarise(n=sum(yn))%>%  mutate(n/386)
-  
+
 ########### m35b
 # How long has the main pipes been damaged?		[months/years]
 rmtl_srvy22 %>% select(contains("m35")) %>% select(m35b_month, m35b_year) %>% filter(!is.na(m35b_month)) %>% count()
@@ -460,7 +460,7 @@ rmtl_srvy22 %>% select(farmers_hh,hh_id,contains("m35")) %>% filter(!is.na(m35c)
 
 rmtl_srvy22 %>% select(farmers_hh,hh_id, contains("m36")) %>% 
   filter(!is.na(m36)) %>% count(m36)%>%  mutate(N=sum(n),n/N)
-  
+
 ############ m37 # did they help you and fix it?	-----
 #1	Yes	#2	didnt get no response	#3	They said they would fix it but never came	
 
@@ -487,7 +487,7 @@ m3_mm4[c(7:18),] %>% group_by(farmers_hh) %>% mutate(N=sum(n),prt_mm4= n/N )
 
 L7_source_irri # df in DF_22.R
 a_source_irri  # df in DF_22.R
-  
+
 
 # preq tbl source rank_1
 a_source_irri %>%  # df in DF_22.R
@@ -647,6 +647,8 @@ irrigation_2021_22 <-
 rmtl_srvy22 %>% select(farmers_hh,hh_id, starts_with("l48a_y"),-contains("other")) %>% 
   pivot_longer(cols = -c(farmers_hh,hh_id),names_to = "observation",  values_to = "irri_method"
                ) %>% count(irri_method)
+
+attr(rmtl_srvy22$l48a_y_18_1, "labels")
 
 ir_flood_18_20 <- 
   rmtl_srvy22 %>% select(farmers_hh,hh_id, starts_with("l48a_y"),-contains("other")) %>% 

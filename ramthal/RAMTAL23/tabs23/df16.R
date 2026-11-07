@@ -202,9 +202,13 @@ BL_source_ir
 
 #🟡  BASELINE
 #[D12] Has this plot been irrigated at least once during the last 5 years?
-bl_hh_irrigation = rmtl_baseline2016 %>%  select(in1_out0,hh_id,starts_with("D12") ,-c(D12_11:D12_17 )) %>% 
+bl_hh_irrigation = rmtl_baseline2016 %>%  
+  select(in1_out0,hh_id,starts_with("D12") ,-c(D12_11:D12_17 )) %>% 
   mutate(total_irriPlot = rowSums (.[names(.)[3:12]], na.rm = T)) %>%
   rename( hh_irrigate_BL= D12_) %>% select(in1_out0,hh_id,hh_irrigate_BL )
+
+
+
 
 
 

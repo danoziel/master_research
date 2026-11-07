@@ -763,3 +763,29 @@ ggplot() +
 
 
 
+df_drip_17_22 |> 
+  right_join(rmtl_cntrl_vars |> filter(in_project==1) |> select(hh_id)) |> 
+  summarise(mean(val_22,na.rm=T),n(),.by = vars)
+
+
+
+
+Impact_Economic |> 
+  filter(vars == "revenue_per_acre") |> select(hh_id) |> 
+  right_join(rmtl_cntrl_vars |> filter(in_project==1) |> select(hh_id)) |> 
+  left_join(irrigation_BL_to_22 |> 
+              select(hh_id, starts_with("drip_use_20"))
+            ) |> 
+  pivot_longer(-hh_id,names_to = "DR",values_to = "val"
+               ) |> 
+  filter(DR=="drip_use_2021") |> 
+  summarise(mean(val,na.rm=T),n(),.by = DR)
+
+
+
+
+
+
+
+
+
