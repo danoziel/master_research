@@ -88,7 +88,7 @@ summary_data %>% filter(as.integer(proximity_location_f) < 14) %>%
   theme(axis.text.x = element_text(size = 11),
         panel.grid = element_blank())
 
-summary_data$N
+n_on_location <- summary_data$N
 
 
 ######## % of users -  irrigation  ----
@@ -156,18 +156,15 @@ library(Rmisc)
 summary_data <- cha_C %>% 
   select(proximity_location,ir_total_years) %>% 
   filter(!is.na(proximity_location)) %>% 
-  mutate(proximity_location = 
-           ifelse(proximity_location == 13,12,
-           ifelse(proximity_location %in%c(14:16),13,proximity_location ))
-         ) %>% 
+  mutate(proximity_location = ifelse(proximity_location == 13,12,ifelse(proximity_location %in%c(14:16),13,proximity_location ))) %>% 
   filter(!is.na(proximity_location)) %>% 
   mutate(proximity_location_f = factor(proximity_location)) %>%
   group_by(proximity_location_f) %>%
-  dplyr::summarise(
+  summarise(
     N = n(),
-    Mean =  CI(ir_total_years)[2],
-    ci_lower =  CI(ir_total_years)[1],
-    ci_upper =  CI(ir_total_years)[3],  .groups = 'drop'
+    Mean =  Rmisc::CI(ir_total_years)[2],
+    ci_lower =  Rmisc::CI(ir_total_years)[1],
+    ci_upper =  Rmisc::CI(ir_total_years)[3],  .groups = 'drop'
   )
 
 
@@ -331,11 +328,17 @@ df_ir_use_total_years <-
   ) %>% 
   select(hh_id,starts_with("ir")) %>% 
   pivot_longer(-hh_id,names_to = "year",values_to = "use") %>% 
+  dplyr:: group_by(hh_id) %>% 
+  dplyr:: summarise(ir_total_years=sum(use,na.rm = T))
+
+
+df_drip_use_total_years <- 
+  irrigation_BL_to_22 %>% 
+  select(hh_id, starts_with("drip_use_2"),- drip_use_2021_22
+  ) %>% 
+  pivot_longer(-hh_id,names_to = "year",values_to = "use") %>% 
   group_by(hh_id) %>% 
-  summarise(ir_total_years=sum(use,na.rm = T))
-
-
-  
+  summarise(drip_total_years=sum(use,na.rm = T))
   
 
 

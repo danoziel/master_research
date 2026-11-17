@@ -1,10 +1,12 @@
 
-#| 🟡BASELINE 2016 # `rmtl_baseline2016` df from `df16.R` script
-#| 🟠MIDELINE 2018 # `rmtl_midline2018` df from `df18.R` script
-#| 🟣MIDELINE 2022 # `rmtl_srvy22` df
-Ramthal_Karnataka_Cleaned_Data <- read_dta("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/Ramthal_Karnataka_submissions/Ramthal_Karnataka_Cleaned_Data.dta")
-rmtl_srvy22 <- Ramthal_Karnataka_Cleaned_Data %>% rename(hh_id=id)
-rm(Ramthal_Karnataka_Cleaned_Data)
+# 🟣END 2022 # `rmtl_srvy22` df
+
+
+# 🟡BASELINE 2016 # `rmtl_baseline2016` df from `df16.R` script
+# 🟠MIDELINE 2018 # `rmtl_midline2018` df from `df18.R` script
+# Ramthal_Karnataka_Cleaned_Data <- read_dta("C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/Ramthal_Karnataka_submissions/Ramthal_Karnataka_Cleaned_Data.dta")
+# rmtl_srvy22 <- Ramthal_Karnataka_Cleaned_Data %>% rename(hh_id=id)
+# rm(Ramthal_Karnataka_Cleaned_Data)
 
 library(dplyr)
 library(haven)
@@ -101,12 +103,12 @@ L7_source_irri <-
   mutate(l7_rank_1 = as.numeric (l7_rank_1),
          l7_rank_2 = as.numeric(l7_rank_2),
          l7_rank_3 = as.numeric(l7_rank_3)
-         ) %>%
+  ) %>%
   # Set "canal" as 7 and combine it into "l7_rank_1 2 3"
   mutate(l7_rank_1=ifelse(l7_rank_1=="-888", 7 ,l7_rank_1),
          l7_rank_2=ifelse(l7_rank_2=="-888",7,l7_rank_2),
          l7_rank_3=ifelse(l7_rank_3=="-888",7,l7_rank_3)
-         )
+  )
 
 
 a_source_irri <- 
@@ -589,7 +591,8 @@ a_plots_revenue <-
 # L39a	Crop-Plot-Season	kharif 2022 # Rabi 2021/2022 # Kharif 2021
 # Perennial/biseasonal crops will be listed in Kharif
 
-L39_prev <- rmtl_srvy22 [,c(1,grep("l39_prev_",names(rmtl_srvy22)))] 
+L39_prev <- rmtl_srvy22 %>% 
+  select(hh_id, contains("l39_prev_"))
 
 # L39_prev
 C1_pre=L39_prev[,c(1, grep("^l39_prev_\\d+_\\d+_\\d+$", names(L39_prev)))] # Eliminate Pattern like "l39_prev_3__888_6"  "l39_prev_3_other_6" "l39_prev_kha_7" 
@@ -762,7 +765,7 @@ rm(crop_plot, crop_plot_1, crop_plot_2, crop_plot_3,
 plots_crop_2022
 
 
-
+# קמג - ----
 
 
 

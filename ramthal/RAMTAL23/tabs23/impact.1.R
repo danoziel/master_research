@@ -1,4 +1,4 @@
-# Load required libraries
+# IMPACT 1
 library(dplyr)
 library(lmtest)
 library(sandwich)
@@ -53,7 +53,8 @@ dist_elev_var  <-  # former [dist_var]
     hh_id,  elevation_m,  elevation_0,dist_to_boundary_m, dist_Km_boundary
   )
 
-
+# 10.11.26
+dist_boundary_vars  <- dist_elev_var |> select(hh_id, dist_Km_boundary)
 
 
 

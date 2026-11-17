@@ -2,7 +2,39 @@
 #|     Subdata to paper analysis
 #|    ==================================
 
-library(haven)
+
+# ______________________________________________________________________________
+
+# PROJECT: [Project Name / Manuscript Title]
+# SCRIPT:  03_main_regressions.R
+# PURPOSE: Estimates primary econometric specifications (Tables 3 & 4 in Paper).
+# AUTHOR:  [Name / Anonymous for Peer Review]
+# DATE:    [Date / Year]
+# R VER:   R version 4.x
+# ______________________________________________________________________________
+
+
+
+
+all.equal(plots_crop_2022, CV) #  אם הטבלאות זהות: הפונקציה תחזיר TRUE.
+dplyr::setequal(plots_crop_2022, CV)  #  בדיקה שמתעלמת מסדר השורות (dplyr::setequal)
+
+waldo::compare(plots_crop_2022, CV)
+
+# יציג שורות שקיימות בטבלה המקורית אך שונות או חסרות בחדשה
+anti_join(df_original, df_new)
+
+
+# Cultivated land [8 items]
+dt_BL_cult_acre <- df_tableC_bl %>% rbind(df_tableBbl) %>%
+  group_by(vars) %>%
+  mutate(val_bl = ifelse(val_bl > quantile(val_bl, 0.995, na.rm = TRUE), NA, val_bl)
+  ) %>% ungroup()
+dt_BL_cultivated_land <- bind_rows(dt_BL_cult_acre, df_tableD_bl) 
+
+
+
+
 
 
 # ==============================================================================
@@ -165,7 +197,7 @@ a_plots_crop
 
 # df_return_invest        ----
 
-land_holding_bl <- BL_plotAcre %>% group_by(hh_id) %>% summarise(hh_acre_bl=sum(plot_acre,na.rm = T))
+land_holding_bl <- BL_plotAcre %>% group_by(hh_id) %>% summarise(land_holding=sum(plot_acre,na.rm = T))
 
 df_income_f3_bl <- 
   rmtl_baseline2016  %>% 
@@ -181,11 +213,13 @@ df_revenue_22 <-
   group_by(hh_id) %>% summarise(revenue22=sum(plotRevenue,na.rm = T)/1000)
 
 
+  
+
 bv_revenue_income_22bl <- 
   df_revenue_22 %>%
   left_join(df_income_f3_bl) %>% 
   left_join(land_holding_bl) %>% 
-  left_join(rmtl_cntrl_vars %>% select(hh_id,total_acre16)) |> 
+  left_join(rmtl_cntrl_vars %>% select(hh_id,total_acre16)) %>% 
   mutate(
     reve_acre_22= revenue22/total_acre16,
     reve_acre_bl=income_bl/hh_acre_bl

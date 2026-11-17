@@ -828,7 +828,6 @@ ir_year_season <-
   mutate(pct_usage=n/N) 
 
 
-
 jainreport_and_usage <- 
   jain_report %>% select(year,project_year, kharif, rabi) %>% 
   pivot_longer(cols = c(kharif, rabi),names_to = "season",values_to = "pct_jain"
@@ -872,15 +871,16 @@ jainreport_and_usage %>%
 
 # Typically, in your experience, when water is provided in a particular year, in which month does it start?
 
-rmtl_srvy22_24  %>% select(starts_with("mw12")) %>% 
+Water_Delivery_Delay <- rmtl_srvy22_24  %>% select(starts_with("mw12")) %>% 
   count(mw12) %>% filter(mw12 %in% c(1:12)) %>% 
   mutate(N=sum(n),pct=n/N*100) %>%
   mutate(N = sum(n),pct = n / N,
          month = month.abb[mw12] ,        # Convert to abbreviated month names
          season = case_when(mw12 %in% c(6, 7, 8, 9, 10) ~ "Kharif",
                             mw12 %in% c(11, 12, 1, 2, 3) ~ "Rabi",TRUE ~ "Summer")
-  ) %>% 
-  ggplot(aes(x = factor(month, levels = month.abb))) +
+  )
+
+ggplot(Water_Delivery_Delay, aes(x = factor(month, levels = month.abb))) +
   geom_col(aes(y = pct, fill = season))+
   geom_text(aes(y = pct, label = scales::percent(pct, accuracy = 1)),
             vjust = 1.2,size = 4)+

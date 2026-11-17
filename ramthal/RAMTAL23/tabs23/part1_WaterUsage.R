@@ -1,3 +1,5 @@
+# WATER USAGE ----
+
 library(dplyr)
 library(tidyverse)
 library(haven)
@@ -159,8 +161,8 @@ nice_table(table_L7c, title = c("Table L7c", "Fraction of farms with/without irr
 
 
 
-  
-  
+
+
 
 # 3 | Irrigation ----
 #______3.1 Users' fraction ----
@@ -587,7 +589,7 @@ krk_ir=left_join(kharif_21,rabi_21_22) %>% left_join(kharif_22) %>%
 
 
 
-###### 2021 ir data [survey of 2022] # ir22_2021
+# 2021 ir data [survey of 2022] # ir22_2021 ----
 ir_6methods_2021_2022 <-  
   a_irri_rain_method %>%  select( hh_id ,irri_method) %>% distinct() %>% 
   group_by(hh_id)  %>%
@@ -600,19 +602,19 @@ irrigation_2021_22 <-
   mutate(drip  = ifelse(irri_method == "drip",1,0 ),
          flood = ifelse(irri_method %in% c("flood","furrows","hose"),1,0),
          irri  = ifelse(irri_method == "rain",0,1 )
-         ) %>%
+  ) %>%
   mutate(drip_2021 = ifelse(season %in% c("kharif_2021","rabi_2021_22"),drip,NA )) %>% 
   mutate(drip_2022 = ifelse(season %in% c("kharif_2022","rabi_2021_22"),drip,NA )) %>% 
   mutate(drip_2021_22 = drip
-         ) %>% 
+  ) %>% 
   mutate(flood_2021 = ifelse(season %in% c("kharif_2021","rabi_2021_22"),flood,NA )) %>% 
   mutate(flood_2022 = ifelse(season %in% c("kharif_2022","rabi_2021_22"),flood,NA )) %>% 
   mutate(flood_2021_22 = flood
-         ) %>% 
+  ) %>% 
   mutate(irri_2021 = ifelse(season %in% c("kharif_2021","rabi_2021_22"),irri,NA )) %>% 
   mutate(irri_2022 = ifelse(season %in% c("kharif_2022","rabi_2021_22"),irri,NA )) %>% 
   mutate(irri_2021_22 = irri
-         ) %>% 
+  ) %>% 
   group_by(hh_id) %>% 
   summarise(
     drip_use_2021=sum(drip_2021,na.rm = T),
@@ -626,7 +628,7 @@ irrigation_2021_22 <-
     ir_use_2021=sum(irri_2021,na.rm = T),
     ir_use_2022=sum(irri_2022,na.rm = T),
     ir_use_2021_22= sum(irri_2021_22,na.rm = T)
-            ) %>% 
+  ) %>% 
   mutate(
     drip_use_2021 = ifelse(drip_use_2021==0,0,1), 
     drip_use_2022 = ifelse(drip_use_2022==0,0,1),
@@ -639,14 +641,14 @@ irrigation_2021_22 <-
     ir_use_2021 = ifelse(ir_use_2021==0,0,1), 
     ir_use_2022 = ifelse(ir_use_2022==0,0,1),
     ir_use_2021_22 = ifelse(ir_use_2021_22==0,0,1) 
-         )   %>% left_join(ir_6methods_2021_2022 ) 
+  )   %>% left_join(ir_6methods_2021_2022 ) 
 
 # irrigation_2018_2020 ----
 
- # irrigation method coded
+# irrigation method coded
 rmtl_srvy22 %>% select(farmers_hh,hh_id, starts_with("l48a_y"),-contains("other")) %>% 
   pivot_longer(cols = -c(farmers_hh,hh_id),names_to = "observation",  values_to = "irri_method"
-               ) %>% count(irri_method)
+  ) %>% count(irri_method)
 
 attr(rmtl_srvy22$l48a_y_18_1, "labels")
 
@@ -656,7 +658,7 @@ ir_flood_18_20 <-
   separate(observation, into = c("L48a","y" ,"year_ir","crop15"), sep = "_") %>% 
   mutate(year_ir =as.numeric(year_ir),year_ir=year_ir+2000) %>% 
   mutate(irri_method=ifelse(is.na(irri_method),0,irri_method)
-         ) %>% 
+  ) %>% 
   group_by(hh_id,year_ir) %>% 
   mutate( flood_use = ifelse(any(irri_method  %in% c(1,2,6 )), 1,0)) %>% 
   select(hh_id,flood_use,year_ir) %>% distinct() %>% ungroup() %>% 
@@ -675,11 +677,11 @@ ir_18_20 <-
   group_by(hh_id,year_ir) %>% 
   mutate(
     ir_method = ifelse(3 %in% irri_method , "drip", 
-                  ifelse(any(irri_method  == 2), "furrows",
-                  ifelse(any(irri_method  == 1), "flood",
-                  ifelse(any(irri_method  == 4), "sprinkler",
-                  ifelse(any(irri_method  == 6), "hose","rain"))))) 
-    ) %>%  #  filter(hh_id %in% c(103257,105832))
+                       ifelse(any(irri_method  == 2), "furrows",
+                              ifelse(any(irri_method  == 1), "flood",
+                                     ifelse(any(irri_method  == 4), "sprinkler",
+                                            ifelse(any(irri_method  == 6), "hose","rain"))))) 
+  ) %>%  #  filter(hh_id %in% c(103257,105832))
   select(hh_id,ir_method,year_ir) %>% distinct() %>% ungroup() %>% 
   mutate(ir_use=ifelse(ir_method=="rain",0,1),
          drip_use=ifelse(ir_method=="drip",1,0))
@@ -710,7 +712,7 @@ irrigation_2017 <-
     drip_use_2017=ifelse(ir_method_2017=="drip",1,0),
     flood_use_2017  =ifelse(ir_method_2017 %in% c("flood","furrows","hose"),1,0),
     ir_use_2017  =ifelse(ir_method_2017=="rain",0,1)
-         ) %>%  
+  ) %>%  
   select(hh_id, ir_method_2017, drip_use_2017, flood_use_2017, ir_use_2017)
 
 # irrigation_BL        ----
@@ -738,8 +740,8 @@ irrigation_BL_to_22 <-
   rename(drip_use_6y=drip_use,
          flood_use_6y=flood_use,
          ir_use_6y=ir_use)
-  
-  
+
+
 library(writexl)
 write_xlsx(irrigation_BL_to_22,
            "C:/Users/Dan/OneDrive - mail.tau.ac.il/Ramthal Data/irrigation_BL_to_22.xlsx")

@@ -1,4 +1,4 @@
-===========================
+
 Cost Benefit Analysis
 =========================
 
@@ -62,7 +62,7 @@ library(tidyr)
 library(tidyverse)
 library(readxl)
 
-df_return_invest = df_reg_22_boundaries  |> filter(vars %in% c("Farming_income","revenue_per_acre"))
+df_reg_22_boundaries  |> filter(vars %in% c("Farming_income","revenue_per_acre"))
 
 df_bv <- Impact_Economic_clean |> filter(vars == "revenue_per_acre" ) |>   
   left_join(rmtl_cntrl_vars %>% select(hh_id,in_project)) |> 

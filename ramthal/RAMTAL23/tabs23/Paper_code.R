@@ -1,435 +1,82 @@
-# 15.09.2016
-
-# ______________________________________________________________________________
-
-# PROJECT: [Project Name / Manuscript Title]
-# SCRIPT:  03_main_regressions.R
-# PURPOSE: Estimates primary econometric specifications (Tables 3 & 4 in Paper).
-# AUTHOR:  [Name / Anonymous for Peer Review]
-# DATE:    [Date / Year]
-# R VER:   R version 4.x
-# ______________________________________________________________________________
+# PAPER CODE ----
 
 library(dplyr)
 library(tidyr)
 library(tidyverse)
 library(readxl)
 
-# 2.1. Regional Agricultural Practices (desc)
-df_tableBbl
-df_tableC_bl
-df_tableD_bl
-df_tableBbl_1
-irrigation_BL_to_22
-bl13_source_irrigate
-rmtl_baseline2016
-df_income_f3_bl
-df_income_NonCrop_bl
-land_holding_bl
-df_income_f12_bl
-
-# TABLE A1: Crop Cultivation Area and Adoption Rates
-df_tableBbl_1
-df_tableB_1
-df_tableC
-df_tableD
-df_tableD_bl
-rmtl_16_18_22_sample
-
-2.5. Summary statistics and balance tests
-
-# 3.1. Empirical Strategy
-
-# 3.2.1. Agricultural Outcomes 
-crop_BL
-plots_crop_2022
-
-# 3.2.2. Income Effects 
-df_return_invest
-df_income_NonCrop
-df_inputs
-df_labor_days
-# Assets
-rmtl_srvy22
-rmtl_baseline2016
-a_plots_size
-rmtl_cntrl_vars
-
-# 3.2.3. Education and Migration
-rmtl_srvy22
-rmtl_baseline2016
-
-# 3.3. Drip Irrigation Utilization 
-irrigation_BL_to_22
-rmtl_cntrl_vars
-crop_acre_drip_22
-crop_acre_drip_BL
-a_source_irri
-bl13_source_irrigate
-
-3.4. Cost Benefit Analysis 
-# 4.1. Predictors of Drip Usage
-4.2. Barriers to implementation
+# # # 2.1. Regional Agricultural Practices (desc)
+# # # TABLE A1: Crop Cultivation Area and Adoption Rates
+# # # 2.5. Summary statistics and balance tests
+# # # 3.1. Empirical Strategy
+# # # 3.2.1. Agricultural Outcomes 
+# # # 3.2.2. Income Effects 
+# # # Assets
+# # # 3.2.3. Education and Migration
+# # # 3.3. Drip Irrigation Utilization 
+# # # 3.4. Cost Benefit Analysis 
+# # # # 4.1. Predictors of Drip Usage
+# # # 4.2. Barriers to implementation
+#===============================================================================
+#  SUMMARY STATISTICS  ----
+#===============================================================================
+SUMMARY_STATISTICS |> kableExtra::kbl() |> kableExtra::kable_classic()
 
 #===============================================================================
-#  Regional Agricultural Practices  ----
-#===============================================================================
-
-library(tidyverse)
-
-# Ave. land cultivated per hh in Rabi: 7.88 acres
-# Average land cultivated per hh in Kharif: 4.97 acres
-df_summary <- df_tableBbl %>%
-  mutate(vars = str_remove(vars, "^[^_]+_[^_]+_")) %>%
-  group_by(hh_id, vars) %>%
-  summarise(val_bl = sum(val_bl, na.rm = TRUE), .groups = "drop") %>%
-  group_by(vars) %>%
-  summarise(mean_val_bl = mean(val_bl, na.rm = TRUE), .groups = "drop")
-
-
-# % of gross cultivated area under "target crops": 20%
-df_tableC_bl %>%
-  group_by(vars) %>%
-  summarise(val_bl = sum(val_bl, na.rm = TRUE), .groups = "drop") |> 
-  mutate(pct_cultivated_acre_crop_type = val_bl/ sum(df_tableC_bl$val_bl, na.rm = TRUE) )
-
-
-# % of households growing "target crops": 42%
-# Households relying on rain (rainfed cultivation): 92%
-df_tableD_bl %>% group_by(vars) %>% summarise(mean_val_bl = mean(val_bl, na.rm = TRUE), .groups = "drop")
-
-
-# Share of Rabi area under chickpea: 60%
-# Share of Rabi area under sorghum: 37%
-# Share of Kharif area under mung: 18%
-# Share of Kharif area under toor: 16%
-# Share of Kharif area under cotton: 2%
-# Share of Rabi area under sunflower: 16%
-
-
-# Total farms
-total_unique_farmers <- n_distinct(df_tableBbl$hh_id)
-
-# Total cultivated area per season
-season_totals <- df_tableBbl_1 %>% group_by(season) %>%
-  summarise(season_total_acres = sum(acre_crop, na.rm = TRUE), .groups = "drop")
-
-
-df_tableBbl_1 %>%
-  group_by(season, crop_common) %>%
-  summarise(total_acres = sum(acre_crop, na.rm = TRUE),
-            total_farmers = n_distinct(hh_id),
-            farmer_participation_pct = (total_farmers / total_unique_farmers),
-            .groups = "drop") %>%
-  left_join(season_totals, by = "season") %>%
-  mutate(pct_of_season_land = (total_acres / season_total_acres) ) %>%
-  group_by(crop_common) %>%
-  slice_max(total_farmers, n = 1, with_ties = FALSE) %>%
-  ungroup()  %>%
-  select(crop_common, pct_of_season_land, farmer_participation_pct)
-
-
-# Households using flood irrigation: 7%
-# Households using drip irrigation: 1.2%
-irrigation_BL_to_22  |> count(ir_method_BL ) |> mutate(pct = round(n/sum(n),2))
-
-# Households relying on borewells: 3.7%
-# Households relying on shared open wells: 2.6%
-# Households relying on canals: 2.2%
-bl13_source_irrigate |> 
-  select(hh_id,irri_source_5y ) |> distinct() |>  filter(!is.na(irri_source_5y )) |> 
-  count(irri_source_5y) |> mutate(pct = round(n/total_unique_farmers, 3))
-
-
-# hh owning assets traction assets: 32% (tractor: 14% # bullocks: 22%)
-df_bl_assets <-  rmtl_baseline2016 %>% select(hh_id,E6_1,E7_1,E8_1, E9_1,E10_1) |> pivot_longer(-hh_id, names_to = "name", values_to = "val_bl") |> mutate(val_bl=ifelse(val_bl>=1,1,0))
-
-# hh owning traction assets: 32%
-df_bl_assets %>% filter(name %in% c("E10_1","E7_1")) |> group_by(hh_id) |>  summarise(val_bl=sum(val_bl, na.rm=T)) |> mutate(val_bl=ifelse(val_bl>=1,1,0)) |>   summarise(mean(val_bl, na.rm=T))
-
-# hh owning tractor: 14% # bullocks: 22%
-# E10_1=tractor, E7_1=Bullock
-df_bl_assets %>% filter(name %in% c("E10_1","E7_1")) |> group_by(name) |>  summarise(mean(val_bl, na.rm=T))
-
-# Households owning farm animals: 51% (half)
-df_bl_assets %>% filter(name != "E10_1" ) |> group_by(hh_id) |>  summarise(val_bl=sum(val_bl, na.rm=T)) |> mutate(val_bl=ifelse(val_bl>=1,1,0)) |>   summarise(mean(val_bl, na.rm=T))
-
-
-# Average annual household agricultural income: ~$860 (57,800 Rs.)
-# Average agricultural income per acre: $106 (7,100 Rs.)
-# Farms relying exclusively on agricultural revenue: ~20%
-# Farms depending on off-farm income: 80% (the remainder)
-# Average total annual household income: ~$1,482 (99,600 Rs.)
-df_income_f3_bl %>% mutate(vars = "Farming_income") |>  
-  rename(val_bl= income_bl) |> select(hh_id, vars, val_bl) |> 
-  rbind( df_income_NonCrop_bl |> rename(vars=income_type, val_bl= income_NonCrop) )|>  mutate(val_bl=ifelse(val_bl>=1,1,0)) |> 
-  pivot_wider(
-    names_from = vars, 
-    values_from = val_bl) |> 
-  mutate(both=k_income_independent+ k_income_assistance, 
-         income=ifelse(both==2,"Both",
-                       ifelse(k_income_independent==1,"Off-farm income",
-                              ifelse(k_income_assistance ==1,"External income sources","Farming only" )))) |> 
-  count(income) |> mutate(pct = n/sum(n))
-
-df_income_f3_bl %>% rename(farming_income_bl= income_bl) |> 
-  left_join(land_holding_bl) %>%  
-  mutate(reve_acre_bl=farming_income_bl/hh_acre_bl) %>% 
-  left_join(df_income_f12_bl) |> select(-hh_acre_bl ) |> 
-  pivot_longer(-hh_id, names_to = "vars",values_to = "val_bl")%>%
-  group_by(vars) %>%
-  mutate( val_bl = ifelse(val_bl > quantile(val_bl, 0.995, na.rm = TRUE), NA, val_bl)) |>  
-  group_by(vars) |> summarise(mean(val_bl,na.rm=T))
-
-
-# TABLE A1: Crop Cultivation Area and Adoption Rates ----
-
-library(tidyverse)
-
-# -------------------------------------------------------------------------
-#  Step 1: Baseline Period (2016) ----
-# ........................................................................
-
-### Reshape crop data ----
-#   Complete zero-acreage combinations across seasons and merge sample status
-df_bl_cultivation <- 
-  df_tableBbl_1 |> rename(val_bl = acre_crop, vars = crop_common)%>% select(-crop_type ) %>% 
-  complete(season, hh_id, vars, fill = list(val_bl = 0)) %>%
-  left_join(rmtl_16_18_22_sample %>% select(hh_id, sample) )
-
-# Count unique households: Full sample, treatment and control
-n_total_BL <- n_distinct(df_bl_cultivation$hh_id)
-n_out_BL   <- n_distinct(df_bl_cultivation$hh_id[df_bl_cultivation$sample == 0])
-n_in_BL    <- n_distinct(df_bl_cultivation$hh_id[df_bl_cultivation$sample == 1])
-
-### 1. ADOPTION RATE (GROWER SHARE) ----
-
-# ADOPTION | CROPS
-# Aggregate grower adoption shares per crop
-crop_adopters_summary_BL <- df_bl_cultivation |> select(-season) %>% mutate( val_bl = +(val_bl != 0)) |> distinct() %>%
-  group_by(vars) %>%
-  summarise( # Full sample
-    num_growers_all = sum(val_bl > 0, na.rm = TRUE),
-    pct_growers_all_BL = num_growers_all / n_total_BL,
-    
-    # Inside the project
-    num_growers_IN  = sum(val_bl > 0 & sample == 1, na.rm = TRUE),
-    pct_growers_IN_BL  = num_growers_IN / n_in_BL,
-    
-    # Outside the project
-    num_growers_OUT = sum(val_bl > 0 & sample == 0, na.rm = TRUE),
-    pct_growers_OUT_BL = num_growers_OUT / n_out_BL
-  ) %>% select(vars, pct_growers_all_BL ,pct_growers_IN_BL, pct_growers_OUT_BL )
-
-
-# ADOPTION | CROP CATEGORY
-# Aggregate grower adoption shares by crop category (Traditional vs Target)
-crop_type_adopters_summary_BL <- df_tableD_bl %>%
-  left_join(rmtl_16_18_22_sample %>% select(hh_id, sample) ) %>%
-  group_by(vars) %>%
-  summarise( # Full sample
-    num_growers_all = sum(val_bl > 0, na.rm = TRUE),
-    pct_growers_all_BL = num_growers_all / n_total_BL,
-    num_growers_IN  = sum(val_bl > 0 & sample == 1, na.rm = TRUE),
-    pct_growers_IN_BL  = num_growers_IN / n_in_BL,
-    num_growers_OUT = sum(val_bl > 0 & sample == 0, na.rm = TRUE),
-    pct_growers_OUT_BL = num_growers_OUT / n_out_BL
-  ) %>% select(vars, pct_growers_all_BL ,pct_growers_IN_BL, pct_growers_OUT_BL ) |> 
-  mutate(vars=ifelse(vars=="Rainfed_adopted","Traditional crop","Target crop"))
-
-### 2. CULTIVATED ACREAGE (MEAN AREA) ----
-
-# ACRE | CROPS
-# Aggregate mean acreage per crop, filtered to peak-grower season
-crop_acre_summary_BL <- df_bl_cultivation %>%
-  summarise( 
-    num_growers_all = sum(val_bl > 0, na.rm = TRUE),
-    mean_area_all_BL   = mean(val_bl, na.rm = TRUE), # full sample
-    mean_area_IN_BL    = mean(val_bl[sample == 1], na.rm = TRUE),
-    mean_area_OUT_BL   = mean(val_bl[sample == 0], na.rm = TRUE),
-    .by = c(season, vars)
-  )|> group_by(vars) %>%
-  slice_max(num_growers_all, n = 1, with_ties = FALSE) %>%
-  ungroup()  %>% select(-season, -num_growers_all)
-
-# ACRE | CATEGORY
-# Aggregate mean household acreage by crop category (Traditional vs Target)
-crop_type_acre_summary_BL <- df_tableBbl_1 |> 
-  summarise(val_bl = sum(acre_crop),.by = c(hh_id, crop_type)) %>% 
-  rename(vars = crop_type) %>%  complete(hh_id, vars, fill = list(val_bl = 0)) |>   left_join(rmtl_16_18_22_sample %>% select(hh_id, sample) ) |> summarise( 
-    mean_area_all_BL   = mean(val_bl, na.rm = TRUE), # full sample
-    mean_area_IN_BL    = mean(val_bl[sample == 1], na.rm = TRUE),
-    mean_area_OUT_BL   = mean(val_bl[sample == 0], na.rm = TRUE),
-    .by = vars
-  )|> 
-  mutate(vars=ifelse(vars=="Rainfed_acre","Traditional crop","Target crop"))
-
-
-
-### 3. Combine baseline ACREAGE and ADOPTION summaries  ----
-
-crop_summary_BL <- 
-  crop_acre_summary_BL |> rbind(crop_type_acre_summary_BL) |> 
-  left_join(crop_adopters_summary_BL |> rbind(crop_type_adopters_summary_BL))
-
-print(crop_summary_BL)
-
-# -------------------------------------------------------------------------
-## Step 2: Endline Period (2022) ----
-# ........................................................................
-
-### Reshape crop data ----
-# Complete zero-acreage combinations across seasons and merge sample status
-df_22_cultivation <- 
-  df_tableB_1 |> rename(val_22 = acre_crop, vars = crop_common) %>% 
-  complete(season, hh_id, vars, fill = list(val_22 = 0)) %>%
-  left_join(rmtl_16_18_22_sample %>% select(hh_id, sample) )
-
-# Count unique households: Full sample, treatment and control
-n_total_22 <- n_distinct(df_22_cultivation$hh_id)
-n_out_22   <- n_distinct(df_22_cultivation$hh_id[df_22_cultivation$sample == 0])
-n_in_22    <- n_distinct(df_22_cultivation$hh_id[df_22_cultivation$sample == 1])
-
-### 1. ADOPTION RATE (GROWER SHARE) ----
-
-# ADOPTION | CROPS
-# Aggregate grower adoption shares per crop
-crop_adopters_summary_22 <- df_22_cultivation |> select(-season) %>% mutate( val_22 = +(val_22 != 0)) |> distinct() %>%
-  left_join(rmtl_16_18_22_sample %>% select(hh_id, sample) ) %>% 
-  group_by(vars) %>%
-  summarise(
-    num_growers_all = sum(val_22 > 0, na.rm = TRUE),
-    pct_growers_all_22 = num_growers_all / n_total,
-    num_growers_IN  = sum(val_22 > 0 & sample == 1, na.rm = TRUE),
-    pct_growers_IN_22  = num_growers_IN / n_in,   
-    num_growers_OUT = sum(val_22 > 0 & sample == 0, na.rm = TRUE),
-    pct_growers_OUT_22 = num_growers_OUT / n_out
-  ) %>% select(vars, pct_growers_all_22 ,pct_growers_IN_22, pct_growers_OUT_22 )
-
-# ADOPTION | CROP CATEGORY
-# Aggregate grower adoption shares by crop category (Traditional vs Target)
-crop_type_adopters_summary_22 <- df_tableD %>%
-  left_join(rmtl_16_18_22_sample %>% select(hh_id, sample) ) %>%
-  group_by(vars) %>%
-  summarise( # Full sample
-    num_growers_all = sum(val_22 > 0, na.rm = TRUE),
-    pct_growers_all_22 = num_growers_all / n_total_22,
-    num_growers_IN  = sum(val_22 > 0 & sample == 1, na.rm = TRUE),
-    pct_growers_IN_22  = num_growers_IN / n_in_22,
-    num_growers_OUT = sum(val_22 > 0 & sample == 0, na.rm = TRUE),
-    pct_growers_OUT_22 = num_growers_OUT / n_out_22
-  ) %>% select(vars, pct_growers_all_22 ,pct_growers_IN_22, pct_growers_OUT_22 )|> 
-  mutate(vars=ifelse(vars=="Rainfed_adopted","Traditional crop","Target crop")) 
-
-
-### 2. CULTIVATED ACREAGE (MEAN AREA) ----
-
-# ACRE | CROPS
-# Aggregate mean acreage per crop, filtered to peak-grower season
-crop_acre_summary_22 <- df_22_cultivation %>%
-  summarise( 
-    num_growers_all = sum(val_22 > 0, na.rm = TRUE),
-    mean_area_all_22   = mean(val_22, na.rm = TRUE), # full sample
-    mean_area_IN_22    = mean(val_22[sample == 1], na.rm = TRUE),
-    mean_area_OUT_22   = mean(val_22[sample == 0], na.rm = TRUE),
-    .by = c(season, vars)
-  )|> group_by(vars) %>%
-  slice_max(num_growers_all, n = 1, with_ties = FALSE) %>%
-  ungroup()  %>% select(-season, -num_growers_all) |> 
-  arrange(desc(mean_area_all_22 ))
-
-# ACRE | CATEGORY
-# Aggregate mean household acreage by crop category (Traditional vs Target)
-crop_type_acre_summary_22 <- df_tableC |> 
-  summarise(val_22 = sum(val_22),.by = c(hh_id, vars)) |>   left_join(rmtl_16_18_22_sample %>% select(hh_id, sample) ) |> summarise( 
-    mean_area_all_22   = mean(val_22, na.rm = TRUE), # full sample
-    mean_area_IN_22   = mean(val_22[sample == 1], na.rm = TRUE),
-    mean_area_OUT_22   = mean(val_22[sample == 0], na.rm = TRUE),
-    .by = vars)|> 
-  mutate(vars=ifelse(vars=="Rainfed_acre","Traditional crop","Target crop"))
-
-
-### 3. Combine endline ACREAGE and ADOPTION summaries  ----
-
-crop_summary_22 <- 
-  crop_acre_summary_22 |> rbind(crop_type_acre_summary_22) |> 
-  left_join(crop_adopters_summary_22 |> rbind(crop_type_adopters_summary_22))
-
-
-
-
-
-
-# -------------------------------------------------------------------------
-## Step 3: Synthesis (Endline & Baseline)  ----
-# ........................................................................
-
-# Merge Endline and Baseline metrics into a single comparison table
-
-crop_summary_22BL <- 
-  crop_acre_summary_22 |> rbind(crop_type_acre_summary_22) |> 
-  left_join(crop_acre_summary_BL |> rbind(crop_type_acre_summary_BL)) |> 
-  left_join(crop_adopters_summary_22 |> rbind(crop_type_adopters_summary_22)) |> 
-  left_join(crop_adopters_summary_BL |> rbind(crop_type_adopters_summary_BL)) 
-
-crop_summary_22BL$vars[crop_summary_22BL$vars=="Bengal_gram" ] <- "Chichpeas"
-crop_summary_22BL$vars[crop_summary_22BL$vars=="Oilseeds" ] <- "Oil seeds"
-crop_summary_22BL$vars[crop_summary_22BL$vars=="Onions" ] <- "Onion"
-crop_summary_22BL$vars[crop_summary_22BL$vars=="Sorghum_jowar" ] <- "Sorghum (Jowar)"
-names(crop_summary_22BL)[names(crop_summary_22BL) == "vars"] <- "Crop"
-
-new_row <- tibble(
-  Crop               = "Total N",
-  mean_area_all_22   = n_total_22,
-  mean_area_IN_22    = n_in_22,
-  mean_area_OUT_22   = n_out_22,
-  mean_area_all_BL   = n_total_BL,
-  mean_area_IN_BL    = n_in_BL,
-  mean_area_OUT_BL   = n_out_BL,
-  pct_growers_all_22 = n_total_22,
-  pct_growers_IN_22  = n_in_22,
-  pct_growers_OUT_22 = n_out_22,
-  pct_growers_all_BL = n_total_BL,
-  pct_growers_IN_BL  = n_in_BL,
-  pct_growers_OUT_BL = n_out_BL
-)
-
-crop_summary_Paper <- bind_rows(new_row, crop_summary_22BL)
-
-print(crop_summary_Paper)            
-
-crop_summary_Paper |> kableExtra::kbl() |> kableExtra::kable_classic()
+# # #   Section: Regional Agricultural Practices  ----
+
+print(df_summaries)
+
+# # Objects in "df_summaries":
+# acres_per_hh_season  | Ave. acre land cultivated per hh in Rabi and Kharif
+# GCA_share_by_crop    | % of gross cultivated area by crop category
+# pct_hh_target_crops  | % of households growing "target crops"
+# CROP_season_land_pct_AND_hh_grow_pct | % of season cultivated area and % of households growing per crop
+# drip_OR_flood_irrigation_hh_share    | % Households using flood or drip irrigation
+# water_source_hh_share | Water source for irrigation (% Households)
+# asset_own_hh_share    | Households owning assets (% Households)
+# farming_incom         | Average annual household agricultural income: per HH and per acre (Rs.)
+# income_source_type    | Farms relying exclusively on agricultural revenue OR depending on off-farm income
+# HH_total_incom        | Average total annual household income (Rs.)
 
 
 #===============================================================================
-#  SUMMARY STATISTICS and BALANCE TESTS ----
+# # #   Figure: Drip irrigation and water source [2016–2022]  ----
+
+print(drip_water_source_DFs)
+
+# # # Objects in "drip_water_source_DFs":
+# # Percentage of households in which infrastructure has been installed
+# # Percentage of farmers who stated that they are part of the Ramatel project
+# # % of drip users 2021-22
+# # % of floode users 2021-22
+# # Percentage of area irrigated via drip irrigation and size of the area (in acres)
+# # Percentage Of Drip Adopters
+# # Cumulative percent of adopters by year
+# # Percentage of NEW adopters by year
+# # Average years of use for drip irrigation
+
+
 #===============================================================================
+# # #   Appendix Table: Crop Cultivation Area and Adoption Rates ----
 
-# Cultivated land [8 items]
-dt_BL_cult_acre <- df_tableC_bl %>% rbind(df_tableBbl) %>%
-  group_by(vars) %>%
-  mutate(
-    val_bl = ifelse(val_bl > quantile(val_bl, 0.995, na.rm = TRUE), NA, val_bl)
-  ) %>% ungroup()
+# Table:  Crop acre land table by groups
+crop_acre_summary <- crop_summary_Paper %>% select(Crop, starts_with("mean_acre_"))
 
-dt_BL_cultivated_land <- bind_rows(dt_BL_cult_acre, df_tableD_bl) 
+# Table: Crop Percentage of growers by groups
+crop_pct_summary <- crop_summary_Paper %>% select(Crop, starts_with("pct_growers_"))
 
+print(crop_summary_Paper)
+print(crop_acre_summary)
+print(crop_pct_summary)
 
+#===============================================================================
+# # #   BALANCE TESTS                                     ----
+#
+##  Analysis: t-tests by treatment group
+library(rstatix)
 
-
-# T-TEST DF    |||||||||||||||| ----
-
-df_to_ttest_bl <- 
-  dt_BL_cultivated_land
-  bind_rows( ) |> 
-
-  left_join(
-  rmtl_baseline2016 |> select(hh_id,in1_out0,south1_north0)
-)
-
-# T-TEST TABLE |||||||||||||||| ----
-# library(rstatix)
-tbl_t1 <- df_reg_bl  %>%
+tbl_t1 <- df_for_ttest  %>%
   group_by(vars) %>%
   do(tidy(t.test(val_bl ~ in1_out0, data = .))) %>% ungroup() %>% 
   mutate(across(c(estimate2, estimate1, p.value), ~ round(., 3))) %>% 
@@ -437,482 +84,37 @@ tbl_t1 <- df_reg_bl  %>%
   rename(In = estimate2 ,Out = estimate1) 
 
 tbl_t2 <- 
-  df_reg_bl  %>%  filter(south1_north0 ==1) %>% 
+  df_for_ttest  %>%  filter(site_area == "South" ) %>% 
   group_by(vars) %>%
   do(tidy(t.test(val_bl ~ in1_out0, data = .))) %>% ungroup() %>% 
   mutate(across(c(estimate2, estimate1, p.value), ~ round(., 3))) %>% 
   select(vars, estimate2,estimate1, p.value) %>% 
   rename(In_south = estimate2 ,Out_south = estimate1, p_south=p.value ) 
 
-tbl_t1 %>% full_join(tbl_t2) %>% 
-  kableExtra::kbl() %>% kableExtra::kable_paper()
+t_test_table <-  tbl_t1 %>% full_join(tbl_t2)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+print(t_test_table)
 
 
 #===============================================================================
 # IMPACT ESTIMATION                                                          ####
 #===============================================================================
-# Environment Setup: Data Preparation   ----
-# ------------------------------------------------------------------------------
-#  A |  Agriculture           ----
-
-# 1. Baseline Data (crop_BL)
-# Matching a crop to its growing season, similar to what was documented in the Endline survey.
-# Divide acreage equally across intercropped plots (plot_acre / n).
-# Align seasons: Kharif takes 2015; Rabi takes the maximum across 2014-15 and 2015-16.
-# Classify crops into WaterIntensive_acre vs. Rainfed_acre.
-
-df_tableBbl_1 <- crop_BL %>%   # in impact1.R 
-  group_by(hh_id, season, plot_num) %>% mutate(n=n()) %>% ungroup() %>% mutate(acre_crop=plot_acre/n) %>% 
-  group_by(season, hh_id, crop_common) %>% 
-  summarise(acre_crop = sum(acre_crop, na.rm = T), .groups="drop") %>% 
-  pivot_wider( names_from=season, values_from=acre_crop, values_fill = NA) %>% 
-  mutate( Rabi = pmax(rabi_2014_15, rabi_2015_16, na.rm = TRUE), Kharif=kharif_2015
-  )%>%
-  select(hh_id, crop_common, Kharif, Rabi) %>%
-  pivot_longer(cols = c(Kharif, Rabi), names_to = "season", values_to = "acre_crop"
-  ) |> filter(!is.na(acre_crop)) |> 
-  mutate(season = case_when(crop_common == "Toor" ~ "Kharif" ,T~ season )) %>%  
-  mutate(season = case_when(crop_common == "Sunflower" ~ "Kharif" ,T~ season )) %>%  
-  mutate(season = case_when(crop_common == "Maize" ~ "Kharif" ,T~ season )) %>%  
-  mutate(season = case_when(crop_common == "Millet" ~ "Kharif" ,T~ season )) %>%  
-  mutate(season = case_when(crop_common == "Pulses" ~ "Kharif" ,T~ season )) %>%  
-  mutate(season = case_when(crop_common == "Greengram" ~ "Kharif" ,T~ season )
-  ) %>%  
-  mutate(crop_type = case_when( crop_common %in% c(
-    "Chillies","Onions","Sunflower","Oilseeds", "Sugarcane","Wheat", "Horticulture","Vegetables"
-  ) ~ "WaterIntensive_acre", TRUE ~ "Rainfed_acre")
-  )
-
-# 2. Baseline: Sum acreage by season and crop type; fill uncultivated pairs with 0.
-df_tableBbl <- df_tableBbl_1 |> 
-  summarise(val_bl = sum(acre_crop),.by = c(season, hh_id, crop_type)
-  ) %>% 
-  mutate(vars = paste(crop_type, season, sep = "_")) %>% 
-  select(hh_id, vars, val_bl) %>% 
-  complete(hh_id, vars, fill = list(val_bl = 0))
-
-# 3. Endline: Divide intercropped acreage and aggregate by crop water intensity.
-df_tableB_1 <- plots_crop_2022 %>%   # in DF.22.R 
-  filter(season != "kharif_2022") %>% 
-  mutate(season=ifelse(season=="rabi_2021_22","Rabi","Kharif"))  %>% 
-  group_by(hh_id, season, plotID) %>% mutate(n=n())%>% ungroup() %>% mutate(acre_crop=acres/n) %>% 
-  group_by(season,hh_id,crop_common) %>% 
-  summarise(acre_crop = sum(acre_crop,na.rm = T ),.groups="drop"
-  )
-
-# 4. Endline: Join with baseline values.
-df_tableB <- df_tableB_1 |> 
-  mutate(crop_type = case_when( crop_common %in% c(
-    "Chillies","Onions","Sunflower","Oilseeds", "Sugarcane","Wheat", "Horticulture","Vegetables"
-  ) ~ "WaterIntensive_acre", TRUE ~ "Rainfed_acre")
-  ) %>% 
-  summarise(val_22 = sum(acre_crop),.by = c(season, hh_id, crop_type)
-  ) %>% 
-  mutate(vars = paste(crop_type, season, sep = "_")) %>% 
-  select(hh_id, vars, val_22) %>% 
-  complete(hh_id, vars, fill = list(val_22 = 0))%>% 
-  left_join(df_tableBbl)
-
-# 5. Full agricultural year totals (summing across seasons).
-df_tableC <- 
-  df_tableB |> mutate(vars = str_remove(vars, "_Kharif|_Rabi")) |> 
-  summarise(val_22 = sum(val_22,na.rm = T),
-            val_bl = sum(val_bl,na.rm = T),.by = c(hh_id,vars)
-  ) |> arrange(hh_id)
+##  Environment Setup: Data Preparation   ----
+# ..............................................................................
 
 
-# 6. Trim top 0.5 percentile of values within each variable to reduce outlier influence.
-df_tableA_995 <- df_tableC %>% rbind(df_tableB) %>%
-  group_by(vars) %>%
-  mutate(
-    val_bl = ifelse(val_bl > quantile(val_bl, 0.995, na.rm = TRUE), NA, val_bl),
-    val_22 = ifelse(val_22 > quantile(val_22, 0.995, na.rm = TRUE), NA, val_22)
-  ) %>% ungroup()
 
-# 7. Construct binary adoption indicators (1 if acreage > 0, 0 otherwise).
-df_tableD <- df_tableC %>%
-  mutate(
-    vars = sub("acre", "adopted", vars),
-    val_22 = +(val_22 != 0),
-    val_bl = +(val_bl != 0)
-  )
+Impact_Agriculture
+Impact_Economic
+df_assets
+Impact_Social
 
-# 8. Combine outcomes into a single dataset
-Impact_Agriculture <- bind_rows(df_tableA_995, df_tableD)
 
 # ______________________________________________________________________________
 
-#  B |  Income Module               ----
+###  D |  Drip Irrigation Utilization  ----
 
-# 1. Trim top 0.5 percentile of values within each variable to reduce outlier influence.
-Economic_clean_995 <- 
-  df_return_invest %>% rename(vars=economic_vars) %>% 
-  rbind(df_income_NonCrop) %>% 
-  rbind(df_inputs) %>%
-  group_by(vars) %>%
-  mutate(
-    val_bl = ifelse(val_bl > quantile(val_bl, 0.995, na.rm = TRUE), NA, val_bl),
-    val_22 = ifelse(val_22 > quantile(val_22, 0.995, na.rm = TRUE), NA, val_22)
-  ) %>% ungroup()
-
-Economic_clean_99 <- 
-  df_labor_days %>% 
-  mutate(
-    val_bl = ifelse(val_bl > quantile(val_bl, 0.99, na.rm = TRUE), NA, val_bl),
-    val_22 = ifelse(val_22 > quantile(val_22, 0.99, na.rm = TRUE), NA, val_22)
-  ) %>% ungroup()
-
-# 2. Combine outcomes into a single dataset.
-Impact_Economic <- # Impact_Economic_clean
-  Economic_clean_995 %>% 
-  rbind(Economic_clean_99) 
-
-# ______________________________________________________________________________
-
-#       Assets                ----
-
-# E6 Cows, E7 Bullock, E8 Buffaloes, E9 Goats&sheep
-# E10 Tractor E11 Plough E12 Thresher E13 Seed drill E14 JCB
-# E15Cycles, E16Motorcycles, E17 Cars, E18 Fridge, E19	Television
-
-# 1. Endline: Household asset ownership.
-df_22 <- rmtl_srvy22 %>% select(hh_id,e6,e7,e8,e9,e10,e12,e13,e14,e17,e18,e19)
-df_22[, 6:11] <- +(df_22[, 6:11] >= 1)
-df_22$Livestock_n <- rowSums(df_22[, c( "e6","e7","e8","e9")], na.rm = TRUE)
-df_22$Farm_equipments <- rowSums(df_22[, c("e13","e14", "e10", "e12")] > 0, na.rm = TRUE)
-df_assets22 <- df_22 %>% 
-  select(-c(e6:e9)) %>% 
-  pivot_longer(-hh_id ,names_to = "vars",values_to = "val_22") %>% 
-  mutate(vars = case_match( 
-    vars, "e10" ~ "Tractor", "e12" ~ "Thresher", "e13" ~ "Seed_drill", 
-    "e14" ~ "JCB", "e17" ~ "Car", "e18" ~ "Fridge", "e19" ~ "Television",
-    .default = vars
-  ))
-
-# 2. Baseline: Household asset ownership.
-df_BL <- rmtl_baseline2016 %>% select(hh_id,E6_1, E7_1, E8_1, E9_1, E10_1, E12_1, E13_1, E14_1, E17_1, E18_1, E19_1)
-df_BL[, 6:11] <- +(df_BL[, 6:11] >= 1)
-df_BL$Livestock_n <- rowSums(df_BL[, c( "E6_1","E7_1","E8_1","E9_1")], na.rm = TRUE)
-df_BL$Farm_equipments <- rowSums(df_BL[, c("E13_1","E14_1", "E10_1", "E12_1")] > 0, na.rm = TRUE)
-df_assets15 <- df_BL %>%  
-  select(-c(E6_1:E9_1)) %>% 
-  pivot_longer(-hh_id ,names_to = "vars",values_to = "val_bl") %>% 
-  mutate(vars = case_match( 
-    vars, "E10_1" ~ "Tractor", "E12_1" ~ "Thresher", "E13_1" ~ "Seed_drill", 
-    "E14_1" ~ "JCB","E17_1" ~ "Car", "E18_1" ~ "Fridge", "E19_1" ~ "Television",
-    .default = vars
-  ))
-
-# 3. Aggregate land holdings for baseline and endline.
-df_land_holding <- 
-  a_plots_size %>% 
-  filter(!plotStatus %in% c("1","6")) %>% 
-  group_by(hh_id) %>% 
-  summarise(val_22=sum(acres,na.rm = T)) %>% 
-  mutate(vars= "land_holding" ) %>% 
-  select(hh_id, vars, val_22) %>% 
-  left_join(rmtl_cntrl_vars) %>% rename(val_bl=total_acre16 ) %>% 
-  select(hh_id, vars, val_22, val_bl) %>% 
-  mutate(val_22 = ifelse(vars == "land_holding" & val_22 > 39, NA, val_22)) 
-
-# 4. Combine outcomes into a single dataset.
-df_assets <- df_assets22 %>% inner_join(df_assets15) %>% rbind(df_land_holding)
-
-# ______________________________________________________________________________
-
-#  C |  Education & Migration ----
-
-## 1. Household literacy rates ----
-# Share of literate household members
-
-# Endline: Compute household-level indicator
-literacy22=  
-  rmtl_srvy22 %>% select(hh_id,starts_with("r7" ) ) %>% 
-  pivot_longer(!hh_id, names_to = "id_member", values_to = "literate") %>% 
-  group_by(hh_id) %>% 
-  summarise(literacy_rates=mean(literate,na.rm=T)) %>% 
-  mutate(literacy_rates = ifelse(literacy_rates <= 0,NA,literacy_rates)) # transfer NaN to NA
-
-# Baseline: Compute household-level indicator
-literacy15= 
-  rmtl_baseline2016 %>% select(hh_id,starts_with("c6" ) ) %>% 
-  pivot_longer(!hh_id, names_to = "id_member", values_to = "literate") %>% 
-  group_by(hh_id) %>% 
-  summarise(literacy_rates=mean(literate,na.rm=T)) %>% 
-  mutate(literacy_rates = ifelse(literacy_rates <= 0,NA,literacy_rates))
-
-
-
-
-## 2. Second-generation educational attainment ----
-# Average education level for second-generation household members.
-
-# Endline: Compute household-level indicator
-# Reshape education level (r8)
-r8_22 =  
-  rmtl_srvy22 %>% select(hh_id, starts_with("r8"), -ends_with("_bin") ) %>% 
-  select(-contains("new")) %>% 
-  pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level")
-r8_22$id_member <- sub("^r8_(\\d{1,2})","r_\\1",r8_22$id_member )
-
-# Reshape relationship to household head (r6)
-r6_22 =
-  rmtl_srvy22 %>% select(hh_id,starts_with("r6" ) ) %>% 
-  pivot_longer(
-    !hh_id, names_to = "id_member", values_to = "relation_HH_head") 
-r6_22$id_member <- sub("^r6_(\\d{1,2})","r_\\1",r6_22$id_member )
-
-# Join datasets, filter for second generation, and compute household mean
-edu_level_2nd_gen_22 <- 
-  left_join (r8_22,r6_22) %>% 
-  mutate(edu_gen_2nd=ifelse(relation_HH_head %in% c(3,9,11:13),edu_level,NA) ) %>% 
-  group_by(hh_id) %>% 
-  summarise(edu_gen2=mean(edu_gen_2nd,na.rm=T)) %>% 
-  mutate(edu_gen2 = ifelse(edu_gen2<0,NA,edu_gen2)) # transfer NaN to NA
-
-# Baseline: Compute household-level indicator
-# Reshape education level (c7)
-c7_15 <- 
-  rmtl_baseline2016 %>% select(hh_id, starts_with("c7"), -ends_with("_bin") ) %>% 
-  pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level")
-c7_15$id_member <- sub("^C7_(\\d{1,2})","C_\\1",c7_15$id_member )
-
-# Reshape relationship to household head (c5)
-C5_15 =
-  rmtl_baseline2016 %>% select(hh_id,starts_with("c5" ), -contains("os") ) %>% 
-  pivot_longer(
-    !hh_id, names_to = "id_member", values_to = "relation_HH_head") 
-C5_15$id_member <- sub("^C5_(\\d{1,2})","C_\\1",C5_15$id_member )
-
-# Join datasets, filter for second generation, and compute household mean
-edu_level_2nd_gen_15 <- 
-  left_join (c7_15,C5_15) %>% 
-  mutate(edu_gen_2nd=ifelse(relation_HH_head %in% c(3,9,11:13),edu_level,NA) ) %>% 
-  group_by(hh_id) %>% 
-  summarise(edu_gen2=mean(edu_gen_2nd,na.rm=T)) %>% 
-  mutate(edu_gen2 = ifelse(edu_gen2<0,NA,edu_gen2)) # transfer NaN to NA
-
-
-
-## 3. Private school enrollment ----
-# Binary indicator equal to 1 if any household member attends a private school, 0 if only public, NA otherwise.
-
-# Endline: Compute household-level indicator
-# Reshape institution type (r11), classify private vs. public, and aggregate to household level
-edu_private_22 = 
-  rmtl_srvy22 %>% select(hh_id,starts_with("r11" ) ) %>% 
-  pivot_longer( !hh_id, names_to = "id_member", values_to = "institut")%>% 
-  mutate(institut = ifelse(is.na (institut),0,institut), Private =ifelse(institut==2,1,0), public=ifelse(institut==1,1,0)) %>%
-  group_by(hh_id) %>% 
-  summarise(n_Private =sum(Private ), n_public=sum(public)) %>% 
-  mutate(private_school = ifelse(n_Private  > 0, 1, ifelse(n_public > 0, 0, NA))) %>% 
-  select(hh_id,private_school)
-
-# Baseline: Compute household-level indicator
-# Reshape institution type (c10), classify private vs. public, and aggregate to household level
-edu_private_15 = 
-  rmtl_baseline2016 %>% select(hh_id,starts_with("C10" ) ) %>% 
-  pivot_longer(!hh_id, names_to = "id_member", values_to = "institut")%>% 
-  mutate(institut = ifelse(!institut %in% c(1,2) ,0,institut), Private =ifelse(institut==2,1,0), public=ifelse(institut==1,1,0)) %>%
-  group_by(hh_id) %>% 
-  summarise(n_Private =sum(Private ), n_public=sum(public)) %>% 
-  mutate(private_school = ifelse(n_Private  > 0, 1, ifelse(n_public > 0, 0, NA))) %>% 
-  select(hh_id,private_school)
-
-
-## 4. Work migration ----
-# Number of household members engaged in seasonal or permanent work migration.
-
-# Endline: Compute household-level indicator
-
-# Seasonal work migration
-# Count of seasonal migrants by primary work location past 2 years (rc3).
-# Non-migrant (0): 1 = Home village; 2 = Other village; 3 = Urban center within district
-# Migrant (1): 4 = Urban center outside district; 5 = Other destination
-rc3 <- rmtl_srvy22 %>% 
-  select(hh_id, starts_with("rc3")) %>% 
-  pivot_longer(-hh_id, names_to = "name", values_to = "left") %>% 
-  mutate(left =ifelse(left %in% c(4,5),1,0)) %>% 
-  group_by(hh_id) %>% summarise(migrants_work_seasonal=sum(left))  
-
-# Permanent work migration
-# Count of permanent migrants whose primary reason for departure was work (r39).
-# Coded 1 if moved for employment (1); 0 if marriage (2), education (3), or other responses
-r39 <- rmtl_srvy22 %>% 
-  select(hh_id, starts_with("r39"), -contains("other")) %>% 
-  pivot_longer(-hh_id, names_to = "name", values_to = "why_left") %>% 
-  mutate(why_left = ifelse(!is.na(why_left) & why_left == 1, 1, 0)) %>% 
-  group_by(hh_id) %>% summarise(migrants_work_permanent=sum(why_left))
-
-# Join seasonal and permanent work migration counts
-migrants_work_22 <- left_join(rc3,r39)
-
-# Baseline: Compute household-level indicator
-
-# Seasonal work migration
-# Count of seasonal migrants by work location outside district/state (C21).
-# Non-migrant (0): 1 = Home village; 2 = Other village; 3 = Urban center within district
-# Migrant (1):     4 = Urban center outside district; 5 = Other destination
-C21 <- rmtl_baseline2016 %>% select(hh_id,starts_with("C21")) %>% 
-  pivot_longer(-hh_id,names_to = "name",values_to = "val") %>% 
-  mutate(val=ifelse(val %in% c(4,5),1,0)) %>% 
-  group_by(hh_id) %>% summarise(migrants_work_seasonal =sum(val)) 
-
-# Permanent work migration
-# Count of permanent migrants whose primary reason for departure was work (c34).
-# Coded 1 if moved for employment (1); 0 if marriage (2), education (3), or remaining responses
-c34 <- rmtl_baseline2016 %>% 
-  select(hh_id, starts_with("C34")) %>% 
-  pivot_longer(-hh_id, names_to = "name", values_to = "why_left") %>%
-  mutate(why_left = ifelse(!is.na(why_left) & why_left == 1, 1, 0)) %>% 
-  group_by(hh_id) %>% summarise(migrants_work_permanent=sum(why_left))
-
-# Join seasonal and permanent work migration counts
-migrants_work_bl <- left_join(c34,C21)
-
-## 5. Off-Farm work ----
-# Share of household members whose main income activity past 2 years was off-farm (rc1).
-# Coded 1 if activity in 9:12 (salaried, business, non-ag labor); 0 otherwise
-
-# Endline: Compute household-level indicator
-rc1 <- rmtl_srvy22 %>% 
-  select(hh_id, starts_with("rc1_")) %>%   
-  select(hh_id, matches("^[^_]+_[^_]+_[^_]+$")) %>% 
-  pivot_longer(-hh_id, names_to = "rc", values_to = "val") %>% 
-  separate(rc, into = c("rc", "ans", "hhm"), sep = "_", convert = F)%>% 
-  filter(!is.na(val)) %>% 
-  select(hh_id,hhm, ans,val)
-
-df_work_offFarm_22 <- 
-  rc1 %>% mutate(val= ifelse(ans %in% c(9:12) & val==1,1,0 )) %>% 
-  select(hh_id,hhm,val) %>% distinct() %>% 
-  group_by(hh_id,hhm) %>% summarise(val = sum(val)) %>%  
-  group_by(hh_id) %>% summarise(val = sum(val),n=n()) %>% 
-  mutate(offFarm_work_pct=val/n ) %>% 
-  select(hh_id,offFarm_work_pct )
-
-# Baseline: Compute household-level indicator
-# Main income-earning activities in the rainy season (c13)
-c13 <- rmtl_baseline2016 %>% select(hh_id, starts_with("C13"))  %>% 
-  select(hh_id, matches("^[^_]+_[^_]+_[^_]+$")) %>% 
-  pivot_longer(-hh_id, names_to = "c13", values_to = "ans") %>% 
-  separate(c13, into = c("c13", "rank", "hhm"), sep = "_", convert = F
-  )
-
-# Main income-earning activities in the rest of the year (c17)
-c17 <- rmtl_baseline2016 %>% select(hh_id, starts_with("C17"))  %>% 
-  select(hh_id, matches("^[^_]+_[^_]+_[^_]+$")) %>% 
-  pivot_longer(-hh_id, names_to = "c17", values_to = "ans") %>% 
-  separate(c17, into = c("c17", "rank", "hhm"), sep = "_", convert = F
-  )
-
-df_work_offFarm_bl <- 
-  rbind(c13 %>% select(-c13), c17 %>% select(-c17)) %>% 
-  select(hh_id,hhm, ans) %>%
-  filter(!is.na(ans)) %>% 
-  mutate(val= ifelse(ans %in% c(9:12),1,0 )) %>% 
-  select(hh_id, hhm,val ) %>% distinct() %>% 
-  group_by(hh_id) %>% summarise(val = sum(val),n=n()) %>% 
-  mutate(offFarm_work_pct=val/n) %>% 
-  select(hh_id,offFarm_work_pct)
-
-
-
-## 6. Gender Off-Farm work ----
-# Share of household members who are women engaged in off-farm work.
-# Off-farm defined as activities in 9:12 (rc1); gender 2 indicates female (r4)
-
-# Endline: Compute household-level indicator
-df_gender_roster <- 
-  rmtl_srvy22 %>% 
-  select(hh_id,starts_with("r4_")) %>% 
-  pivot_longer(-hh_id, names_to = "rc", values_to = "gender") %>% 
-  separate(rc, into = c("rc", "hhm"), sep = "_hh_gender_", convert = F)%>% 
-  filter(!is.na(gender)) %>% 
-  select(hh_id,hhm,gender)
-
-df_work_gender_22 <- 
-  rc1 %>% mutate(val= ifelse(ans %in% c(9:12) & val==1,1,0 )) %>% 
-  select(hh_id,hhm,val) %>% distinct() %>% 
-  summarise(val = sum(val),.by = c(hh_id,hhm)) %>% 
-  left_join( df_gender_roster) %>% 
-  summarise(val = sum(val),n=n(),.by = c(hh_id,gender)) %>% 
-  group_by( hh_id) %>% mutate(n=sum(n)) %>% ungroup() %>% 
-  filter(gender ==2) %>% 
-  mutate(woman_offFarmwork_pct=val/n) %>% 
-  select(hh_id,woman_offFarmwork_pct )
-
-# Baseline: Compute household-level indicator
-# Off-farm defined as activities in 9:12 (c17); gender 2 indicates female (c3)
-df_gender_rosterBL <- 
-  rmtl_baseline2016 %>% 
-  select(hh_id,starts_with("c3_")) %>% 
-  pivot_longer(-hh_id, names_to = "c3", values_to = "gender") %>% 
-  separate(c3, into = c("c3", "hhm"), sep = "_", convert = F) %>% 
-  filter(!is.na(gender)) %>% mutate(gender=ifelse(gender==0,2,gender)) %>% 
-  select(hh_id,hhm,gender)
-
-df_work_gender_bl <- 
-  c17 %>% select(hh_id,hhm, ans) %>%
-  filter(!is.na(ans)) %>% 
-  mutate(val= ifelse(ans %in% c(9:12),1,0 )) %>% 
-  select(hh_id, hhm,val ) %>% distinct() %>% 
-  summarise(val = sum(val),.by=c(hh_id,hhm)) %>% 
-  left_join( df_gender_rosterBL) %>% 
-  summarise(val = sum(val),n=n(),.by = c(hh_id,gender)) %>% 
-  group_by( hh_id) %>% mutate(n=sum(n)) %>% ungroup() %>% 
-  filter(gender ==2) %>% 
-  mutate(woman_offFarmwork_pct=val/n) %>% 
-  select(hh_id,woman_offFarmwork_pct )
-
-
-##    Impact_Social ----
-# Aggregating household-level social indicators and merging baseline and endline rounds.
-
-# Endline: merge social indicators and reshape by household
-df_social_22 <- 
-  literacy22 %>% 
-  left_join(edu_level_2nd_gen_22) %>%
-  left_join(edu_private_22) %>%
-  left_join(migrants_work_22) %>%
-  left_join(df_work_offFarm_22) %>%
-  left_join(df_work_gender_22) %>% 
-  pivot_longer(-hh_id,names_to = "vars", values_to = "val_22")
-
-# Baseline: merge social indicators and reshape by household
-df_social_bl <- 
-  literacy15 %>% 
-  left_join(edu_level_2nd_gen_15) %>%
-  left_join(edu_private_15) %>%
-  left_join(migrants_work_bl) %>%
-  left_join(df_work_offFarm_bl) %>%
-  left_join(df_work_gender_bl) %>% 
-  pivot_longer(-hh_id, names_to = "vars", values_to = "val_bl")
-
-# Combined panel of social indicators across both rounds
-Impact_Social <- df_social_22 %>% left_join(df_social_bl)
-
-# ______________________________________________________________________________
-
-#  D |  Drip Irrigation Utilization  ----
-
-## Drip adoption rate ----
+####  Drip adoption rate ----
 #  Drip adoption by year and all 6 years (2017–2022)
 df_drip_use_Y_1to6 <- irrigation_BL_to_22 %>% select(hh_id, starts_with("drip"),-drip_use_BL) %>%pivot_longer(-hh_id, names_to = "vars", values_to = "val_22")
 
@@ -926,14 +128,14 @@ df_im_in_project <- rmtl_cntrl_vars %>% select(hh_id,im_in_project) %>% pivot_lo
 df_drip_17_22 <- rbind(df_drip_use_Y_1to6,df_im_in_project) %>% left_join(df_drip_use_bl)
 
 
-## Irrigated land  ----
+####  Irrigated land  ----
 #   Share of drip area and drip irrigated acre.
 #   Merge Endline and Baseline databases
 df_drip_acre_pct <- 
   crop_acre_drip_22 %>% left_join(crop_acre_drip_BL) %>% # in impact.1.R
   rename_with(~ c("hh_id", "vars", "val_22", "val_bl"))
 
-## Water sources  ----
+####  Water sources  ----
 # Any source and project source (2016–2022)
 
 # Endline: 
@@ -946,24 +148,23 @@ df_source_irri_22 <- a_source_irri %>%
 
 # Baseline: 
 df_source_irri_BL <- 
-  bl13_source_irrigate |> mutate(ir_source_bl= ifelse(is.na(ir_source_bl ),0,1)) |> 
-  summarise(val_bl=sum(ir_source_bl),.by=hh_id )|> mutate(val_bl= ifelse(val_bl==0,0,1)) |> 
+  bl13_source_irrigate |> mutate(irri_source_5y= ifelse(is.na(irri_source_5y ),0,1)) |> 
+  summarise(val_bl=sum(irri_source_5y),.by=hh_id )|> mutate(val_bl= ifelse(val_bl==0,0,1)) |> 
   mutate(vars=c("any_source"))
 df_source_irri_BL = df_source_irri_BL |> bind_rows(df_source_irri_BL |> mutate(val_bl=0, vars="source_ramthal"))
 
 
-## Merge Irrigated land and Water sources databases ----
+####  Merge Irrigated land and Water sources databases ----
 df_drip_land_and_water_source <- 
   df_drip_acre_pct %>%
   mutate(val_22=ifelse(vars=="drip_pct" & val_22==1,NA,val_22) ) %>%
   rbind( df_source_irri_22 %>% left_join(df_source_irri_BL) )
   
-# ______________________________________________________________________________
 
 # ------------------------------------------------------------------------------
-# Regression Estimation and Table Export                                    ----
-# ------------------------------------------------------------------------------
-#   Dataframe for Analysis   ----
+##  Regression Estimation and Table Export                                    ----
+# ..............................................................................
+### Outcome variables: building the data frame for analysis ----
 
 # Combine all modules and attach household controls
 df_reg_22 <- bind_rows(
@@ -976,7 +177,49 @@ df_reg_22 <- bind_rows(
   ) %>% 
   left_join(rmtl_cntrl_vars)
 
-#   Econometric Specifications  ----
+### Control variables: building the data frame for analysis ----
+
+## The treatment variable (in_project = 1) and project areas
+df_bl_00 <- rmtl_16_18_22_sample |> select(hh_id, in_project, cardinal_direction)
+
+## Plot distance from the project boundary – positive values for 'inside', negative values for 'outside'.
+df_bl_01 <- dist_boundary_vars
+
+## hh haed_age. gender, education level [1-6 index]
+df_bl_02 <- hh_head_bl |> select(hh_id, hh_head_age, hh_head_gender, hh_head_edu_level )
+
+## Total acre  +  housing type: 1 Kutcha House, 2 Semi Pucca House, 3 Pucca House 
+quantile(rmtl_baseline2016$D2, 0.995, na.rm = TRUE)
+df_bl_03 <-  rmtl_baseline2016 %>%
+  transmute(hh_id,
+            housing_str321 = ifelse(B1 == 1, 3, ifelse(B1 == 3, 1, 2)),
+            total_acre16   = D2,
+            total_acre16   = if_else(total_acre16 > quantile(total_acre16, 0.998, na.rm = TRUE),
+                                     NA_real_, total_acre16))
+
+## job_income_sourceS: Salaried job or Casual work or daily labor by current household members
+#  govPnsin_scheme: Government pension or scheme
+#  rent_property:Rent/lease of property or land (land, house, vehicle, electronic appliances, tractor, etc.)
+df_bl_04 <- rmtl_baseline2016 %>%
+  select(hh_id, F5_source, F6_source, F7_source, F9_source, F10_source, F11_source) %>%
+  mutate(across(-hh_id, ~ replace(.x, .x == 2, 0))) %>%
+  transmute(hh_id,
+            job_income_sourceS = F5_source + F6_source + F7_source + F11_source,
+            govPnsin_scheme    = F9_source,
+            rent_property      = F10_source)
+
+## Asset ownership – binary variable: livestock_dairy, Bullock, Tractor, Plough, Thresher, Seed_drill, Motorcycle, Fridge
+df_bl_05 <- df_bl_assets %>% mutate(across(-hh_id, ~ replace_na(.x, 0))) %>% 
+  select(hh_id, Livestock_dairy = livestock_dairy_dum, Bullock = bullocks_dum, Tractor = tractor_dum, Plough = plough_dum, Thresher = thresher_dum, Seed_drill = seed_drill_dum, Motorcycle = motorcycles_dum, Fridge = fridge_dum)
+
+# Final data for analysis
+# rmtl_cntrl_vars <- 
+list(df_bl_00, df_bl_01, df_bl_02, df_bl_03, df_bl_04, df_bl_05) %>%
+  reduce(left_join, by = "hh_id") |> right_join(hh_2022)
+
+
+
+###   Econometric Specifications  ----
 # fml_bl: Regress baseline outcome on treatment indicator.
 # fml_a:  Regress endline outcome on treatment indicator without controls.
 # fml_b:  ANCOVA model: regress endline outcome on treatment, controlling for baseline outcome and household covariates.
@@ -984,15 +227,15 @@ df_reg_22 <- bind_rows(
 
 fml_bl <- val_bl ~ in_project
 fml_a <- val_22 ~ in_project
-fml_b <- val_22 ~ in_project + val_bl + hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge
-fml_c <- val_22 ~ in_project + dist_Km_boundary + in_project * dist_Km_boundary + val_bl + hh_haed_age + hh_haed_gendar + hh_haed_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge
+fml_b <- val_22 ~ in_project + val_bl + hh_head_age + hh_head_gender + hh_head_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge
+fml_c <- val_22 ~ in_project + dist_Km_boundary + in_project * dist_Km_boundary + val_bl + hh_head_age + hh_head_gender + hh_head_edu_level + total_acre16 + housing_str321 + job_income_sourceS + govPnsin_scheme + rent_property+ livestock_dairy + Bullock + Tractor + Plough +Thresher + Seed_drill + Motorcycle + Fridge
 
 # Model grouping lists for mapping functions
 formula_BL <- list(model_BL = fml_bl)
 formulas_all <- list(model_a1 = fml_a, model_b1 = fml_b)
 formulas_south <- list(model_b2 = fml_b, model_c2 = fml_c)
 
-#   Functions for regression formulas  ---- 
+###   Functions for regression formulas  ---- 
 
 # 1. Baseline Model Estimation (Full Sample)
 #    Compute control group baseline means by outcome variable in wide format.
@@ -1072,10 +315,15 @@ table_results <- Intercept_bl |> rbind(final_table_bl) |>
   rbind(control_mean) |> rbind(final_table) |> 
   rbind(control_mean_south) |> rbind(final_table_south)
 
-#   Print Results Table       ----
+###   Print Results Table       ----
 # Split final results by module
 
+
+# ---------  Agricultural Outcomes
+
 table_agri   <- table_results %>% select(model_name, metric, any_of(unique(Impact_Agriculture$vars)))
+
+# ---------  Income Effects
 
 table_economic <- table_results %>% 
   select(model_name, metric, any_of(unique(Impact_Economic$vars))) %>% 
@@ -1092,6 +340,9 @@ table_economic <- table_results %>%
 
 table_assets <- table_results %>% select(model_name, metric, any_of(unique(df_assets$vars)))
 
+
+# ---------  Education and Migration
+
 table_social <- table_results %>% 
   select(model_name, metric, any_of(unique(Impact_Social$vars))) %>% 
   rename(
@@ -1104,7 +355,105 @@ table_social <- table_results %>%
     `Female off-farm work`      = woman_offFarmwork_pct
   )
 
+## -- Socio-political point of view Questions
+library(dplyr)
+library(tidyr)
+library(haven)
+library(purrr)
+
+# Data frame for socio-political point of view Questions
+df_social_views_22 <- 
+  rmtl_srvy22 %>% select(hh_id, farmers_hh, starts_with("h"))
+
+# Question H1
+H1 <- df_social_views_22 %>% select(hh_id, farmers_hh,h1 ) %>% 
+  group_by(farmers_hh) %>% 
+  summarise(h1=mean(h1, na.rm = T) ) 
+
+# Question H2
+H2 <- df_social_views_22 %>%
+  mutate(h2_label = as_factor(h2)) %>%
+  count(farmers_hh, h2_label) %>%
+  group_by(farmers_hh) %>%
+  mutate(pct = round(n / sum(n), 3)) %>% ungroup
+
+# Question H3
+H3 <- df_social_views_22 %>% 
+  select(hh_id, farmers_hh, starts_with("h3_"),-h3__777 ) %>% 
+  pivot_longer(-c(hh_id ,farmers_hh) ,names_to = "ans", values_to = "n") %>% 
+  group_by(farmers_hh,ans) %>% 
+  summarise(pct =mean(n),.groups = "drop" ) %>% 
+  mutate(Ans = recode(ans,
+                      "h3_1" = "Skill/knowledge",
+                      "h3_2" = "Access to Gov. schemes",
+                      "h3_3" = "Ability to get loans" , # Ability to get loans (credit)
+                      "h3_4" = "Having money to invest", # Having money to invest in inputs and machinery"
+                      "h3_5" = "Political connections",
+                      "h3_6" = "Luck/Good fortune", # Good fortune/luck/divine grace
+                      "h3_7" = "Hard work")  ) 
+
+
+# Question H4
+H4 <- df_social_views_22 %>% 
+  select(hh_id, farmers_hh, starts_with("h4_"),-h4__777 ) %>% 
+  pivot_longer(-c(hh_id ,farmers_hh) ,
+               names_to = "ans", values_to = "n") %>% 
+  group_by(farmers_hh,ans) %>% 
+  summarise(pct =mean(n),.groups = "drop" ) %>% 
+  mutate(Ans = recode(ans,
+                      "h4_1" = "Skill/knowledge",
+                      "h4_2" = "Access to Gov. schemes",
+                      "h4_3" = "Ability to get loans" , # Ability to get loans (credit)
+                      "h4_4" = "Having money to invest", # Having money to invest in inputs and machinery"
+                      "h4_5" = "Political connections",
+                      "h4_6" = "Luck/Good fortune", # Good fortune/luck/divine grace
+                      "h4_7" = "Hard work") )
+
+# Question H18-23
+labels_df <- map_dfr(names(select(df_social_views_22, h18:h23)), function(col) {
+  lbls <- attr(df_social_views_22[[col]], "labels")
+  tibble(
+    var = col,
+    label_1 = names(lbls)[lbls == 1],
+    label_10 = names(lbls)[lbls == 10]
+  )
+})
+
+H18_H23 <- df_social_views_22 %>%
+  select(farmers_hh, h18:h23) %>%
+  mutate(across(h18:h23, ~ as.numeric(zap_missing(.x)))) %>%
+  group_by(farmers_hh) %>%
+  summarise(across(h18:h23, ~ round(mean(.x, na.rm = TRUE), 2)), .groups = "drop") %>%
+  pivot_longer(-farmers_hh, names_to = "var", values_to = "mean") %>%
+  pivot_wider(names_from = farmers_hh, values_from = mean) %>%
+  left_join(labels_df, by = "var") %>%
+  select(var, label_1, label_10, everything())
+
+
+Chapter_3 <- list(
+  setNames(H1,c(attr(df_social_views_22$h1, "label"), "Freq")),
+  setNames(H2,c(attr(df_social_views_22$h2, "label"), "Freq")),
+  setNames(H3,c(attr(df_social_views_22$h3, "label"), "Freq")),
+  setNames(H4,c(attr(df_social_views_22$h4, "label"), "Freq")),
+  H18_H23)
+
+Chapter_3 %>% 
+  iwalk(~ {
+    cat("\n....................................................\n")
+    cat(.y, "\n")
+    print(.x)
+  })
+
+
+
+
+# ---------  Drip Adoption
+
 table_drip_17_22 <- table_results %>% select(model_name, metric, any_of(unique(df_drip_17_22$vars)))
+
+
+
+# ---------  Drip Irrigated Land and Water Source
 
 table_drip_land_and_water_source <- table_results %>% 
   select(model_name, metric, any_of(unique(df_drip_land_and_water_source$vars))) %>% 
@@ -1115,14 +464,22 @@ table_drip_land_and_water_source <- table_results %>%
     `Water source: Gov. System (Ramthal)`                = source_ramthal
   )
 
-#==============================================================================
-# Cost-Benefit Analysis (CBA)  ----
-#============================================================================== ----
-library(dplyr)
-library(purrr)
-library(broom)
 
-## --- Step 1: Core Parameters  ----
+# ------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+#===========================================================
+# COST-BENEFIT ANALYSIS  ----
+#===========================================================
+ # ... ----
+## ---  1: Core Parameters       ----
 
 discount_rate <- 0.05
 time_horizon  <- 20
@@ -1131,14 +488,14 @@ years         <- 1:time_horizon
 # Project capital expenditure per acre
 capex_total       <- 7861100000
 total_project_hh  <- 15000
-mean_land_holding <- 9.29
+mean_land_holding <- 9.2921942
 capex_per_acre    <- capex_total / (total_project_hh * mean_land_holding)
 
 # Discount factors across time horizon (t = 1 to 20)
 discount_factors <- 1 / ((1 + discount_rate)^years)
 
 
-## --- Step 2: Extract Empirical Inputs from Survey Data & Regression Models ----
+## ---  2: Extract Empirical Inputs from Survey Data & Regression Models ----
 
 # 2a. Regression estimation of overall project effect (INR/acre)
 df_profit_acre <- Impact_Economic |> filter(vars == "revenue_per_acre") |> 
@@ -1162,7 +519,7 @@ profit_drip_coef <- m2_tidy$estimate[m2_tidy$term == "drip_use_2022"] * 1000
 profit_in_no_drip <- m2_tidy$estimate[m2_tidy$term == "(Intercept)"] * 1000
 profit_in_drip <- profit_in_no_drip + profit_drip_coef
 
-## --- Step 3: CBA Helper Functions  ----
+## ---  3: CBA Helper Functions  ----
 
 # Annual incremental profit calculated from adoption rate
 calc_inc_profit <- function(adoption_rate) {
@@ -1187,7 +544,7 @@ calc_irr <- function(cf) {
 }
 
 
-## --- Step 4: Metric Computations by Block ----
+## ---  4: Metric Computations by Block ----
 
 # Block A: Actual net farming profit.
 # Empirical Regression Scenarios (Constant Annual Streams) ---
@@ -1269,7 +626,7 @@ results_block_b <- map_dfr(names(block_b_rates), function(scen_name) {
 
 print(results_block_b)
 
-# --- Step 5: Unified Summary Table
+## Unified Summary Table                ----
 
 cba_unified_summary <- bind_rows(results_block_a, results_block_b)
 
@@ -1280,7 +637,7 @@ cba_unified_summary$Profit <- c(
   round(m1_tidy$conf.high[m1_tidy$term == "in_project"] * 1000, 2),
   round(profit_in_drip - profit_out, 2), "","")
 
-## Transposing columns to rows ----
+#  columns to rows
 cba_transposed_summary <- as.data.frame(t(cba_unified_summary[, c("Profit", "PVC", "PVB", "NPV", "IRR", "BCR")]))
 colnames(cba_transposed_summary) <- cba_unified_summary$Scenario
 print(cba_transposed_summary)
@@ -1289,19 +646,22 @@ print(cba_transposed_summary)
 # Predictors of Drip Adoption -----
 #==============================================================================
 
-df1 <-
-  irrigation_BL_to_22 %>% 
+
+### --- 1: Building the data frame of predictors variables for analysis ----
+
+# Irrigation Indicators
+df1 <- irrigation_BL_to_22 %>% 
   select(hh_id, drip_use_6y, flood_use_6y, ir_use_BL)
 
-df3 <-
-  rmtl_cntrl_vars %>%
+# Demographics, Land and Livestock Ownership
+df3 <- rmtl_cntrl_vars %>%
   select(hh_id, in_project, 
-         hh_haed_age, hh_haed_gendar, literate_hh_pct, 
+         hh_head_age, hh_head_gender, literate_hh_pct, 
          total_acre16,total_livestock,
   ) %>% mutate(own_livestock_01=ifelse(total_livestock == 0,0,1))
 
-df5 <-
-  rmtl_baseline2016 %>%
+# Sources of Income
+df5 <- rmtl_baseline2016 %>%
   select(hh_id, F5_year, F6_year, F7_year, F10_year, F11_year) %>%
   pivot_longer(-hh_id ,names_to = "income_type_f",values_to = "income22")  %>%   
   group_by(hh_id) %>% 
@@ -1309,13 +669,14 @@ df5 <-
   mutate(income_NonCrop=ifelse(income_NonCrop == 0,0,1) 
   )
 
-df6 <-
-  rmtl_baseline2016 %>%
+# Participation in Expansion
+df6 <- rmtl_baseline2016 %>%
   select(hh_id,I34) %>%
   mutate(across(where(is.numeric), ~replace_na(., 0))) %>% 
   setNames(c("hh_id", "attended_to_trainings")
   )
 
+##  Unified Data
 df_project <-
   hh_2022 %>% rename(in_project =in1_out0 ) %>%
   left_join(df1) %>%
@@ -1324,10 +685,10 @@ df_project <-
   left_join(df6) %>%
   filter(in_project == 1) %>%
   mutate(total_acre16=ifelse(total_acre16 > 39, NA, total_acre16 ),
-         total_acre16=total_acre16/10, hh_haed_age=hh_haed_age/10)
+         total_acre16=total_acre16/10, hh_head_age=hh_head_age/10)
 
-
-# descriptive mean /SD
+### --- 2: Summary statistics ----
+# Summary statistics for irrigated and non-irrigated plots: Drip and flood irrigation
 df_project %>% 
   select(-flood_use_6y) %>% mutate(irrigation_method="Drip") %>% rename( use_6y=drip_use_6y) %>% 
   rbind(
@@ -1337,8 +698,8 @@ df_project %>%
   mutate(use_6y= ifelse(use_6y == 1, "yes","no") 
          ) %>%
   summarise(
-    hh_haed_age = mean(hh_haed_age,na.rm=T)*10,
-    hh_haed_gendar= mean(hh_haed_gendar,na.rm=T),
+    hh_head_age = mean(hh_head_age,na.rm=T)*10,
+    hh_head_gender= mean(hh_head_gender,na.rm=T),
     literate_hh_pct= mean(literate_hh_pct,na.rm=T),
     attended_to_trainings =mean(attended_to_trainings,na.rm=T),
     own_livestock_01 =mean(own_livestock_01,na.rm=T),
@@ -1347,30 +708,400 @@ df_project %>%
     total_acre16=mean(total_acre16,na.rm=T)*10,.by = c(irrigation_method, use_6y)
   ) %>%
   pivot_longer(cols = -c(irrigation_method, use_6y), names_to = "name", values_to = "val") %>%
-  mutate(val= ifelse(!name %in% c("hh_haed_age", "total_acre16"),val*100, val) ) %>%
+  mutate(val= ifelse(!name %in% c("hh_head_age", "total_acre16"),val*100, val) ) %>%
   pivot_wider(names_from = c(irrigation_method, use_6y), values_from = val, names_sep = "_") %>% 
   select(name, Drip_yes, Drip_no, Flood_yes, Flood_no) %>%
   kableExtra::kable() %>%kableExtra::kable_minimal()
 
 
-#  lm Model: Adoption (Ever used drip/flood)
+### Linear Probability Model  ---- 
+
+# LPM: Drip Adoption (Ever used 2016-2022)
 model_DI_6y <-
-  lm(drip_use_6y ~ hh_haed_age + hh_haed_gendar + literate_hh_pct + attended_to_trainings + own_livestock_01+income_NonCrop + ir_use_BL + total_acre16,
+  lm(drip_use_6y ~ hh_head_age + hh_head_gender + literate_hh_pct + attended_to_trainings + own_livestock_01+income_NonCrop + ir_use_BL + total_acre16,
      data = df_project )
 
+# LPM: Flood Adoption (Ever used 2016-2022)
 model_F_6y <-
-  lm(flood_use_6y ~ hh_haed_age + hh_haed_gendar + literate_hh_pct + attended_to_trainings + own_livestock_01+income_NonCrop + ir_use_BL + total_acre16,
+  lm(flood_use_6y ~ hh_head_age + hh_head_gender + literate_hh_pct + attended_to_trainings + own_livestock_01+income_NonCrop + ir_use_BL + total_acre16,
      data = df_project )
 
-sjPlot::tab_model(model_DI_6y, model_F_6y ,show.se = T,digits = 4,show.stat  = F)
+## Results Table
+summary(model_DI_6y)
+summary(model_F_6y)
 
-# coef plot # 700X450
-models_list <- list("Drip   16-22" = model_DI_6y,"Flood 16-22" = model_F_6y)
-jtools::plot_summs(models_list, colors = c("#026bb9","#619847"), point.size = 4,line.size = 1.2, point.shape = 19) + theme(panel.grid.major.x = element_blank()) + geom_text(aes(label = round(estimate,2) ),size=4,position = position_dodge(1.5))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #==============================================================================
 # Barriers to implementation ----
 #============================================================================== ----
+
+library(readxl)
+library(tidyverse)
+
+interviews_2024excel <- read_excel("C:/Users/Dan/Downloads/interviews_2024excel.xlsx", 
+                                   sheet = "Copy of why_no_use")
+
+int_2024 <- interviews_2024excel
+
+rmtl_2024
+
+rmtl_In_srvy2022 <- rmtl_srvy22 %>% filter(mm4 == 1, in1_out0 == 1)
+
+# ..............................................................................
+
+##  Drip adoption rates                ----
+#  Farmer use the drip at least once since installation
+#  (Only farmers who are connected to the Ramthal infrastructure)
+why_01a <- rmtl_2024 %>% select(hh_id ,drip_1use_2useOwmDrip) %>% summarise(Mean = mean(drip_1use_2useOwmDrip,na.rm=T) ) |> mutate(var="Adopt Drip [2024 interviews]")
+why_01b <-rmtl_In_srvy2022 |> left_join(irrigation_BL_to_22  %>% select(hh_id,drip_use_6y) ) %>% summarise(Mean = mean(drip_use_6y,na.rm=T) ) |> mutate(var="Adopt Drip [2022 survey]")
+
+# ..............................................................................
+
+##  Reasons low drip utilization       ----
+#   Farmers cited personal reasons regarding the low utilization of the drip irrigation system.
+why_q1_ans <- int_2024 %>%
+  filter(Q1_why_little_or_no_drip_YN == 1) %>%
+  summarise(across(starts_with("Q1_Ans"), ~ mean(.x %in% 1))) %>%
+  pivot_longer(everything(), names_to = "reason", values_to = "pct") %>%
+  arrange(desc(pct))
+
+why_q1_category <- why_q1_ans %>%
+  mutate(reason = sub("^Q1_Ans ", "", reason),
+         category = case_when(
+           reason %in% c("low pressure", "Insufficient water", "high pressure",
+                         "Uncertainty of water availability", "No water supply")
+           ~ "Insufficiency of water supply",
+           reason %in% c("Didn't get any laterals", "Low company maintenance", "Low quality pipes",
+                         "Shepherds cut the pipes", "Pipes were burned or stolen",
+                         "Farmers break the plot pipe", "Farmers break the main pipe",
+                         "Pipes damaged in accidents")
+           ~ "Infrastructure damage",
+           reason %in% c("Nearby village uses Ramtal to fill ponds",
+                         "Farmers reconfiguring the pipes to flood")
+           ~ "On-field pipe reconfiguration")) %>%
+  filter(!is.na(category)) %>%
+  summarise(pct = sum(pct), .by = category) 
+
+
+names(why_q1_ans)[names(why_q1_ans) == "reason"] <- "Why did you use drip irrigation so little, or not at all?"
+names(why_q1_category)[names(why_q1_category) == "category"] <- "Why did you use drip irrigation so little, or not at all?"
+
+# ..............................................................................
+
+##  Insufficiency of water supply      ----
+
+# % of farmers reported not knowing their scheduled irrigation turn timing.
+
+# Water supply timing - Source of information
+why_02_timing <- as.data.frame(round(prop.table(table(rmtl_2024$water_supply_info)), 2)) |> 
+  mutate(Know_water_supply_schedule = if_else(Var1=="waterman_call_to_farmer","Yes","No")) |> summarise(pct=sum(Freq),.by = Know_water_supply_schedule)
+
+### Volume Water released               ----
+### % Water released of the allocated: Data from an internal report by Jain
+why_02_jain_report <-
+  data.frame(
+    year = c("2017", "2018", "2019", "2020", "2021"),
+    project_year = c("1st", "2nd", "3rd", "4th", "5th"),
+    kharif = c(0.79, 0.43, 0.13, 0.20, 0.24),
+    rabi   = c(0.85, 0.88, 0.61, 0.78, 0.23)
+  )
+
+### Drip irrigation adoption by season ----
+
+library(dplyr)
+library(stringr)
+library(tidyr)
+
+# The proportion of farmers using drip irrigation by season/year, out of the total number of farmers who have use at least once (2022 Survey)
+why_02_ir_year_season <- 
+  rmtl_In_srvy2022 %>% filter(mm5 == 1) %>%
+  select(hh_id, starts_with(c("m20_kharif", "m20_rabi")), -ends_with("_2022") 
+  ) %>% 
+  pivot_longer( -hh_id,
+                names_to = c("season", "year"),
+                names_pattern = "m20_(.*)_(.*)",
+                names_transform = list(year = as.integer),
+                values_to = "use_ir") %>%
+  summarise(n = sum(use_ir, na.rm = T), N = n(),.by = c(year, season)
+  ) %>%
+  mutate(pct_users_the_water_for_irrigation = n / N)
+
+# Dataframe merging
+why_02_jain_and_usage <- why_02_jain_report %>% 
+  pivot_longer(cols = c(kharif, rabi),names_to = "season",values_to = "pct_Water_released_jain"
+  ) %>% mutate(year=as.numeric(year)) %>% 
+  left_join(why_02_ir_year_season %>% select(year,season, pct_users_the_water_for_irrigation)
+  ) %>% select(-year)
+
+why_02_ir_season <- 
+  why_02_ir_year_season %>%
+  summarise(pct_users_the_water_for_irrigation = sum(n) / sum(N),.by = season) %>%
+  mutate(season = str_to_title(season))
+
+
+### Water delivery delay rates         ----
+# 
+# * 80% reported delayed water delivery during the Kharif season.
+# * 38% reported delayed water delivery during the Rabi season.
+
+# When water is provided, in which month does it start?  (2022 Survey)
+why_02_Water_Delivery_Delay <- 
+  rmtl_In_srvy2022 %>% select(mw12) |> 
+  filter(mw12 %in% c(1:3, 6:12)) %>%
+  mutate(
+    season = if_else(mw12 %in% 6:10, "Kharif", "Rabi"),
+    Water_delivery_timing = if_else(mw12 %in% c(6, 11), "On Time", "Delayed")
+  ) %>%
+  count(season, Water_delivery_timing) %>%
+  mutate(pct = n / sum(n),.by = season, .keep = "unused"
+  )
+
+
+
+
+##  Infrastructure Damage              ----
+# 
+# * 58% of main distribution lines were reported damaged in the 2022 survey
+why_03a_damage <- as.data.frame(round(prop.table(table(pipe_status_survey2022 = factor(rmtl_srvy22_24$m35, 1:2, c("Works", "Damaged")))), 2))
+why_03a_pipe_damage <- why_03a_damage |> filter(pipe_status_survey2022 == "Damaged")
+  
+# * 82% of farmers interviewed in the 2024 survey reported damaged pipes on their plots.
+why_03b_damage <- as.data.frame(round(prop.table(table(pipe_status_intrvw2024 = factor(rmtl_2024$tap_status_1damged_0not, 0:1, c("Works", "Damaged")))), 2))
+why_03b_pipe_damage <- why_03b_damage |> filter(pipe_status_intrvw2024 == "Damaged")
+
+# * 42% of farmers cited infrastructure damage as a direct reason for not using drip irrigation.
+
+##  On-field pipe reconfiguration      ----
+
+# Deliberate damage or accident / What caused the damage
+why_04_damage_cause <- as.data.frame(round(prop.table(table(Damage_cause_Deliberate_or_Accident =rmtl_2024$tap_cut_by_)), 2))
+
+
+# pct flooding farmers using ramthal water
+why_04a_flooding_with_Ramthal <- as.data.frame(round(prop.table(table(Flooding_with_Ramthal_Intrvw24 = rmtl_2024$irri_jain_flood)), 2)) |> filter(Flooding_with_Ramthal_Intrvw24==1)
+why_04b_flooding_with_Ramthal <- rmtl_In_srvy2022  %>% select(hh_id) %>% left_join(a_source_irri) %>%  
+  mutate(source_ramthal=ifelse(source_ramthal=="ramthal",1,0)) |> summarise(Using_Ramthal_aswater_source_survey22 = mean(source_ramthal))
+
+# Has it ever happened to you that farmers before you used a large amount, leaving you without water?
+library(haven)
+
+why_04_mm10 <- rmtl_In_srvy2022 |> filter(!is.na(mm10)) %>% 
+  transmute(hh_id,location_on_pipe = mm9+1, mm10) |> 
+  drop_na() |> 
+  mutate(category = case_when(
+    mm10 == 1  ~ "Never happened",
+    mm10 %in% c(2,3,4) ~ "Happens", 
+    TRUE ~ "Happens rarely"))
+
+why_04_mm10_A <- why_04_mm10 %>% 
+  count(mm10 = as_factor(mm10, levels = "both")) %>% 
+  mutate(pct = n / sum(n), .keep = "unused")|> 
+  rename(`Has it ever happened that a farmer before you used up all the water?` = mm10)
+
+why_04_mm10_B <- why_04_mm10 %>% 
+  count(category) %>% mutate(pct_of_respondents = n / sum(n), .keep = "unused")
+
+why_04_mm10_C <- 
+  why_04_mm10 %>% 
+  filter(location_on_pipe >= 1) %>% 
+  summarise(`Mean "location_on_pipe" of the respondents` = mean(location_on_pipe),.by = category)
+
+#...............................................................................
+
+# Location on the pipeline and related variables  ----
+  
+# Dataframe for location_on_pipe and related estimated water variables
+why_04_proximity_to_filter <- # proximity_to_filter
+    rmtl_In_srvy2022  %>% transmute(hh_id, proximity_location=mm9+1) %>% 
+  left_join(
+    irrigation_BL_to_22 %>% select(-ir_use_2021_22) %>% 
+      mutate(ir_total_years = rowSums(across(starts_with("ir_use_2")), na.rm = TRUE)) %>% 
+      select(hh_id, ir_use_6y, ir_total_years)
+  ) %>%
+  left_join(a_source_irri %>% select(hh_id,source_ramthal)) %>%  
+  mutate(source_ramthal=ifelse(source_ramthal=="ramthal",1,0))
+
+# Farmers irrigating AND Location on the pipeline
+summary_data_ir <- why_04_proximity_to_filter %>% 
+  filter(proximity_location < 20 ) %>% 
+  mutate(location_on_pipe = factor(proximity_location)) %>%
+  group_by(location_on_pipe) %>%
+  summarise(N = n(),
+            Mean = mean(ir_use_6y ), 
+            se = sqrt((Mean * (1 - Mean)) / N),
+            t_val = qt(0.975, df = max(0, N - 1)),
+            ci_lower = Mean - (t_val * se),
+            ci_upper = Mean + (t_val * se), .groups = 'drop'
+            ) %>%
+  mutate(ci_lower = if_else(ci_lower < 0, 0, ci_lower),
+         ci_upper = if_else(ci_upper > 1, 1, ci_upper)
+         ) %>% rename(Mean_Farmers_irrigating_pct = Mean)
+
+# Farmers use Ramthal as source AND Location on the pipeline
+summary_data_source_ramthal <- why_04_proximity_to_filter %>% 
+  filter(proximity_location < 20 ) %>% 
+  mutate(location_on_pipe = factor(proximity_location)) %>%
+  group_by(location_on_pipe) %>%
+  summarise(N = n(),
+            Mean = mean(source_ramthal ), 
+            se = sqrt((Mean * (1 - Mean)) / N),
+            t_val = qt(0.975, df = max(0, N - 1)),
+            ci_lower = Mean - (t_val * se),
+            ci_upper = Mean + (t_val * se), .groups = 'drop'
+            ) %>% mutate(
+              ci_lower = if_else(ci_lower < 0, 0, ci_lower),
+              ci_upper = if_else(ci_upper > 1, 1, ci_upper)
+              )
+
+# Total years of irrigation (2017-2022) AND Location on the pipeline
+summary_data_years <- why_04_proximity_to_filter %>% 
+  filter(proximity_location < 20) %>% 
+  mutate(location_on_pipe = factor(proximity_location)) %>%
+  group_by(location_on_pipe) %>%
+  summarise(N = n(),
+            Mean = mean(ir_total_years, na.rm = TRUE),
+            se = sd(ir_total_years, na.rm = TRUE) / sqrt(N),
+            t_val = qt(0.975, df = max(0, N - 1)),
+            ci_lower = Mean - (t_val * se),
+            ci_upper = Mean + (t_val * se), .groups = 'drop'
+            ) %>% mutate(
+              ci_lower = if_else(ci_lower < 0, 0, ci_lower)
+              )
+
+#...............................................................................
+
+# What triggered early pipe reconfigurations and When it started
+why_05a <- as.data.frame(round(prop.table(table(What_triggered = int_2024$trend_cut_why)), 2))
+
+# What triggered early pipe reconfigurations and When it started
+why_05b <- as.data.frame(round(prop.table(table(When_started = int_2024$trend_cut)), 2))
+
+#...............................................................................
+
+## Ruling out alternative explanations ----
+
+why_06_listA <- list(
+  ### Trust in technology:
+  as.data.frame(round(prop.table( table(Trust_in_technology=rmtl_2024$drip_trust)), 2)),
+  
+  # water_pressure_drip_compare_flood
+   as.data.frame(round(prop.table(table(Water_pressure_drip_compare_flood=rmtl_2024$water_pressure_drip_compare_flood)), 2)),
+  
+  # water_volume_drip_compare_flood
+  as.data.frame(round(prop.table(table(Water_volume_drip_compare_flood=rmtl_2024$water_volume_drip_compare_flood)), 2))
+  
+  )
+  
+  
+
+# Drip advantages
+#Are you aware of any advantages of drip irrigation over other irrigation methods?	
+why_06_drip_advantages <- rmtl_In_srvy2022 %>% 
+  select(hh_id, m3_0:m3_5) %>%
+  pivot_longer(-hh_id, names_to = "drip_advantages", values_to = "yn") %>% 
+  group_by(drip_advantages) %>% 
+  summarise(pct = mean(yn)) %>% 
+  mutate(drip_advantages = recode_values( drip_advantages,
+                                          "m3_0" ~ "No knowledge",
+                                          "m3_1" ~ "Increased yields",
+                                          "m3_2" ~ "Water saving",
+                                          "m3_3" ~ "Fertilizer saving",
+                                          "m3_4" ~ "Less weeds",
+                                          "m3_5" ~ "Less labor requirements"
+  )) |> rename(`Advantages of drip irrigation over other irrigation methods`=drip_advantages)
+
+
+#   training  / recommendations/ demo plot                   ----
+library(haven)
+
+why_06_m_list <- list(
+  setNames(
+    as.data.frame(round(prop.table(table(as_factor(rmtl_In_srvy2022$m42))), 2)),
+    c("M42 : Have you ever gone to visit the demo plot?", "Freq")
+  ),
+  setNames(
+    as.data.frame(round(prop.table(table(as_factor(rmtl_In_srvy2022$m34))), 2)),
+    c(attr(rmtl_In_srvy2022$m34, "label"), "Freq")
+  ),
+  setNames(
+    as.data.frame(round(prop.table(table(as_factor(rmtl_In_srvy2022$m51))), 2)),
+    c(attr(rmtl_In_srvy2022$m51, "label"), "Freq")
+  ),
+  setNames(
+    as.data.frame(round(prop.table(table(as_factor(rmtl_In_srvy2022$m52))), 2)),
+    c(attr(rmtl_In_srvy2022$m52, "label"), "Freq")
+  ),
+  setNames(
+    as.data.frame(round(prop.table(table(as_factor(rmtl_In_srvy2022$m56))), 2)),
+    c(attr(rmtl_In_srvy2022$m56, "label"), "Freq")
+  )
+)
+
+
+
+
+
+
+
+#...............................................................................
+
+# Chapter_5 ----
+
+#...............................................................................
+
+Chapter_5 <- 
+  list(rbind(why_01a,why_01b),
+     why_q1_category,why_q1_ans,
+     why_02_timing,
+     why_02_jain_and_usage,why_02_ir_season, why_02_Water_Delivery_Delay,
+     why_03a_pipe_damage,why_03b_pipe_damage,
+     why_04_damage_cause,
+     why_04a_flooding_with_Ramthal,why_04b_flooding_with_Ramthal,
+     why_04_mm10_A, why_04_mm10_B, why_04_mm10_C,
+     
+     "Table: Irrigation/location_on_pipe Summary" = summary_data_ir,
+     "Table: Ramthal Source/location_on_pipe" = summary_data_source_ramthal,
+     "Table: Years of Irrigation/location_on_pipe Summary" = summary_data_years,
+     
+     "What triggered farmers to cut in the first place?" = why_05a, 
+     "When it started?" = why_05b,
+       why_06_listA, why_06_drip_advantages, why_06_m_list
+     
+)
+
+# library(purrr)
+
+Chapter_5 %>% 
+  iwalk(~ {
+    cat("\n=======================================================\n")
+    cat(.y, "\n")
+    cat("=======================================================\n")
+    print(.x)
+  })
+
+# EXTRAS ----
+
+#    [27] "disputs_0non_1BcozWater_2els"                  
+freq(rmtl_2024$disputs_0non_1BcozWater_2els, cumul = FALSE)
+
+
+# [m35b] How long has the main pipes been damaged?[months/years]
+rmtl_In_srvy2022 %>% filter(m35b_month>=0, m35b_year>=0)  %>%  summarise(Mean = mean(m35b_month/12+ m35b_year ,na.rm=T)) |> mutate(var="Time_to_fix_pipe_InYears")
 
 
 # END ----

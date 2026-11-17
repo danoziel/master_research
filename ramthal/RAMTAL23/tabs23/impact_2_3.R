@@ -1,4 +1,4 @@
-
+# IMPACT 2-3
 #  [ 
 library(readr)
 a_plots_crop <- 
@@ -300,49 +300,49 @@ df_income_NonCrop_bl <-
   select(hh_id, contains("year"),-F3_year, -F12_year)%>%
   pivot_longer(-hh_id ,
                names_to = "income_type_f",
-                 values_to = "income22") %>% 
-    mutate(income_type=
-             ifelse(income_type_f %in% c("F1_year","F2_year","F9_year"),
-                    "k_income_assistance","k_income_independent" ))  %>% 
-    group_by(hh_id, income_type ) %>% 
-    summarise(income_NonCrop = sum(income22,na.rm = T)/1000,.groups = "drop")  # %>% 
-  # left_join( rmtl_baseline2016 %>% select(hh_id, C1 )) %>% 
-  # mutate(C1=ifelse(C1<2,2,C1), # Total household members
-  #        income_NonCrop_mhh=income_NonCrop/C1 # Normalized to number of household members
-  # ) %>% select(-C1)
+               values_to = "incomeBL") %>% 
+  mutate(income_type=
+           ifelse(income_type_f %in% c("F1_year","F2_year","F9_year"),
+                  "k_income_assistance","k_income_independent" ))  %>% 
+  group_by(hh_id, income_type ) %>% 
+  summarise(income_NonCrop = sum(incomeBL,na.rm = T)/1000,.groups = "drop")  # %>% 
+# left_join( rmtl_baseline2016 %>% select(hh_id, C1 )) %>% 
+# mutate(C1=ifelse(C1<2,2,C1), # Total household members
+#        income_NonCrop_mhh=income_NonCrop/C1 # Normalized to number of household members
+# ) %>% select(-C1)
 
 d_I1b <- df_income_NonCrop_bl %>% select(-income_NonCrop_mhh) %>% rename(val_bl=income_NonCrop)
 d_I2b <- df_income_NonCrop_bl %>% select(-income_NonCrop) %>% 
   mutate(income_type = paste0(income_type, "_mhh"))%>% rename(val_bl=income_NonCrop_mhh)
 
 # op=
-  d_I1 %>% left_join(d_I1b)  %>% 
+d_I1 %>% left_join(d_I1b)  %>% 
   rbind( d_I2 %>% left_join(d_I2b) ) %>% left_join(hh_2022) %>% 
   group_by(income_type) %>% 
   summarise(y22_99 = quantile(val_22, probs = 0.99, na.rm = T),
             bl_99 = quantile(val_bl, probs = 0.99, na.rm = T))
 
-  df_income_NonCrop <- 
-    d_I1 %>% left_join(d_I1b) %>%  # rbind( d_I2 %>% left_join(d_I2b) ) %>% 
-    rename(vars=income_type) 
+df_income_NonCrop <- 
+  d_I1 %>% left_join(d_I1b) %>%  # rbind( d_I2 %>% left_join(d_I2b) ) %>% 
+  rename(vars=income_type) 
 
 
 # (//)   selectively removing observations.
 df_income_NonCrop |> 
-    mutate(val_22 = case_when(
-      vars == "k_income_assistance" & val_22 > 306 ~ NA_real_,
-      vars == "k_income_assistance_mhh" & val_22 > 57 ~ NA_real_,
-
-      vars == "k_income_independent" & val_22 > 505 ~ NA_real_,
-      vars == "k_income_independent_mhh" & val_22 > 114 ~ NA_real_,
-      TRUE ~ val_22 ))%>%
-    mutate(val_bl = case_when(
-      vars == "k_income_assistance" & val_bl > 288 ~ NA_real_,
-      vars == "k_income_assistance_mhh" & val_bl > 37 ~ NA_real_,
-
-      vars == "k_income_independent" & val_bl > 404 ~ NA_real_,
-      vars == "k_income_independent_mhh" & val_bl > 83 ~ NA_real_,
-      TRUE ~ val_bl ))
+  mutate(val_22 = case_when(
+    vars == "k_income_assistance" & val_22 > 306 ~ NA_real_,
+    vars == "k_income_assistance_mhh" & val_22 > 57 ~ NA_real_,
+    
+    vars == "k_income_independent" & val_22 > 505 ~ NA_real_,
+    vars == "k_income_independent_mhh" & val_22 > 114 ~ NA_real_,
+    TRUE ~ val_22 ))%>%
+  mutate(val_bl = case_when(
+    vars == "k_income_assistance" & val_bl > 288 ~ NA_real_,
+    vars == "k_income_assistance_mhh" & val_bl > 37 ~ NA_real_,
+    
+    vars == "k_income_independent" & val_bl > 404 ~ NA_real_,
+    vars == "k_income_independent_mhh" & val_bl > 83 ~ NA_real_,
+    TRUE ~ val_bl ))
 
 #
 
@@ -369,7 +369,7 @@ df_tabE2022 <- rmtl_srvy22 %>% select(hh_id,starts_with("e"),-e21) %>%
     "Cows","Bullock","Buffaloes","Goats_sheep",       # LIVESTOCK
     "Tractor","Plough","Thresher","Seed_drill","JCB", # FARM EQUIPMENT 
     "Cycles","Motorcycles","Cars","Fridge","TV"       # VEHICLES # HH ITEMS
-    ), .cols = 2:15) |> select(-Plough)
+  ), .cols = 2:15) |> select(-Plough)
 
 df_tabE22 <- df_tabE2022
 df_tabE22[, 6:14] <- +(df_tabE22[, 6:14] >= 1)
@@ -400,7 +400,7 @@ df_tabE2016 <-
 
 df_tabE16 <-  df_tabE2016
 df_tabE16[, 6:14] <- +(df_tabE16[, 6:14] >= 1)
- 
+
 # df_tabE16[, paste0(c("Tractor","Plough","Thresher","Seed_drill","JCB","Cycles","Motorcycles","Cars","Fridge","TV"), "01")] <- +(df_tabE16[, c("Tractor","Plough","Thresher","Seed_drill","JCB","Cycles","Motorcycles","Cars","Fridge","TV")] >= 1)
 
 df_tabE16$Livestock_n <- rowSums(df_tabE16[, c( "Cows","Bullock","Buffaloes","Goats_sheep")], na.rm = TRUE)
@@ -485,20 +485,20 @@ m1_plot + mp_theme
 
 
 
-  
+
 
 # inputs  {Season} {input_type} ----
 
 
 costesA <- rmtl_srvy22 %>% 
   select(hh_id, contains ("l70"),  # irrigation equipment
-                contains ("l71"),  # Mechanization
-                # contains ("l72"),  # Fuel
-                contains ("l73")) %>%  # Labor
+         contains ("l71"),  # Mechanization
+         # contains ("l72"),  # Fuel
+         contains ("l73")) %>%  # Labor
   pivot_longer(-hh_id,names_to = "observation",values_to = "inputs_Rs" ) %>% 
   separate(observation, into = c("inputs", "season"), sep = "_") %>% 
   mutate(inputs=case_when(inputs=="l70"~"irriEquipment",inputs=="l71" ~ "mechanization",inputs=="l73" ~ "labor", T ~ "fuel")
-         ) %>% 
+  ) %>% 
   mutate(inputs_Rs=ifelse(inputs_Rs <= 0 ,NA,inputs_Rs) ) 
 
 a_plots_crop %>% count(hh_id,season,plotID) %>% 
@@ -586,7 +586,7 @@ migration_22 <-
   summarise(migrated22=sum(migrated)) %>% 
   left_join(n_roster_bl ) %>% 
   mutate(migrated_22_pct= 
-      ifelse(migrated22==0 & roster_N.bl==0,0,migrated22/roster_N.bl)) %>% 
+           ifelse(migrated22==0 & roster_N.bl==0,0,migrated22/roster_N.bl)) %>% 
   mutate(migrated_22_01=ifelse(migrated_22_pct==0,0,1) ) %>% 
   select(hh_id,migrated_22_pct,migrated_22_01 )
 
@@ -692,7 +692,7 @@ c13 <-
   select(hh_id, matches("^[^_]+_[^_]+_[^_]+$")) %>% 
   pivot_longer(-hh_id, names_to = "c13", values_to = "ans") %>% 
   separate(c13, into = c("c13", "rank", "hhm"), sep = "_", convert = F
-           )
+  )
 
 c17 <- 
   rmtl_baseline2016 %>% select(hh_id, starts_with("C17"))  %>% 
@@ -742,8 +742,8 @@ df_work_gender_22 <-
   group_by( hh_id) %>% mutate(n=sum(n)) %>% ungroup() %>% 
   filter(gender ==2) %>% 
   mutate(
-         woman_offFarmwork_pct_22=val/n,
-         woman_offFarmwork_freq_22=ifelse(val !=0, 1,0)) %>% 
+    woman_offFarmwork_pct_22=val/n,
+    woman_offFarmwork_freq_22=ifelse(val !=0, 1,0)) %>% 
   select(hh_id,woman_offFarmwork_pct_22,woman_offFarmwork_freq_22 )
 
 
@@ -766,8 +766,8 @@ c17 <-
 
 
 
-  df_work_gender_bl <- c17 %>% 
-    select(hh_id,hhm, ans) %>%
+df_work_gender_bl <- c17 %>% 
+  select(hh_id,hhm, ans) %>%
   filter(!is.na(ans)) %>% 
   mutate(val= ifelse(ans %in% c(9:12),1,0 )) %>% 
   select(hh_id, hhm,val ) %>% distinct() %>% 
@@ -783,176 +783,176 @@ c17 <-
 
 
 
-  #__________________________ education  __________________________       ----
-  
-  # r7	Are they literate?
-  # r8	What is their educational level? (0=NOT literate)
-  # r11 	Is the institution public or private?
-  # r12		What are the annual tuition fees?
-  # The HH head is the same as in 2016, so there is no need to examine it
-  
-  # literacy 22
-  # r7	Are they literate?
-  
-  literacy22=  # r7	Are they literate?
-    rmtl_srvy22 %>% select(hh_id,starts_with("r7" ) ) %>% 
-    pivot_longer(!hh_id, names_to = "id_member", values_to = "literate") %>% 
-    group_by(hh_id) %>% 
-    summarise(literacy_22=mean(literate,na.rm=T)) %>% 
-    mutate(literacy_22 = ifelse(literacy_22 <= 0,NA,literacy_22)) # transfer NaN to NA
-  
-  
-  
-  # literacy 15
-  # C6 Are they literate
-  
-  literacy15= 
-    rmtl_baseline2016 %>% select(hh_id,starts_with("c6" ) ) %>% 
-    pivot_longer(!hh_id, names_to = "id_member", values_to = "literate") %>% 
-    group_by(hh_id) %>% 
-    summarise(literacy_15=mean(literate,na.rm=T)) %>% 
-    mutate(literacy_15 = ifelse(literacy_15 <= 0,NA,literacy_15))
-  
-  
-  
-  
-  # edu_level22
-  # r8	What is their educational level? 
-  
-  edu_level22 = 
-    rmtl_srvy22 %>% select(hh_id, starts_with("r8"), -ends_with("_bin") ) %>% 
-    select(-contains("new")) %>% 
-    pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level") %>% 
-    group_by(hh_id) %>% 
-    summarise(edu_level_22=mean(edu_level,na.rm=T)) %>% 
-    mutate(edu_level_22 = ifelse(edu_level_22<0,NA,edu_level_22)) # transfer NaN to NA
-  
-  # edu_level15
-  # C7 educational level
-  
-  edu_level15 = 
-    rmtl_baseline2016 %>% select(hh_id, starts_with("c7"), -ends_with("_bin") ) %>% 
-    pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level") %>% 
-    group_by(hh_id) %>% 
-    summarise(edu_level_15=mean(edu_level,na.rm=T)) %>% 
-    mutate(edu_level_15 = ifelse(edu_level_15<0,NA,edu_level_15)) # transfer NaN to NA
-  
-  
-  
-  # edu_level_2nd_gen_22
-  r8_22 =  
-    rmtl_srvy22 %>% select(hh_id, starts_with("r8"), -ends_with("_bin") ) %>% 
-    select(-contains("new")) %>% 
-    pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level")
-  r8_22$id_member <- sub("^r8_(\\d{1,2})","r_\\1",r8_22$id_member )
-  
-  
-  r6_22 = # R6 What is their relationship to the head of household?
-    rmtl_srvy22 %>% select(hh_id,starts_with("r6" ) ) %>% 
-    pivot_longer(
-      !hh_id, names_to = "id_member", values_to = "relation_HH_head") 
-  r6_22$id_member <- sub("^r6_(\\d{1,2})","r_\\1",r6_22$id_member )
-  
-  edu_level_2nd_gen_22 <- 
-    left_join (r8_22,r6_22) %>% 
-    mutate(edu_gen_2nd=ifelse(
-      relation_HH_head %in% c(3,9,11:13),edu_level,NA) ) %>% 
-    group_by(hh_id) %>% 
-    summarise(edu_gen2_22=mean(edu_gen_2nd,na.rm=T)) %>% 
-    mutate(edu_gen2_22 = ifelse(edu_gen2_22<0,NA,edu_gen2_22)) # transfer NaN to NA
-  
-  
-  # edu_level_2nd_gen_15
-  
-  # C7 educational level
-  # C5 elationship to the head of household
-  
-  c7_15 <- 
-    rmtl_baseline2016 %>% select(hh_id, starts_with("c7"), -ends_with("_bin") ) %>% 
-    pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level")
-  c7_15$id_member <- sub("^C7_(\\d{1,2})","C_\\1",c7_15$id_member )
-  
-  C5_15 = # C5 elationship to the head of household
-    rmtl_baseline2016 %>% select(hh_id,starts_with("c5" ), -contains("os") ) %>% 
-    pivot_longer(
-      !hh_id, names_to = "id_member", values_to = "relation_HH_head") 
-  C5_15$id_member <- sub("^C5_(\\d{1,2})","C_\\1",C5_15$id_member )
-  
-  
-  edu_level_2nd_gen_15 <- 
-    left_join (c7_15,C5_15) %>% 
-    mutate(edu_gen_2nd=ifelse(
-      relation_HH_head %in% c(3,9,11:13),edu_level,NA) ) %>% 
-    group_by(hh_id) %>% 
-    summarise(edu_gen2_15=mean(edu_gen_2nd,na.rm=T)) %>% 
-    mutate(edu_gen2_15 = ifelse(edu_gen2_15<0,NA,edu_gen2_15)) # transfer NaN to NA
-  
-  
-  
-  
-  # private school 2022
-  # R11 	Is the institution public or private?
-  edu_private_22 = 
-    rmtl_srvy22 %>% select(hh_id,starts_with("r11" ) ) %>% 
-    pivot_longer(
-      !hh_id, names_to = "id_member", values_to = "institut")%>% 
-    mutate(institut = ifelse(is.na (institut),0,institut),
-           Private =ifelse(institut==2,1,0),
-           public=ifelse(institut==1,1,0)) %>%
-    group_by(hh_id) %>% 
-    summarise(n_Private =sum(Private ), n_public=sum(public)) %>% 
-    mutate(Private_22 = ifelse(n_Private  > 0, 1,
-                               ifelse(n_public > 0, 0, NA)))
-  
-  
-  # private school 2015
-  # C10	Is the institution public or private?
-  
-  edu_private_15 = 
-    rmtl_baseline2016 %>% select(hh_id,starts_with("C10" ) ) %>% 
-    pivot_longer(
-      !hh_id, names_to = "id_member", values_to = "institut")%>% 
-    mutate(institut = ifelse(!institut %in% c(1,2) ,0,institut),
-           Private =ifelse(institut==2,1,0),
-           public=ifelse(institut==1,1,0)) %>%
-    group_by(hh_id) %>% 
-    summarise(n_Private =sum(Private ), n_public=sum(public)) %>% 
-    mutate(Private_15 = ifelse(n_Private  > 0, 1,
-                               ifelse(n_public > 0, 0, NA)))
-  
-  
-  
-  
-  
-  # tuition 2022
-  # R12		What are the annual tuition fees?
-  tuition22 =
-    rmtl_srvy22 %>% select(hh_id,starts_with("r12" ) ) %>% 
-    pivot_longer(
-      !hh_id, names_to = "id_member", values_to = "tuition") %>% 
-    mutate(n_mm= ifelse(tuition >= 0, 1, NA )) %>% 
-    group_by(hh_id) %>% 
-    summarise(tuitionHH= sum(tuition,na.rm = T),n=sum(n_mm,na.rm = T)) %>% 
-    mutate(tuition_hhm_22=tuitionHH/n) %>% 
-    mutate(tuition_hhm_22 = ifelse(tuition_hhm_22<0,NA,tuition_hhm_22)) # transfer NaN to NA
-  
-  # tuition 2015
-  # C11	What are the annual tuition fees?
-  
-  tuition15 = 
-    rmtl_baseline2016 %>% select(hh_id,starts_with("C11" ) ) %>% 
-    pivot_longer(
-      !hh_id, names_to = "id_member", values_to = "tuition") %>% 
-    mutate(tuition= ifelse(tuition < 0, NA, tuition )) %>% 
-    mutate(n_mm= ifelse(tuition >= 0, 1, NA )) %>% 
-    group_by(hh_id) %>% 
-    summarise(tuitionHH= sum(tuition,na.rm = T),n=sum(n_mm,na.rm = T)) %>% 
-    mutate(tuition_hhm_15=tuitionHH/n) %>% 
-    mutate(tuition_hhm_15 = ifelse(tuition_hhm_15<0,NA,tuition_hhm_15)) # transfer NaN to NA
-  
-  
-  
-  
+#__________________________ education  __________________________       ----
+
+# r7	Are they literate?
+# r8	What is their educational level? (0=NOT literate)
+# r11 	Is the institution public or private?
+# r12		What are the annual tuition fees?
+# The HH head is the same as in 2016, so there is no need to examine it
+
+# literacy 22
+# r7	Are they literate?
+
+literacy22=  # r7	Are they literate?
+  rmtl_srvy22 %>% select(hh_id,starts_with("r7" ) ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "literate") %>% 
+  group_by(hh_id) %>% 
+  summarise(literacy_22=mean(literate,na.rm=T)) %>% 
+  mutate(literacy_22 = ifelse(literacy_22 <= 0,NA,literacy_22)) # transfer NaN to NA
+
+
+
+# literacy 15
+# C6 Are they literate
+
+literacy15= 
+  rmtl_baseline2016 %>% select(hh_id,starts_with("c6" ) ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "literate") %>% 
+  group_by(hh_id) %>% 
+  summarise(literacy_15=mean(literate,na.rm=T)) %>% 
+  mutate(literacy_15 = ifelse(literacy_15 <= 0,NA,literacy_15))
+
+
+
+
+# edu_level22
+# r8	What is their educational level? 
+
+edu_level22 = 
+  rmtl_srvy22 %>% select(hh_id, starts_with("r8"), -ends_with("_bin") ) %>% 
+  select(-contains("new")) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level") %>% 
+  group_by(hh_id) %>% 
+  summarise(edu_level_22=mean(edu_level,na.rm=T)) %>% 
+  mutate(edu_level_22 = ifelse(edu_level_22<0,NA,edu_level_22)) # transfer NaN to NA
+
+# edu_level15
+# C7 educational level
+
+edu_level15 = 
+  rmtl_baseline2016 %>% select(hh_id, starts_with("c7"), -ends_with("_bin") ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level") %>% 
+  group_by(hh_id) %>% 
+  summarise(edu_level_15=mean(edu_level,na.rm=T)) %>% 
+  mutate(edu_level_15 = ifelse(edu_level_15<0,NA,edu_level_15)) # transfer NaN to NA
+
+
+
+# edu_level_2nd_gen_22
+r8_22 =  
+  rmtl_srvy22 %>% select(hh_id, starts_with("r8"), -ends_with("_bin") ) %>% 
+  select(-contains("new")) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level")
+r8_22$id_member <- sub("^r8_(\\d{1,2})","r_\\1",r8_22$id_member )
+
+
+r6_22 = # R6 What is their relationship to the head of household?
+  rmtl_srvy22 %>% select(hh_id,starts_with("r6" ) ) %>% 
+  pivot_longer(
+    !hh_id, names_to = "id_member", values_to = "relation_HH_head") 
+r6_22$id_member <- sub("^r6_(\\d{1,2})","r_\\1",r6_22$id_member )
+
+edu_level_2nd_gen_22 <- 
+  left_join (r8_22,r6_22) %>% 
+  mutate(edu_gen_2nd=ifelse(
+    relation_HH_head %in% c(3,9,11:13),edu_level,NA) ) %>% 
+  group_by(hh_id) %>% 
+  summarise(edu_gen2_22=mean(edu_gen_2nd,na.rm=T)) %>% 
+  mutate(edu_gen2_22 = ifelse(edu_gen2_22<0,NA,edu_gen2_22)) # transfer NaN to NA
+
+
+# edu_level_2nd_gen_15
+
+# C7 educational level
+# C5 elationship to the head of household
+
+c7_15 <- 
+  rmtl_baseline2016 %>% select(hh_id, starts_with("c7"), -ends_with("_bin") ) %>% 
+  pivot_longer(!hh_id, names_to = "id_member", values_to = "edu_level")
+c7_15$id_member <- sub("^C7_(\\d{1,2})","C_\\1",c7_15$id_member )
+
+C5_15 = # C5 elationship to the head of household
+  rmtl_baseline2016 %>% select(hh_id,starts_with("c5" ), -contains("os") ) %>% 
+  pivot_longer(
+    !hh_id, names_to = "id_member", values_to = "relation_HH_head") 
+C5_15$id_member <- sub("^C5_(\\d{1,2})","C_\\1",C5_15$id_member )
+
+
+edu_level_2nd_gen_15 <- 
+  left_join (c7_15,C5_15) %>% 
+  mutate(edu_gen_2nd=ifelse(
+    relation_HH_head %in% c(3,9,11:13),edu_level,NA) ) %>% 
+  group_by(hh_id) %>% 
+  summarise(edu_gen2_15=mean(edu_gen_2nd,na.rm=T)) %>% 
+  mutate(edu_gen2_15 = ifelse(edu_gen2_15<0,NA,edu_gen2_15)) # transfer NaN to NA
+
+
+
+
+# private school 2022
+# R11 	Is the institution public or private?
+edu_private_22 = 
+  rmtl_srvy22 %>% select(hh_id,starts_with("r11" ) ) %>% 
+  pivot_longer(
+    !hh_id, names_to = "id_member", values_to = "institut")%>% 
+  mutate(institut = ifelse(is.na (institut),0,institut),
+         Private =ifelse(institut==2,1,0),
+         public=ifelse(institut==1,1,0)) %>%
+  group_by(hh_id) %>% 
+  summarise(n_Private =sum(Private ), n_public=sum(public)) %>% 
+  mutate(Private_22 = ifelse(n_Private  > 0, 1,
+                             ifelse(n_public > 0, 0, NA)))
+
+
+# private school 2015
+# C10	Is the institution public or private?
+
+edu_private_15 = 
+  rmtl_baseline2016 %>% select(hh_id,starts_with("C10" ) ) %>% 
+  pivot_longer(
+    !hh_id, names_to = "id_member", values_to = "institut")%>% 
+  mutate(institut = ifelse(!institut %in% c(1,2) ,0,institut),
+         Private =ifelse(institut==2,1,0),
+         public=ifelse(institut==1,1,0)) %>%
+  group_by(hh_id) %>% 
+  summarise(n_Private =sum(Private ), n_public=sum(public)) %>% 
+  mutate(Private_15 = ifelse(n_Private  > 0, 1,
+                             ifelse(n_public > 0, 0, NA)))
+
+
+
+
+
+# tuition 2022
+# R12		What are the annual tuition fees?
+tuition22 =
+  rmtl_srvy22 %>% select(hh_id,starts_with("r12" ) ) %>% 
+  pivot_longer(
+    !hh_id, names_to = "id_member", values_to = "tuition") %>% 
+  mutate(n_mm= ifelse(tuition >= 0, 1, NA )) %>% 
+  group_by(hh_id) %>% 
+  summarise(tuitionHH= sum(tuition,na.rm = T),n=sum(n_mm,na.rm = T)) %>% 
+  mutate(tuition_hhm_22=tuitionHH/n) %>% 
+  mutate(tuition_hhm_22 = ifelse(tuition_hhm_22<0,NA,tuition_hhm_22)) # transfer NaN to NA
+
+# tuition 2015
+# C11	What are the annual tuition fees?
+
+tuition15 = 
+  rmtl_baseline2016 %>% select(hh_id,starts_with("C11" ) ) %>% 
+  pivot_longer(
+    !hh_id, names_to = "id_member", values_to = "tuition") %>% 
+  mutate(tuition= ifelse(tuition < 0, NA, tuition )) %>% 
+  mutate(n_mm= ifelse(tuition >= 0, 1, NA )) %>% 
+  group_by(hh_id) %>% 
+  summarise(tuitionHH= sum(tuition,na.rm = T),n=sum(n_mm,na.rm = T)) %>% 
+  mutate(tuition_hhm_15=tuitionHH/n) %>% 
+  mutate(tuition_hhm_15 = ifelse(tuition_hhm_15<0,NA,tuition_hhm_15)) # transfer NaN to NA
+
+
+
+
 
 
 # DF [df_social] ----
@@ -963,33 +963,33 @@ df_social_22 <-
   left_join(edu_level_2nd_gen_22 %>% rename(edu_gen2=edu_gen2_22)
   ) %>%
   left_join(edu_private_22 %>% select(hh_id,Private_22) %>% rename(private_school=Private_22) 
-            ) %>% 
+  ) %>% 
   left_join( migrants_work_22
-             ) %>% 
+  ) %>% 
   left_join(df_work_offFarm_22 %>% 
               rename(offFarm_work_pct=offFarm_work_pct_22 ,offFarm_work_freq= offFarm_work_freq_22)
-            ) %>%
+  ) %>%
   left_join(df_work_gender_22 %>% 
               rename(woman_offFarmwork_pct=woman_offFarmwork_pct_22  ,woman_offFarmwork_freq=woman_offFarmwork_freq_22)
-            ) %>% 
+  ) %>% 
   pivot_longer(-hh_id,names_to = "social_vars", values_to = "val_22")
-  
-  
+
+
 df_social_bl <- 
   literacy15 %>% rename(literacy_rates=literacy_15) %>% 
   left_join(edu_level_2nd_gen_15 %>% rename(edu_gen2=edu_gen2_15)
-            ) %>% 
+  ) %>% 
   left_join(edu_private_15 %>% select(hh_id,Private_15) %>% rename(private_school=Private_15) 
-            ) %>% 
+  ) %>% 
   left_join (
     migrants_work_BL
-    ) %>% 
+  ) %>% 
   left_join(
     df_work_offFarm_bl %>% rename(offFarm_work_pct=offFarm_work_pct_bl  ,offFarm_work_freq= offFarm_work_freq_bl)
-    ) %>%
+  ) %>%
   left_join(df_work_gender_bl %>% 
               rename(woman_offFarmwork_pct=woman_offFarmwork_pct_bl ,woman_offFarmwork_freq=woman_offFarmwork_freq_bl)
-            ) %>% 
+  ) %>% 
   pivot_longer(-hh_id,names_to = "social_vars", values_to = "val_bl")
 
 
@@ -1003,7 +1003,7 @@ df_social <-
 
 
 
-    
+
 
 
 

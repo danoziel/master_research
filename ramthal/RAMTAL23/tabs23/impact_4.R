@@ -1,11 +1,12 @@
-# Give me the answer ... then destroy your own answer
+# IMPACT 4
+
 
 library(dplyr)
 library(tidyr)
 library(tidyverse)
 library(readxl)
 
-# balance test - t-test ----
+# balance test - t-test ---
 
 df_tableC_bl <- df_tableBbl|> mutate(vars = str_remove(vars, "_Kharif|_Rabi")) |> 
   summarise(val_bl = sum(val_bl,na.rm = T),.by = c(hh_id,vars))
@@ -13,7 +14,7 @@ df_tableC_bl <- df_tableBbl|> mutate(vars = str_remove(vars, "_Kharif|_Rabi")) |
 df_tableD_bl <- df_tableC_bl |> 
   mutate(vars = sub("acre", "adopted", vars),val_bl = +(val_bl != 0))
 
-bv_revenue_income_bl <- 
+bv_revenue_income_bl <- # df_revenue_income_bl
   df_income_f3_bl%>% 
   left_join(land_holding_bl) %>% 
   mutate(reve_acre_bl=income_bl/hh_acre_bl)%>%
@@ -69,7 +70,7 @@ df_reg_bl <-
 
 tbl_ttest <- df_reg_bl |> 
   rbind(df_reg_bl |> filter(site_area=="South")|>   mutate(vars = str_c(vars, "_South"))
-) %>% 
+  ) %>% 
   group_by(vars) %>%
   do(tidy(t.test(val_bl ~ in1_out0 , data = .))) %>% ungroup() %>% 
   mutate(across(c(estimate2, estimate1, p.value), ~ round(., 3))) %>% 
@@ -79,7 +80,7 @@ tbl_ttest <- df_reg_bl |>
 
 library(rstatix)
 tbl_t1 <- 
-  df_reg_bl  %>%
+  df_reg_bl |> left_join(hh_baseline) |> 
   # left_join(rmtl_cntrl_vars %>% select(hh_id,in_project,cardinal_direction)) %>% 
   group_by(vars) %>%
   do(tidy(t.test(val_bl ~ in1_out0, data = .))) %>% ungroup() %>% 
@@ -88,9 +89,9 @@ tbl_t1 <-
   rename(In = estimate2 ,Out = estimate1) 
 
 tbl_t2 <- 
-  df_reg_bl  %>%
-  left_join(rmtl_cntrl_vars %>% select(hh_id,in_project,cardinal_direction)
-  ) %>% filter(site_area =="South") %>% 
+  df_reg_bl |> left_join(hh_baseline) |> 
+  # left_join(rmtl_cntrl_vars %>% select(hh_id,in_project,cardinal_direction)) %>% 
+  filter(site_area =="South") %>% 
   group_by(vars) %>%
   do(tidy(t.test(val_bl ~ in1_out0, data = .))) %>% ungroup() %>% 
   mutate(across(c(estimate2, estimate1, p.value), ~ round(., 3))) %>% 
@@ -130,7 +131,7 @@ rmtl_cntrl_vars %>%
   labs(title = paste0("Bin=", bin, bin_unit ), fill="Groups") +
   theme_minimal() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
-  
+
 
 ## Vars on distanc to boundry X-axis  ----
 #  > bin Km
@@ -140,7 +141,7 @@ df_land_bins <- df_reg_22 %>%
   filter(!is.na(dist_Km_boundary)) %>% select(-c(5:26,28:54)) %>%
   mutate(dist_bin_numeric = floor(dist_Km_boundary / bin) * bin) %>%
   mutate(dist_bin = paste0(dist_bin_numeric, " : ", dist_bin_numeric + bin)
-         ) %>%
+  ) %>%
   summarise(
     mean_val = mean(val_22, na.rm = T),sum_val = sum(val_22, na.rm = T),
     in_project = first(in_project),.by = c(dist_bin_numeric, dist_bin)
@@ -148,13 +149,13 @@ df_land_bins <- df_reg_22 %>%
   mutate(project_group = ifelse(in_project == 1, "In", "Out")) %>%
   arrange(dist_bin_numeric) %>% 
   mutate(dist_bin = factor(dist_bin, levels = unique(dist_bin))
-         )
+  )
 #  > bin PLOT    
 ggplot(df_land_bins, aes(x = dist_bin, y = mean_val, fill = project_group)) +
   geom_col(color = "white") + scale_fill_manual(values = c("Out" = "gray60", "In" = "steelblue")) +
   labs(title = paste0("22 Bin=", bin, bin_unit ), fill="Groups") +
   theme_minimal() + theme(axis.text.x = element_text(angle = 90, hjust = 1)
-                          ) + ylim(0, .25)
+  ) + ylim(0, .25)
 
 #
 ## PLOT bin nHH  Xaxis as boundry ----
@@ -200,26 +201,26 @@ df_crop_treemap22 <-
   mutate(ir_label = ifelse(irri_method == "rain","Rainfed","Irrigated")) |> 
   filter (crop_common %in% c("Chillies","Onions","Sunflower","Oil crop", "Sugarcane", # "Wheat",
                              "Vegetables")) |> select(hh_id,crop_common,ir_label) |> distinct(
-  ) |> 
+                             ) |> 
   left_join(rmtl_16_18_22_sample %>% select(hh_id,sample)) |> 
   add_count(sample, wt = n_distinct(hh_id), name = "n_group") |>
   count(crop_common,ir_label,sample,n_group) |>
   mutate(pct=n/n_group*100) |> 
   select(sample,ir_label,pct,crop_common) 
-  
+
 
 
 library(treemapify)
 
 df_crop_treemap22 |> 
   rbind( df_crop_treemap22 |> summarise(pct=sum(pct),.by = c(sample,ir_label)) |> filter(ir_label =="Irrigated" ) |> mutate(crop_common="Irrigated crops",ir_label ="Rainfed")
-         ) |> mutate(
-           pct=ifelse(sample==1, pct*pct_in/100 ,pct*pct_out/100)
-           ) |> 
+  ) |> mutate(
+    pct=ifelse(sample==1, pct*pct_in/100 ,pct*pct_out/100)
+  ) |> 
   mutate( sample = ifelse(sample==1,"In","Out"),
           ir_label = paste0(sample, "-", ir_label), 
           box_label = paste0(crop_common, "\n", round(pct, 1),"%")
-          ) |> 
+  ) |> 
   ggplot(aes(area = pct, fill = crop_common, subgroup = box_label)) +
   geom_treemap(color = "#FCFBF9", size = 2) +
   geom_treemap_subgroup_text(place = "center", grow = FALSE, color = "black", size = 11) +
@@ -269,7 +270,7 @@ df_tableBbl_1 <- crop_BL %>%   # in impact1.R
   )%>%
   select(hh_id, crop_common, Kharif, Rabi) %>%
   pivot_longer(cols = c(Kharif, Rabi), names_to = "season", values_to = "acre_crop"
-               ) |> filter(!is.na(acre_crop)) |> 
+  ) |> filter(!is.na(acre_crop)) |> 
   mutate(season = case_when(crop_common == "Toor" ~ "Kharif" ,T~ season )) %>%  
   mutate(season = case_when(crop_common == "Sunflower" ~ "Kharif" ,T~ season )) %>%  
   mutate(season = case_when(crop_common == "Maize" ~ "Kharif" ,T~ season )) %>%  
@@ -352,7 +353,7 @@ df_tableE2 <- df_tableB |>
   ) |> 
   mutate(vars = paste(season,unit, sep = "_")) |> 
   summarise(val_22 = sum(val_22,na.rm = T),
-                   val_bl = sum(val_bl,na.rm = T),.by = c(hh_id,vars)
+            val_bl = sum(val_bl,na.rm = T),.by = c(hh_id,vars)
   ) |> arrange(hh_id)
 
 
@@ -474,7 +475,7 @@ df_tableA_selectiv <-
 
 df_raw_actual <- df_1pct_actual <- df_0.5pct_actual <- 
   # 1. שנה כאן לשמות המשתנים האמיתיים של שלושת הפלטים 
-df_raw_actual <-    impact_table_agriculture     # הטבלה הגולמית
+  df_raw_actual <-    impact_table_agriculture     # הטבלה הגולמית
 df_1pct_actual <-   impact_table_agriculture    # טבלת ה-1%
 df_0.5pct_actual <- impact_table_agriculture  # טבלת ה-0.5%
 
@@ -499,7 +500,7 @@ Impact_Agriculture_995 <- readxl::read_excel("C:/Users/Dan/OneDrive/Documents/ra
 
 Impact_Agriculture_raw <- df_tableC |> rbind(df_tableB) |> rbind(df_tableD)
 Impact_Agriculture_995 <- df_tableA_995 |> rbind(df_tableD)
-  
+
 # writexl::write_xlsx(Impact_Agriculture_raw, "C:/Users/Dan/OneDrive/Documents/ramthal_database/Impact_Agriculture_raw.xlsx")
 # writexl::write_xlsx(Impact_Agriculture_995, "C:/Users/Dan/OneDrive/Documents/ramthal_database/Impact_Agriculture_995.xlsx")
 
@@ -521,7 +522,7 @@ df_assets_raw <- readxl::read_excel("C:/Users/Dan/OneDrive/Documents/ramthal_dat
 df_reg_22 <- 
   df_assets_raw |> 
   mutate(val_22=ifelse(vars=="land_holding" & val_22 > 39 ,NA,val_22)
-         ) |> left_join(rmtl_cntrl_vars)
+  ) |> left_join(rmtl_cntrl_vars)
 
 #  Correlation test for tractor equipment
 library(dplyr)
@@ -530,7 +531,7 @@ library(DT)
 
 df_assets |> left_join(rmtl_cntrl_vars) |> 
   filter(in_project == 1, cardinal_direction=="south",dist_to_boundary_m > 1600,
-    vars %in% c("Tractor","Thresher","Seed_drill") ) |> 
+         vars %in% c("Tractor","Thresher","Seed_drill") ) |> 
   select(hh_id, vars, val_22) %>% 
   pivot_wider(names_from = vars, values_from = val_22) %>%
   select(-hh_id) %>%
@@ -542,12 +543,12 @@ DF <- df_assets |> left_join(rmtl_cntrl_vars) |>
   filter(vars %in% c("Tractor","Thresher","Seed_drill"), !is.na(val_bl) ) |> 
   select(hh_id, vars, val_22, val_bl,farmers_hh)|> 
   mutate(val=val_22+ val_bl)
-  
+
 DF |> count(vars, val_22, val_bl)
 DF |> count(vars, val)
 
 DF |> count(vars, farmers_hh,val_22, val_bl) |> mutate(N=sum(n),.by = c(vars,farmers_hh),n/N
-   ) |> kbl() |> kable_classic()
+) |> kbl() |> kable_classic()
 DF |> count(vars, farmers_hh,val) |> mutate(N=sum(n),.by = c(vars,farmers_hh),n/N)
 
 
@@ -572,7 +573,7 @@ Impact_Economic_NOclean <-
   rbind(df_income_NonCrop) %>% 
   rbind(df_inputs) %>% 
   rbind(df_labor_days) |> 
-Impact_Economic_NOclean %>% count(vars)
+  Impact_Economic_NOclean %>% count(vars)
 # writexl::write_xlsx(Impact_Economic_NOclean, "C:/Users/Dan/OneDrive/Documents/ramthal_database/Impact_Economic_NOclean.xlsx")
 
 #........................................................
@@ -612,7 +613,7 @@ Impact_Economic_clean_995 <- Impact_Economic_NOclean %>%
 
 df_raw_actual <- df_1pct_actual <- df_0.5pct_actual <- 
   # 1. שנה כאן לשמות המשתנים האמיתיים של שלושת הפלטים 
-df_raw_actual <- impact_table_Economic     # הטבלה הגולמית
+  df_raw_actual <- impact_table_Economic     # הטבלה הגולמית
 df_1pct_actual <- impact_table_Economic    # טבלת ה-1%
 df_0.5pct_actual <- impact_table_Economic  # טבלת ה-0.5%
 
@@ -694,7 +695,7 @@ df_drip_use_bl <- irrigation_BL_to_22 %>% select(hh_id, drip_use_BL) %>% rename(
 df_drip_17_22 <- 
   rbind(df_drip_use_Y_1to6,df_im_in_project) |> 
   left_join(df_drip_use_bl) |> filter(vars != "drip_use_2021_22") 
-  
+
 df_drip_17_22 %>% count(vars)
 
 
@@ -706,10 +707,11 @@ df_drip_acre_pct %>% count(vars)
 
 
 df_source_irri_BL <- 
-  bl13_source_irrigate |> mutate(ir_source_bl= ifelse(is.na(ir_source_bl ),0,1)) |> 
-  summarise(val_bl=sum(ir_source_bl),.by=hh_id )|> mutate(val_bl= ifelse(val_bl==0,0,1)) |> 
+  bl13_source_irrigate |> mutate(irri_source_5y= ifelse(is.na(irri_source_5y ),0,1)) |> 
+  summarise(val_bl=sum(irri_source_5y),.by=hh_id )|> mutate(val_bl= ifelse(val_bl==0,0,1)) |> 
   mutate(vars=c("any_source"))
 df_source_irri_BL = df_source_irri_BL |> bind_rows(df_source_irri_BL |> mutate(val_bl=0, vars="source_ramthal"))
+
 
 
 

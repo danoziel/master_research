@@ -78,8 +78,12 @@ q4 %>% count(srvy2022) %>% mutate(prop = prop.table(n))
 cor.test(q4$intr2024, q4$srvy2022, method = "pearson")
 
 
-
-              
+rmtl_2024 %>% select(hh_id ,drip_1use_2useOwmDrip) %>%
+  left_join(irrigation_BL_to_22  %>% select(hh_id,drip_use_6y) ) %>%
+  rename(intr2024=drip_1use_2useOwmDrip,srvy2022= drip_use_6y) %>% 
+  filter(intr2024 != 2, srvy2022<=1 ) %>% 
+  
+  count(srvy2022) %>% mutate(prop = prop.table(n))
 
 
 
@@ -167,46 +171,6 @@ rmtl_2024 %>%
 
 
 
-
-
-# why not use  ----------------------------------------------------------------
-
-# SAMPLE 2024 [30] "drip_why_not_use12"  ......................................
-#| freq(rmtl_2024$drip_why_not_use1, cumul = FALSE)
-#| freq(rmtl_2024$drip_why_not_use2, cumul = FALSE)
-# freq(rmtl_2024$drip_why_not_use12, cumul = FALSE)
-
-Q30=rmtl_2024 %>% 
-  select(1,drip_why_not_use1,drip_why_not_use2,drip_1use_2useOwmDrip) 
-
-no1=Q30 %>% filter(!is.na(drip_why_not_use1)) %>% 
-  filter(drip_why_not_use1 != "damaged_by_farmers") %>% 
-  count (drip_why_not_use1) %>% 
-  rename(why_not_use_drip=drip_why_not_use1,n1=n)
-
-no2=Q30 %>% filter(!is.na(drip_why_not_use2))  %>% 
-  filter(drip_why_not_use2 != "damaged_by_farmers") %>% 
-  count (drip_why_not_use2) %>% 
-  rename(why_not_use_drip=drip_why_not_use2,n2=n)
-
-Qq30=full_join(no1, no2) %>%
-  mutate(n2 = ifelse(is.na(n2), 0, n2)) 
-
-# water_supply
-Qq30 %>% filter(why_not_use_drip !="damaged_by_farmers") %>% 
-  group_by(why_not_use_drip) %>% 
-  summarise(n1=sum(n1),n2=sum(n2)) %>% 
-  mutate(n=n1+n2, N=sum(n), pct=n/N*100
-         ) %>% 
-  select(why_not_use_drip,n,N,pct ) %>% 
-  mutate_at(4,round) %>% 
-  kable() %>% kable_minimal()
-
-
-
-
-
-
 #  SURVEY 2023  [mw1c] If No, Why?  ...........................................
 # also Qs [mw7 mw8] 
 rmtl_srvy22 %>% 
@@ -233,8 +197,7 @@ rmtl_srvy22 %>%
 # mw1c_8	I did not know when water was supplied
 # mw1c_10	Water supply is unpredictable I cant count on it
 
-mw1c_NEW <- 
-  rmtl_srvy22 %>% 
+rmtl_srvy22 %>% 
   select(hh_id,
          contains("mw1c"),-mw1c_other,-mw1c__888)%>% filter(mw1c != "") %>% 
   select(-mw1c ) %>% 
@@ -244,20 +207,8 @@ mw1c_NEW <-
          ) %>% 
   select(hh_id,Damaged_by_farmers,Water_issues,Else) %>% 
   pivot_longer(-hh_id,names_to = "ans",values_to = "pct") %>% 
-  mutate(pct=ifelse(pct>0,1,0))
-
-mw1c_NEW %>% 
+  mutate(pct=ifelse(pct>0,1,0))  %>% 
   group_by(ans) %>% summarise(pct_ans=mean(pct ))
-
-# SAMPLE 2024 IN 2023  ........................................................  
-
-rmtl_2024 %>% select(hh_id,drip_why_not_use12 )%>% 
-               filter(!is.na(drip_why_not_use12)) %>% 
-      left_join(mw1c_NEW)%>% 
-  filter(!is.na(ans)) %>% # select(hh_id) %>% distinct() # N=41
-  group_by(ans) %>% summarise(pct_ans=mean(pct ))
-
-
 
 #  [26] "tap_cut_by_" =========================================================
 
@@ -296,21 +247,9 @@ m35a <- rmtl_srvy22 %>%
   mutate(yn=ifelse(yn>0,1,0)) #%>% select(hh_id) %>% distinct()
 m35a %>% group_by(ans) %>% summarise(n(),pct=mean(yn))
 
-# SAMPLE 2024 IN 2023  ........................................................
-
-m35a %>% 
-  left_join(rmtl_2024 %>% select(hh_id,tap_cut_by_) ) %>% 
-  filter(!is.na(tap_cut_by_)) %>%
-  group_by(ans) %>% summarise(N=n(),pct=mean(yn))
-
 #  [29] "trend_cut_why"  ====================================================
 # SAMPLE 2024
 freq(rmtl_2024$trend_cut_why, cumul = FALSE)
-
-
-
-
-
 
 
 #  [28] when the "first_to_cut"  -=============================================
@@ -351,11 +290,6 @@ mw5_mw6 <-
   mutate(years_use_2022=ifelse(year_of_use>=3,"3-6",year_of_use))
 
 mw5_mw6 %>% count(years_use_2022) %>% mutate(N=sum(n),pct=n/N)
-
-
-
-
-
 
 
 #  [8]"drip_last_yr"[16]"tap_damage_yr" ======================================
@@ -407,99 +341,6 @@ B <- m35b %>% count(damge_year) %>% mutate(N=sum(n), pct=n/N) %>%
   select(damge_year,pct) %>% 
   rename(pct_m35b=pct)
 
-# Merge data frames by year to make plotting easier
-data <- merge(A, B, by.x = "year", by.y = "damge_year")
-
-# Create the plot
-ggplot(data, aes(x = year)) +
-  geom_bar(aes(y = pct_m35b), stat = "identity", fill = "lightblue", 
-           width = 0.6, alpha = 0.7, 
-           position = "dodge", show.legend = TRUE) +
-  geom_line(aes(y = pct_mw4b, color = "mw4b"), size = 1.2) +
-  geom_point(aes(y = pct_mw4b, color = "mw4b")) +
-  labs(x = "Year", y = "Percentage", 
-       title = "Comparison of Percentages for m35b and mw4b over Years") +
-  scale_color_manual(name = "", values = c("mw4b" = "orange2")) +
-  theme_classic() 
-
-
-
-# SAMPLE 2024 IN 2023  ........................................................
-
-inner_join(mw4b,q8) %>% count(mw4b) %>% mutate(N=sum(n),pct=n/N)
-
-# PLOT 
-s2024 <- 
-  q8 %>% count(drip_last_yr_2024 )%>% mutate(N=sum(n), pct2024=n/N) %>% 
-  select(drip_last_yr_2024,pct2024) %>% 
-  rename(year=drip_last_yr_2024) %>% 
-  mutate(year=as.numeric(year))
-
-s2023 <- 
-  mw4b %>% count(mw4b) %>% mutate(N=sum(n), pct2023=n/N) %>% 
-  select(mw4b,pct2023) %>% 
-  rename(year=mw4b)
-
-s_23_24 <- 
-  inner_join(mw4b,q8) %>% count(mw4b) %>% mutate(N=sum(n),pct=n/N) %>% 
-  select(mw4b,pct) %>% rename(year=mw4b,pct_23_24=pct) %>% 
-  mutate(year=as.numeric(year))
-
-
-df <- 
-  left_join(s2023,s2024) %>% 
-  left_join(s_23_24) %>% 
-  left_join(dmg_yr)
-df[is.na(df)] <- 0
-
-
-df_long <- df %>%
-  pivot_longer(cols = c(pct2023, pct2024, pct_23_24), 
-               names_to = "variable", 
-               values_to = "value")
-  
-  # Plot
-ggplot(df, aes(x = year)) +
-  geom_area(aes(y = pct_dmg ), fill = "lightblue", alpha = 0.6) +
-  geom_line(data = df_long, aes(x = year, y = value, color = variable), 
-            size = 1.2) +
-    labs(title = "Last year of DI use",
-         subtitle = "The gray area indicates the year the system was damaged",
-         x = "", y = "% of Households") +
-    scale_color_manual(values = c("lightblue4", "lightblue3", "purple4")) +
-    theme_minimal()
-  
-
-
-  
-#  [5] "drip_1st_yr"  ==========================================================
-# SAMPLE 2024
-freq(rmtl_2024$drip_1st_yr, cumul = FALSE)
-q5 <- rmtl_2024 %>% 
-  select(hh_id,drip_1st_yr) %>% 
-  filter(drip_1st_yr>2012, drip_1st_yr!=2023) %>% 
-  mutate(drip_1st_yr= ifelse(drip_1st_yr==2016,2017,drip_1st_yr)) %>% 
-  count(drip_1st_yr )%>% mutate(N=sum(n), pct_24=n/sum(n))
-
-# SURVEY 2023 ................................................................
-#[mw1 a] If Yes, in which year did you first make use of the water?
-
-mw1a <- rmtl_srvy22 %>%
-  select(farmers_hh ,hh_id,mw1a) %>% 
-  filter(farmers_hh=="inside_ramthal", !is.na(mw1a)) %>% 
-  rename(drip_1st_yr=mw1a) %>% 
-  count(drip_1st_yr) %>% mutate(N=sum(n), pct_23=n/sum(n))
-
-# SAMPLE 2024 IN 2023  ........................................................
-
-inner_join(q5,mw1a,join_by(drip_1st_yr)) %>% 
-  count(drip_1st_yr_23) %>% mutate(N=sum(n), pct_23=n/sum(n))
-
-
-
-
-
-
 
 # [3] "drip_trust"   =========================================================
                                          
@@ -509,20 +350,17 @@ freq(rmtl_2024$drip_trust, cumul = FALSE)
 
 # [6] "drip_freq" =============================================================                             
 # How many times in  season
-
 freq(rmtl_2024$drip_freq, cumul = FALSE)
 
 # Categorize drip_freq
-Cat_drip_freq <- rmtl_2024 %>% select(hh_id,drip_freq) %>% 
+rmtl_2024 %>% select(hh_id,drip_freq) %>% 
   mutate(
     drip_freq_cat = case_when(
       drip_freq == 0 ~ "0",
       drip_freq == 1 ~ "1",
       drip_freq >= 2 & drip_freq <= 6 ~ "2-6",
       drip_freq >= 8 ~ "10-20",
-      TRUE ~ NA_character_ ))
-
-Cat_drip_freq %>% 
+      TRUE ~ NA_character_ )) %>% 
   filter(!is.na(drip_freq_cat)) %>% 
   count(drip_freq_cat) %>% mutate(N=sum(n), pct=n/sum(n))
 
@@ -536,27 +374,15 @@ Cat_drip_freq %>%
 # 
 # freq(rmtl_2024$farmers_B4_u, cumul = FALSE)
 # 
-# far_outlet <- 
-#   rmtl_2024 %>% 
-#   select(hh_id,farmers_B4_u) %>% 
-#   filter(!is.na(farmers_B4_u)) %>% 
-#   mutate(
-#     farmers_B4_u = ifelse(farmers_B4_u=="dont_know",1000,farmers_B4_u),
-#     farmers_B4_u=as.numeric(farmers_B4_u) )
-# 
-# far_outlet_II <- far_outlet %>% 
-#   count(farmers_B4_u) %>% mutate(N=sum(n), pct=n/N) %>% 
-#   arrange(farmers_B4_u) %>% 
-#   select(farmers_B4_u, n, pct)
-
-# # library(kableExtra)
-# as.data.frame(t(far_outlet_II)) %>% 
-#   mutate(V18=ifelse(V18==1000,"DontKnow",V18)) %>% 
-#   kable() %>% kable_minimal()
-
-
-# Categorize farmers_B4_u
-far_outlet_II %>%
+rmtl_2024 %>%
+  select(hh_id,farmers_B4_u) %>%
+  filter(!is.na(farmers_B4_u)) %>%
+  mutate(
+    farmers_B4_u = ifelse(farmers_B4_u=="dont_know",1000,farmers_B4_u),
+    farmers_B4_u=as.numeric(farmers_B4_u) ) %>%
+  count(farmers_B4_u) %>% mutate(N=sum(n), pct=n/N) %>%
+  arrange(farmers_B4_u) %>%
+  select(farmers_B4_u, n, pct) %>%
   mutate(
     farmers_B4_u_cat = case_when(
       farmers_B4_u == 1000 ~ "Dont Know",
@@ -568,35 +394,8 @@ far_outlet_II %>%
   reframe(n=sum(n)) %>% 
   mutate(N=sum(n), pct=n/N)
 
-
-
 #pct flooding farmers on position on waterline |||||||||
 freq(rmtl_2024$irri_jain_flood, cumul = FALSE)
-
-far_outlet_flood <- 
-  rmtl_2024 %>% 
-  select(hh_id,farmers_B4_u,irri_jain_flood) %>% 
-  filter(!is.na(farmers_B4_u)) %>% 
-  mutate(
-    irri_jain_flood= ifelse(is.na(irri_jain_flood),0,irri_jain_flood),
-    farmers_B4_u = ifelse(farmers_B4_u=="dont_know",1000,farmers_B4_u),
-    farmers_B4_u=as.numeric(farmers_B4_u) 
-  ) %>% 
-  mutate(
-    farmers_B4_u_cat = case_when(
-      farmers_B4_u == 1000 ~ "Dont Know",
-      farmers_B4_u >= 1 & farmers_B4_u <= 3 ~ "Close to water outlet [Position 1-3]",
-      farmers_B4_u >= 4 ~ "Far from water outlet [Position 4 onwards]",
-      TRUE ~ NA))
-
-far_outlet_flood %>% 
-  count(farmers_B4_u_cat, irri_jain_flood) %>%
-  group_by(farmers_B4_u_cat) %>% 
-  mutate(N=sum(n), pct=n/N) %>%  ungroup() %>% 
-  filter(irri_jain_flood == 1) %>% 
-  select(farmers_B4_u_cat, n,pct ) %>% arrange(desc(pct))
-
-
 
 # SURVEY 2023 ................................................................
 
@@ -620,10 +419,10 @@ distance_from_filter <-
          !is.na(mm9)) %>% 
   select(hh_id,mm9) %>% 
   mutate(location_on_pipe= mm9+1) %>% 
-  inner_join(rmtl_InOut
+  inner_join(irrigation_BL_to_22_OLD
              ) %>% 
-  select(hh_id,location_on_pipe,drip_use,ir_use) %>%
-  mutate(location_on_pipe = ifelse(location_on_pipe== -998,1000,location_on_pipe)) %>% 
+  select(hh_id,location_on_pipe,drip_use_6y,ir_use_6y) %>%
+  mutate(location_on_pipe = ifelse(location_on_pipe== -998,NA,location_on_pipe)) %>% 
   count(location_on_pipe) %>% mutate(N=sum(n), pct=n/N) %>% 
   select(location_on_pipe, pct,n)
 
@@ -631,13 +430,6 @@ distance_from_filter <-
 as.data.frame(t(distance_from_filter)) %>% 
   mutate( V29=ifelse( V29==1000,"DontKnow", V29)) %>% 
   kable() %>% kable_minimal()
-
-
-rmtl_srvy22  %>% 
-  filter(farmers_hh=="inside_ramthal",
-         !is.na(mm9)) %>% 
-  select(hh_id,mm9) %>% 
-  mutate(location_on_pipe= mm9+1) %>% 
   
   
   

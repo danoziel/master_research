@@ -1,5 +1,6 @@
-#| THIS R SCRIPT [df16.R] is data-frames/sets/bases of "2016 baseline survey"
 #| 🟡BASELINE 2016  | rmtl_baseline2016 #= baseline_RMTL
+
+#| THIS R SCRIPT [df16.R] is data-frames/sets/bases of "2016 baseline survey"
 
 
 CMF_RAMTHAL_IRRIGATION_18_Aug_2016_cleaned <- read_dta("~/master_research/DATAs/ramthal_data/baseline_survey_2016/CMF_RAMTHAL_IRRIGATION_18 Aug 2016 - cleaned.dta")
@@ -117,7 +118,7 @@ ed$edu_level[ed$edu_level<0] <- NA
 
 # add col "hh_head"
 #   HH with more then one head- the older = will be the HH head
-#   HH no head- the low member + the older = will be the HH head
+#   HH no head- the low id member + the older = will be the HH head
 edu <- 
   ed %>%
   group_by(hh_id) %>%
@@ -684,7 +685,7 @@ D24_os <- rmtl_baseline2016 %>%
   select(where(~ !(is.numeric(.) )))
 
 # Adding "Other" to the appropriate column
-D24_os1 <- rmtl_baseline2016 %>% 
+D24_os1 <- D24_os3 %>% 
   select(hh_id,starts_with( "D24_"),
          -ends_with( c("11","12","13","14","15","16","17","_0" ))) %>%  
   mutate(
